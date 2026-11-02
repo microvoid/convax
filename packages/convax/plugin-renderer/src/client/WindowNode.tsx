@@ -1,11 +1,12 @@
 /** Read-only window card shares resource-card layout and window-retained capture ownership. */
-import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { AppWindow, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasWindowBindingId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { CanvasNodeRendererProps } from './props.ts'
 import type { WindowMirrorProps } from './window-contract.ts'
 import { CardToolbar } from './CardToolbar.tsx'
+import { CardResizeHandle } from './CardResizeHandle.tsx'
 import { NodePorts } from './node-renderers.tsx'
 import { RESOURCE_CARD_WIDTH } from './placement.ts'
 import { resizeResource, type ResourceSize } from './resource-size.ts'
@@ -31,15 +32,6 @@ export function WindowNode(props: CanvasNodeRendererProps) {
   })
 }
 
-interface ResizeGesture {
-  readonly pointerId: number
-  readonly element: HTMLButtonElement
-  readonly x: number
-  readonly y: number
-  readonly scale: number
-  readonly size: ResourceSize
-}
-
 /**
  * Display a read-only source view with an explicit reconnect state.
  * @param props - Detached mirror status, native view callbacks, and graph actions.
@@ -55,7 +47,6 @@ export function WindowMirror(props: WindowMirrorProps) {
   const contentsId = useId()
   const card = useRef<HTMLElement>(null)
   const body = useRef<HTMLDivElement>(null)
-  const gesture = useRef<ResizeGesture | null>(null)
   const [preview, setPreview] = useState<ResourceSize | null>(null)
   const width = props.resourcePreviewWidth ?? Math.max(RESOURCE_CARD_WIDTH, 480)
   const size = { width, height: props.resourcePreviewHeight ?? 270 }
@@ -72,23 +63,6 @@ export function WindowMirror(props: WindowMirrorProps) {
     document.addEventListener('visibilitychange', check)
     return () => { window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check) }
   }, [live, props.validateWindow, node.id, bindingId])
-  const cancelResize = (): void => {
-    const active = gesture.current
-    gesture.current = null
-    setPreview(null)
-    if (active?.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
-  }
-  useEffect(() => () => {
-    const active = gesture.current
-    gesture.current = null
-    if (active?.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
-  }, [])
-  const end = (event: ReactPointerEvent<HTMLButtonElement>, commit: boolean): void => {
-    const active = gesture.current
-    if (active?.pointerId !== event.pointerId) return
-    cancelResize()
-    if (commit) props.setResourcePreviewSize(resizeResource(active.size, event.clientX - active.x, event.clientY - active.y, active.scale))
-  }
   return <article ref={card} className={`${css.node} ${css.resourceNode} ${windowCss.node}`}
     style={{ width: preview?.width ?? size.width }} data-selected={selected || undefined}
     data-convax-window={node.id} data-expanded={expanded || undefined}>
@@ -104,7 +78,7 @@ export function WindowMirror(props: WindowMirrorProps) {
       <div className={css.resourceHeading}>
         <Tooltip label={t(expanded ? 'files.collapse' : 'files.expand', { name })} portal>
           <Button size="sm" className={`${css.resourceToggle} nodrag nopan`} aria-expanded={expanded} aria-controls={contentsId}
-            aria-label={t(expanded ? 'files.collapse' : 'files.expand', { name })} onClick={() => { cancelResize(); props.setResourceExpanded(!expanded) }}>
+            aria-label={t(expanded ? 'files.collapse' : 'files.expand', { name })} onClick={() => { setPreview(null); props.setResourceExpanded(!expanded) }}>
             {expanded ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
           </Button>
         </Tooltip>
@@ -121,33 +95,9 @@ export function WindowMirror(props: WindowMirrorProps) {
         {props.chooseWindow !== undefined && <Button size="sm" disabled={busy}
           onClick={() => { props.chooseWindow?.(node.id) }}>{t('window.rebind')}</Button>}
       </div>}
-      <Tooltip label={t('files.preview.resizeHelp')} portal><button type="button" className={`${css.previewResize} nodrag nopan nowheel`}
-        aria-label={t('files.preview.resize')} data-convax-resource-resize="" data-resizing={preview !== null || undefined}
-        onPointerDown={(event) => {
-          const root = card.current
-          if (event.button !== 0 || root === null || body.current === null || root.offsetWidth === 0 || gesture.current !== null) return
-          event.preventDefault(); event.stopPropagation()
-          event.currentTarget.setPointerCapture(event.pointerId)
-          gesture.current = { pointerId: event.pointerId, element: event.currentTarget, x: event.clientX, y: event.clientY,
-            scale: root.getBoundingClientRect().width / root.offsetWidth,
-            size: { width: root.offsetWidth, height: body.current.offsetHeight } }
-        }}
-        onPointerMove={(event) => {
-          const active = gesture.current
-          if (active?.pointerId !== event.pointerId) return
-          event.preventDefault(); event.stopPropagation()
-          setPreview(resizeResource(active.size, event.clientX - active.x, event.clientY - active.y, active.scale))
-        }} onPointerUp={(event) => { end(event, true) }} onPointerCancel={(event) => { end(event, false) }}
-        onLostPointerCapture={(event) => { end(event, false) }} onBlur={cancelResize}
-        onKeyDown={(event) => {
-          const changes: Record<string, readonly [number, number]> = {
-            ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10],
-          }
-          const change = changes[event.key]
-          if (change === undefined) return
-          event.preventDefault(); event.stopPropagation()
-          props.setResourcePreviewSize(resizeResource(size, change[0], change[1], 1))
-        }} /></Tooltip>
     </div>}
+    <CardResizeHandle container={card} content={body} size={size} collapsed={!expanded} resize={resizeResource}
+      preview={setPreview} commit={props.setResourcePreviewSize}
+      label={t('files.preview.resize')} help={t('files.preview.resizeHelp')} />
   </article>
 }

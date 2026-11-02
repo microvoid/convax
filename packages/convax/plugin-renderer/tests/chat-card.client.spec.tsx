@@ -4,10 +4,11 @@ import { StrictMode, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CanvasChat, CanvasId, CanvasNodeId, CanvasThreadRequest, CanvasThreadResult } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { ChatCard } from '../src/client/ChatCard.tsx'
+import { ChatCard, ChatThread } from '../src/client/ChatCard.tsx'
 import { createChatViewStore } from '../src/client/store.ts'
-import type { CanvasChatThreadOwner, ChatProps } from '../src/client/props.ts'
+import type { CanvasChatThreadOwner, ChatProps, ChatThreadProps } from '../src/client/props.ts'
 import { en, type ConvaxKey } from '../src/client/locales.ts'
+import css from '../src/client/ChatCard.module.css'
 
 vi.mock('@xyflow/react', () => ({ NodeToolbar: ({ children, role, 'aria-label': label }: { children: ReactNode; role?: 'toolbar'; 'aria-label'?: string }) => <div role={role} aria-label={label}>{children}</div>, Handle: () => null, Position: { Left: 'left', Right: 'right', Top: 'top' }, useUpdateNodeInternals: () => () => {} }))
 afterEach(() => { cleanup(); localStorage.clear() })
@@ -46,6 +47,71 @@ function fixture(owner: CanvasChat = chat, store = createChatViewStore().create(
 }
 
 describe('Convax Chat thread controls', () => {
+  it('retains resize controls while the first thread is creating and after its creation fails', async () => {
+    const b = fixture()
+    const pending = Promise.withResolvers<CanvasThreadResult>()
+    b.createThread.mockReturnValue(pending.promise)
+    const view = render(<ChatCard {...b.props} />)
+    const grip = view.container.querySelector<HTMLButtonElement>('[data-convax-chat-resize]')!
+    const body = grip.closest<HTMLElement>(`.${css.chatPendingBody}`)!
+    Object.defineProperties(body, {
+      offsetWidth: { configurable: true, value: 620 }, offsetHeight: { configurable: true, value: 240 },
+      getBoundingClientRect: { configurable: true, value: () => new DOMRect(0, 0, 620, 240) },
+    })
+    fireEvent.keyDown(grip, { key: 'ArrowRight' })
+    expect(b.store.getSnapshot().sizes?.[chat.nodeId]).toEqual({ width: 630, height: 240 })
+    await act(async () => { pending.resolve({ ok: false, code: 'operation-pending', message: 'pending', workspace: b.workspace }) })
+    view.rerender(<ChatCard {...b.props} />)
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined()
+    expect(view.container.querySelector<HTMLButtonElement>('[data-convax-chat-resize]')!).toBe(grip)
+    Object.defineProperty(body, 'offsetWidth', { configurable: true, value: 630 })
+    fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    expect(b.store.getSnapshot().sizes?.[chat.nodeId]).toEqual({ width: 630, height: 250 })
+  })
+
+  it.each(['loading', 'failed'] as const)('keeps the %s thread placeholder resizable', (status) => {
+    const b = fixture()
+    const resize = { preview: vi.fn(), commit: vi.fn(), label: 'Resize chat', help: 'Drag to resize' }
+    const inputs = {
+      sessionId: first, active: true, collapsed: false, resize,
+      useResource: () => ({ status, value: undefined, failure: undefined }),
+      layoutChanged: vi.fn(), t: b.props.t,
+    } as ChatThreadProps
+    const view = render(<ChatThread {...inputs} />)
+    const grip = view.container.querySelector<HTMLButtonElement>('[data-convax-chat-resize]')!
+    const body = grip.closest<HTMLElement>(`.${css.chatPendingBody}`)!
+    Object.defineProperties(body, {
+      offsetWidth: { configurable: true, value: 620 }, offsetHeight: { configurable: true, value: 240 },
+      getBoundingClientRect: { configurable: true, value: () => new DOMRect(0, 0, 620, 240) },
+    })
+    fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    expect(resize.commit).toHaveBeenCalledExactlyOnceWith({ width: 620, height: 250 })
+    view.rerender(<ChatThread {...inputs} active={false} />)
+    expect(view.container.querySelector('[data-convax-chat-resize]')).toBeNull()
+  })
+
+  it('resizes a collapsed Chat width while retaining its saved expanded height', () => {
+    const owner: CanvasChat = { ...chat, threads: [{ sessionId: first, parentSessionId: null, inheritedEventCount: 0 }] }
+    const b = fixture(owner)
+    b.store.actions.setSize(chat.nodeId, { width: 620, height: 480 })
+    const view = render(<ChatCard {...b.props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse chat' }))
+    view.rerender(<ChatCard {...b.props} />)
+    const grip = view.container.querySelector<HTMLButtonElement>('[data-convax-chat-resize]')!
+    const header = view.container.querySelector<HTMLElement>('[data-convax-chat-header]')!
+    Object.defineProperties(header, {
+      offsetWidth: { configurable: true, value: 620 }, offsetHeight: { configurable: true, value: 40 },
+      getBoundingClientRect: { configurable: true, value: () => new DOMRect(0, 0, 620, 40) },
+    })
+    fireEvent.keyDown(grip, { key: 'ArrowRight' })
+    expect(b.store.getSnapshot().sizes?.[chat.nodeId]).toEqual({ width: 630, height: 480 })
+    fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    expect(b.store.getSnapshot().sizes?.[chat.nodeId]).toEqual({ width: 630, height: 480 })
+    fireEvent.click(screen.getByRole('button', { name: 'Expand chat' }))
+    view.rerender(<ChatCard {...b.props} />)
+    expect(view.container.querySelector<HTMLElement>('[data-convax-chat]')?.style.getPropertyValue('--dsh-convax-chat-view-height')).toBe('480px')
+  })
+
   it('keeps the initially selected Host thread when an unsaved tab selection is reordered', () => {
     const owner: CanvasChat = {
       ...chat, threads: [first, second].map(sessionId => ({ sessionId, parentSessionId: null, inheritedEventCount: 0 })),

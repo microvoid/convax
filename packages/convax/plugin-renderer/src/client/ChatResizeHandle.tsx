@@ -19,11 +19,15 @@ interface Gesture {
  * @param props - Native Conversation container, localized guidance and size actions.
  * @returns A keyboard-accessible grip outside the transcript's lower-right corner.
  */
-export function ChatResizeHandle({ container, actions, label, help }: {
+export function ChatResizeHandle({ container, actions, label, help, useContainer = false, collapsedHeight }: {
   readonly container: RefObject<HTMLDivElement | null>
   readonly actions: ChatResizeControls
   readonly label: string
   readonly help: string
+  /** Loading and failure placeholders resize their container instead of a transcript. */
+  readonly useContainer?: boolean
+  /** A collapsed header changes width while retaining its expanded body height. */
+  readonly collapsedHeight?: number
 }) {
   const [bottom, setBottom] = useState<number | null>(null)
   const [resizing, setResizing] = useState(false)
@@ -32,7 +36,7 @@ export function ChatResizeHandle({ container, actions, label, help }: {
   controls.current = actions
   useEffect(() => {
     const root = container.current
-    const scroll = root?.querySelector<HTMLElement>('[data-conversation-scroll]')
+    const scroll = useContainer ? root : root?.querySelector<HTMLElement>('[data-conversation-scroll]')
     if (root === null || scroll == null) return
     const place = (): void => {
       const rect = root.getBoundingClientRect()
@@ -42,10 +46,10 @@ export function ChatResizeHandle({ container, actions, label, help }: {
     }
     const observer = new ResizeObserver(place)
     observer.observe(root)
-    observer.observe(scroll)
+    if (scroll !== root) observer.observe(scroll)
     place()
     return () => { observer.disconnect() }
-  }, [container])
+  }, [container, useContainer])
   useEffect(() => () => {
     const active = gesture.current
     gesture.current = null
@@ -57,19 +61,29 @@ export function ChatResizeHandle({ container, actions, label, help }: {
 
   const read = (): { size: ChatSize; scale: number } | null => {
     const root = container.current
-    const scroll = root?.querySelector<HTMLElement>('[data-conversation-scroll]')
+    const scroll = useContainer ? root : root?.querySelector<HTMLElement>('[data-conversation-scroll]')
     if (root === null || scroll == null || root.offsetWidth === 0) return null
-    return { size: { width: root.offsetWidth, height: scroll.offsetHeight }, scale: root.getBoundingClientRect().width / root.offsetWidth }
+    const scale = root.getBoundingClientRect().width / root.offsetWidth
+    if (scale <= 0) return null
+    return { size: { width: root.offsetWidth, height: collapsedHeight ?? scroll.offsetHeight }, scale }
+  }
+  const resize = (active: Gesture, x: number, y: number): ChatSize =>
+    resizeChat(active.size, x - active.x, collapsedHeight === undefined ? y - active.y : 0, active.scale)
+  const cancel = (): void => {
+    const active = gesture.current
+    if (active === null) return
+    gesture.current = null
+    setResizing(false)
+    actions.preview(null)
+    if (active.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
   }
   const end = (event: ReactPointerEvent<HTMLButtonElement>, commit: boolean): void => {
     const active = gesture.current
     if (active === null || active.pointerId !== event.pointerId) return
-    gesture.current = null
-    setResizing(false)
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
-    actions.preview(null)
-    if (commit && (event.clientX !== active.x || event.clientY !== active.y)) {
-      actions.commit(resizeChat(active.size, event.clientX - active.x, event.clientY - active.y, active.scale))
+    cancel()
+    const next = resize(active, event.clientX, event.clientY)
+    if (commit && (next.width !== active.size.width || next.height !== active.size.height)) {
+      actions.commit(next)
     }
   }
   return <Tooltip label={help} portal>
@@ -91,17 +105,26 @@ export function ChatResizeHandle({ container, actions, label, help }: {
         if (active === null || active.pointerId !== event.pointerId) return
         event.preventDefault()
         event.stopPropagation()
-        actions.preview(resizeChat(active.size, event.clientX - active.x, event.clientY - active.y, active.scale))
+        actions.preview(resize(active, event.clientX, event.clientY))
       }}
       onPointerUp={(event) => { end(event, true) }}
       onPointerCancel={(event) => { end(event, false) }}
       onLostPointerCapture={(event) => { end(event, false) }}
+      onBlur={cancel}
       onKeyDown={(event) => {
+        if (event.key === 'Escape' && gesture.current !== null) {
+          cancel()
+          event.preventDefault()
+          event.stopPropagation()
+          return
+        }
+        if (gesture.current !== null || event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent.isComposing) return
         const directions: Record<string, readonly [number, number]> = {
           ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
         }
         const direction = directions[event.key]
         if (direction === undefined) return
+        if (collapsedHeight !== undefined && direction[0] === 0) return
         const current = read()
         if (current === null) return
         event.preventDefault()

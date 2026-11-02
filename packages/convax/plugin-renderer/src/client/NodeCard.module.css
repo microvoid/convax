@@ -1,4 +1,5 @@
 .node {
+  position: relative;
   box-sizing: border-box;
   padding: 12px;
   min-width: 0;
@@ -31,7 +32,7 @@
 .resourceHeading .resourceToggle { flex: none; width: 24px; height: 24px; padding: 0; }
 .directoryPreview,
 .resourcePreview { box-sizing: border-box; position: relative; overflow: visible; border-radius: 0 0 var(--dsw-radius-lg) var(--dsw-radius-lg); }
-.treeViewport { box-sizing: border-box; max-height: 320px; padding: 8px; border-radius: inherit; overflow: auto; scrollbar-gutter: stable; }
+.treeViewport { box-sizing: border-box; height: 100%; padding: 8px; border-radius: inherit; overflow: auto; scrollbar-gutter: stable; }
 .resourcePreview { display: flex; min-height: 160px; min-width: 0; padding: 8px; }
 .resourceNode[data-convax-audio] .resourcePreview { padding-block: 0; }
 .resourcePreviewContents { display: flex; flex: 1; min-width: 0; min-height: 0; height: 100%; overflow: hidden; border-radius: var(--dsw-radius-sm); }
@@ -53,7 +54,7 @@
 @media (hover: hover) {
   .treeRow:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
   .previewResize { opacity: 0; pointer-events: auto; transition: opacity var(--ds-transition-duration) var(--ds-ease-in-out) var(--ds-transition-duration-fast); }
-  .resourceNode:hover .previewResize,
+  .node:hover .previewResize,
   .previewResize:focus-visible,
   .previewResize:active,
   .previewResize[data-resizing] { opacity: 1; pointer-events: auto; transition: none; }

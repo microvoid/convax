@@ -2,17 +2,18 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { FileIcon } from './FileIcon.tsx'
 import { Service, type Context } from '@deepseek-ai/cordis'
-import { useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { Handle, Position, useUpdateNodeInternals } from '@xyflow/react'
 import { Button, fileSizeText, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SlotComponent } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPort } from '@deepseek-ai/dsh-convax-plugin-host/types'
-import type { CanvasNodeRendererProps, WorkspaceProps } from './props.ts'
+import type { CanvasNodeOwner, CanvasNodeRendererProps, WorkspaceProps } from './props.ts'
 import { NS } from './locales.ts'
 import { RESOURCE_CARD_WIDTH } from './placement.ts'
 import { ResourceDirectory } from './ResourceDirectory.tsx'
 import { ResourcePreview } from './ResourcePreview.tsx'
 import { CardToolbar } from './CardToolbar.tsx'
+import { CardResizeHandle } from './CardResizeHandle.tsx'
 import { resourceAddress } from './resources.ts'
 import { mediaKind } from './media-kind.ts'
 import { AUDIO_PREVIEW_HEIGHT, resizeResource, RESOURCE_MIN_PREVIEW_HEIGHT, RESOURCE_PREVIEW_HEIGHT, type ResourceSize } from './resource-size.ts'
@@ -49,7 +50,7 @@ declare module '@deepseek-ai/cordis' {
 export type NodePlaceholderReason = 'provider' | 'renderer' | 'rendererVersion' | 'migrating' | 'incompatible'
 
 /** Presentation-only state of a retained node. */
-export interface NodePlaceholderProps {
+export interface NodePlaceholderProps extends Pick<CanvasNodeOwner, 'resourcePreviewWidth' | 'resourcePreviewHeight' | 'setResourcePreviewSize'> {
   node: CanvasNode
   ports: readonly CanvasPort[]
   reason: NodePlaceholderReason
@@ -83,8 +84,14 @@ export function NodePorts({ nodeId, ports, connectable }: { nodeId: CanvasNodeId
  * @param props - Saved node identity and the reason its business display is unavailable.
  * @returns A localized placeholder with the node's original connection endpoints.
  */
-export function NodePlaceholder({ node, ports, reason, selected, remove, t, detail }: NodePlaceholderProps) {
-  return <article className={css.node} style={{ width: RESOURCE_CARD_WIDTH }}
+export function NodePlaceholder(props: NodePlaceholderProps) {
+  const { node, ports, reason, selected, remove, t, detail } = props
+  const card = useRef<HTMLElement>(null)
+  const [preview, setPreview] = useState<ResourceSize | null>(null)
+  const size = { width: props.resourcePreviewWidth ?? RESOURCE_CARD_WIDTH,
+    height: props.resourcePreviewHeight ?? RESOURCE_MIN_PREVIEW_HEIGHT }
+  return <article ref={card} className={css.node}
+    style={{ width: preview?.width ?? size.width, minHeight: preview?.height ?? size.height }}
     data-selected={selected || undefined} data-convax-placeholder={reason}>
     <CardToolbar nodeId={node.id} name={node.typeId} t={t}
       actions={[{ id: 'remove', label: t('files.reference'), onClick: remove }]} />
@@ -95,6 +102,9 @@ export function NodePlaceholder({ node, ports, reason, selected, remove, t, deta
     <p className={css.nodeStatus} role="status">{t(`node.${reason}`)}</p>
     {detail !== undefined && <p className={css.nodeStatus}>{detail}</p>}
     <div className={css.nodePath}>{t('node.version', { version: node.dataVersion })}</div>
+    <CardResizeHandle container={card} content={card} size={size} collapsed={false} resize={resizeResource}
+      preview={setPreview} commit={props.setResourcePreviewSize}
+      label={t('files.preview.resize')} help={t('files.preview.resizeHelp')} />
   </article>
 }
 
@@ -128,15 +138,6 @@ export class ConvaxRenderer extends Service implements IConvaxRenderer {
   }
 }
 
-interface PreviewResizeGesture {
-  readonly pointerId: number
-  readonly element: HTMLButtonElement
-  readonly x: number
-  readonly y: number
-  readonly scale: number
-  readonly size: ResourceSize
-}
-
 /**
  * Present a validated file or folder reference through the canvas resource actions.
  * @param props - Compatible reference payload and revision-bound graph actions.
@@ -146,7 +147,6 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
   const { node, selected, remove, t, ports, busy } = props
   const card = useRef<HTMLElement>(null)
   const body = useRef<HTMLDivElement>(null)
-  const gesture = useRef<PreviewResizeGesture | null>(null)
   const [preview, setPreview] = useState<ResourceSize | null>(null)
   const expanded = props.resourceExpanded
   const path = typeof node.data.path === 'string' ? node.data.path : ''
@@ -160,27 +160,6 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
     width,
     height: props.resourcePreviewHeight ?? (video ? width * 9 / 16 : audio ? AUDIO_PREVIEW_HEIGHT : RESOURCE_PREVIEW_HEIGHT),
   }
-  useEffect(() => () => {
-    const active = gesture.current
-    gesture.current = null
-    if (active?.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
-  }, [])
-  const cancelResize = (): void => {
-    const active = gesture.current
-    gesture.current = null
-    setPreview(null)
-    if (active?.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
-  }
-  const endResize = (event: ReactPointerEvent<HTMLButtonElement>, commit: boolean): void => {
-    const active = gesture.current
-    if (active === null || active.pointerId !== event.pointerId) return
-    cancelResize()
-    if (commit && (event.clientX !== active.x || event.clientY !== active.y)) {
-      props.setResourcePreviewSize(resizeResource(
-        active.size, event.clientX - active.x, event.clientY - active.y, active.scale, minimumHeight,
-      ))
-    }
-  }
   const contentsId = useId()
   const name = path.split(/[\\/]/).filter(Boolean).at(-1) ?? node.typeId
   const resource = props.useResource<'convax-resource'>(resourceAddress('convax-resource', path))
@@ -189,7 +168,7 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
   const size = resource.value?.kind === 'file' && resource.value.size !== null ? fileSizeText(resource.value.size) : null
   const metadata = size === null ? type : `${type} · ${size}`
   return <article ref={card} className={`${css.node} ${css.resourceNode}`}
-    style={{ width: expanded ? preview?.width ?? dimensions.width : dimensions.width }}
+    style={{ width: preview?.width ?? dimensions.width }}
     data-selected={selected || undefined} data-convax-resource={node.id}
     data-expanded={expanded || undefined} data-convax-file={!folder || undefined} data-convax-video={video || undefined}
     data-convax-audio={audio || undefined}>
@@ -206,7 +185,7 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
         <Tooltip label={t(expanded ? 'files.collapse' : 'files.expand', { name })} portal>
           <Button size="sm" className={`${css.resourceToggle} nodrag nopan`}
             aria-label={t(expanded ? 'files.collapse' : 'files.expand', { name })}
-            aria-expanded={expanded} aria-controls={contentsId} onClick={() => { cancelResize(); props.setResourceExpanded(!expanded) }}>
+            aria-expanded={expanded} aria-controls={contentsId} onClick={() => { setPreview(null); props.setResourceExpanded(!expanded) }}>
             {expanded ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
           </Button>
         </Tooltip>
@@ -222,7 +201,8 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
         </div>
       </div>
     </div>
-    {folder && expanded && <div id={contentsId} className={css.directoryPreview} data-convax-directory-preview="">
+    {folder && expanded && <div ref={body} id={contentsId} className={css.directoryPreview}
+      style={{ height: preview?.height ?? dimensions.height }} data-convax-directory-preview="">
       <div className={`${css.treeViewport} nodrag nopan`} data-convax-directory-tree="">
         <ResourceDirectory path={path} name={name} useResource={props.useResource} openResource={props.openResource} t={t} />
       </div>
@@ -233,55 +213,11 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
         <ResourcePreview path={path} gestureMode="container" useResource={props.useResource}
           renderFactorySlot={props.renderFactorySlot} t={t} />
       </div>
-      <Tooltip label={t('files.preview.resizeHelp')} portal>
-        <button type="button" className={`${css.previewResize} nodrag nopan`} aria-label={t('files.preview.resize')}
-          data-convax-resource-resize="" data-resizing={preview !== null || undefined}
-          onPointerDown={(event) => {
-            const root = card.current
-            const contents = body.current
-            if (event.button !== 0 || gesture.current !== null || root === null || contents === null || root.offsetWidth === 0) return
-            const bounds = root.getBoundingClientRect()
-            if (bounds.width === 0) return
-            event.preventDefault()
-            event.stopPropagation()
-            event.currentTarget.focus({ preventScroll: true })
-            event.currentTarget.setPointerCapture(event.pointerId)
-            gesture.current = {
-              pointerId: event.pointerId, element: event.currentTarget, x: event.clientX, y: event.clientY,
-              scale: bounds.width / root.offsetWidth, size: { width: root.offsetWidth, height: contents.offsetHeight },
-            }
-          }}
-          onPointerMove={(event) => {
-            const active = gesture.current
-            if (active === null || active.pointerId !== event.pointerId) return
-            event.preventDefault()
-            event.stopPropagation()
-            setPreview(resizeResource(active.size, event.clientX - active.x, event.clientY - active.y, active.scale, minimumHeight))
-          }}
-          onPointerUp={(event) => { endResize(event, true) }}
-          onPointerCancel={(event) => { endResize(event, false) }}
-          onLostPointerCapture={(event) => { endResize(event, false) }}
-          onBlur={cancelResize}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape' && gesture.current !== null) {
-              cancelResize()
-              event.preventDefault()
-              event.stopPropagation()
-              return
-            }
-            if (gesture.current !== null || event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent.isComposing) return
-            const directions: Record<string, readonly [number, number]> = {
-              ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
-            }
-            const direction = directions[event.key]
-            if (direction === undefined) return
-            event.preventDefault()
-            event.stopPropagation()
-            const step = 10
-            props.setResourcePreviewSize(resizeResource(dimensions, direction[0] * step, direction[1] * step, 1, minimumHeight))
-          }} />
-      </Tooltip>
     </div>}
+    <CardResizeHandle container={card} content={body} size={dimensions} collapsed={!expanded}
+      resize={(start, dx, dy, scale) => resizeResource(start, dx, dy, scale, minimumHeight)}
+      preview={setPreview} commit={props.setResourcePreviewSize}
+      label={t('files.preview.resize')} help={t('files.preview.resizeHelp')} />
   </article>
 }
 

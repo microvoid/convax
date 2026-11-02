@@ -86,6 +86,25 @@ it('mounts a read-only view, validates on pointer return, and releases only its 
   expect(view.container.querySelector('[data-convax-window-preview]')).toBeNull()
 })
 
+it('resizes a live mirror without remounting its capture and retains its expanded height while collapsed', () => {
+  const b = fixture(true, true)
+  const view = render(<WindowMirror {...b.props} resourcePreviewWidth={480} resourcePreviewHeight={270} />)
+  const viewport = view.container.querySelector('[data-convax-window-preview] > div')
+  const grip = screen.getByRole('button', { name: 'Resize preview' })
+  fireEvent.keyDown(grip, { key: 'ArrowRight' })
+  expect(b.props.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 490, height: 270 })
+  view.rerender(<WindowMirror {...b.props} resourcePreviewWidth={490} resourcePreviewHeight={270} />)
+  expect(view.container.querySelector('[data-convax-window-preview] > div')).toBe(viewport)
+  expect(b.props.mountWindow).toHaveBeenCalledOnce()
+  expect(b.release).not.toHaveBeenCalled()
+  view.rerender(<WindowMirror {...b.props} resourceExpanded={false} resourcePreviewWidth={490} resourcePreviewHeight={270} />)
+  expect(screen.getByRole('button', { name: 'Resize preview' })).toBe(grip)
+  fireEvent.keyDown(grip, { key: 'ArrowRight' })
+  expect(b.props.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 500, height: 270 })
+  fireEvent.keyDown(grip, { key: 'ArrowDown' })
+  expect(b.props.setResourcePreviewSize).toHaveBeenCalledTimes(2)
+})
+
 it('assembles the real window Factory without passing framework hooks as duplicate owner props', async () => {
   const runtime = await SlotTestRuntime.create()
   onTestFinished(() => runtime.dispose())

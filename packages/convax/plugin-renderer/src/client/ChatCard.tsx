@@ -6,7 +6,7 @@ import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { CanvasOperationId, CanvasThreadRequest, CanvasThreadResult } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
-import type { ChatHeaderProps, ChatProps, ChatSessionProps, ChatThreadProps, ChatToolsProps, ChatViewsProps } from './props.ts'
+import type { ChatHeaderProps, ChatProps, ChatResizeControls, ChatSessionProps, ChatThreadProps, ChatToolsProps, ChatViewsProps } from './props.ts'
 import { resourceAddress } from './resources.ts'
 import css from './ChatCard.module.css'
 import { CHAT_CARD_WIDTH } from './placement.ts'
@@ -84,9 +84,11 @@ export function ChatThread(props: ChatThreadProps) {
   const tools = useRef<HTMLDivElement>(null)
   useToolsCardHeight(body, tools, props.active && !props.collapsed, resource.value !== undefined, props.layoutChanged)
   return <div className={css.chatOccurrence} hidden={!props.active || props.collapsed} data-convax-thread={props.sessionId}>
-    {resource.value === undefined ? <div className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`}>
+    {resource.value === undefined ? <div ref={body} className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`}>
       {resource.status === 'loading' && <div className={css.center}><span className={css.spinner} /></div>}
       {resource.status === 'failed' && <p className={css.notice} role="alert">{props.t('chat.loadFailed')}</p>}
+      {props.active && !props.collapsed && props.resize !== undefined && <ChatResizeHandle container={body}
+        actions={props.resize} label={props.resize.label} help={props.resize.help} useContainer />}
     </div> : <props.SessionProvider session={resource.value.reference}>
       <div ref={body} className={`${css.chatBody} nodrag nopan`}>
         {props.renderSlot('convax.chat.session', {
@@ -124,6 +126,9 @@ export function ChatCard(props: ChatProps) {
   const toolWidths = useStore(state => state.toolWidths?.[chat.nodeId])
   const [sizePreview, setSizePreview] = useState<{ sessionId: SessionId | undefined; size: ChatSize } | null>(null)
   const size = sizePreview !== null && sizePreview.sessionId === selected ? sizePreview.size : savedSize
+  const header = useRef<HTMLDivElement>(null)
+  const pendingBody = useRef<HTMLDivElement>(null)
+  const expandedHeight = useRef(240)
   const headerResource = useResource<'convax-thread'>(resourceAddress('convax-thread', selected ?? ''))
   const mounted = new Set([first, selected, ...visited ?? []])
   useEffect(() => props.bindInput(chat.nodeId, selected), [props.bindInput, chat.nodeId, selected])
@@ -192,6 +197,11 @@ export function ChatCard(props: ChatProps) {
     })
   }
   const blocked = busy || chat.deleting || attempt !== undefined
+  const resize: ChatResizeControls = {
+    preview: (next) => { setSizePreview(next === null ? null : { sessionId: selected, size: next }) },
+    commit: (next) => { actions.setSize(chat.nodeId, next) },
+    label: t('chat.resize'), help: t('chat.resizeHelp'),
+  }
   return <article className={css.chatNode} data-convax-chat={chat.nodeId} data-collapsed={collapsed || undefined}
     data-resized={size !== undefined || undefined}
     style={{ '--dsh-convax-chat-width': `${size?.width ?? CHAT_CARD_WIDTH}px`,
@@ -203,11 +213,18 @@ export function ChatCard(props: ChatProps) {
       { id: 'remove', label: t('chat.delete'), disabled: busy || chat.deleting, onClick: props.remove },
     ]} />
     <Handle id="input" type="target" position={Position.Left} className={css.handle} />
-    <div className={css.chatFrameHeader} data-convax-chat-header="">
+    <div ref={header} className={css.chatFrameHeader} data-convax-chat-header="">
       <header className={css.threadBar} data-convax-chat-drag="">
         <Tooltip label={t(collapsed ? 'chat.expand' : 'chat.collapse')} portal>
           <Button size="sm" className="nodrag nopan" aria-label={t(collapsed ? 'chat.expand' : 'chat.collapse')}
-            aria-expanded={!collapsed} onClick={() => { setMenu(null); actions.setCollapsed(chat.nodeId, !collapsed) }}>
+            aria-expanded={!collapsed} onClick={() => {
+              if (!collapsed) {
+                const scroll = header.current?.parentElement?.querySelector<HTMLElement>('[data-convax-thread]:not([hidden]) [data-conversation-scroll]')
+                expandedHeight.current = size?.height ?? (scroll?.offsetHeight || pendingBody.current?.offsetHeight || 240)
+              }
+              setMenu(null)
+              actions.setCollapsed(chat.nodeId, !collapsed)
+            }}>
             {collapsed ? <ChevronRight size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
           </Button>
         </Tooltip>
@@ -252,18 +269,17 @@ export function ChatCard(props: ChatProps) {
           <Button size="sm" disabled={chat.deleting} onClick={() => { void submit(attempt) }}>{t('workspace.retry')}</Button>
         </div>}
       </div>
+      {collapsed && <ChatResizeHandle container={header} actions={resize} label={resize.label} help={resize.help}
+        useContainer collapsedHeight={size?.height ?? expandedHeight.current} />}
     </div>
-    {selected === undefined && <div className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`} hidden={collapsed}>
+    {selected === undefined && <div ref={pendingBody} className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`} hidden={collapsed}>
       {(busy || attempt === undefined) && <div className={css.center}><span className={css.spinner} /></div>}
+      {!collapsed && <ChatResizeHandle container={pendingBody} actions={resize} label={resize.label} help={resize.help} useContainer />}
     </div>}
     {threads.filter(thread => mounted.has(thread.sessionId)).map(thread => <Fragment key={thread.sessionId}>{props.renderFactorySlot('convax.chat.thread', {
       sessionId: thread.sessionId, active: thread.sessionId === selected, collapsed,
       layoutChanged: () => { updateNodeInternals(chat.nodeId) },
-      resize: {
-        preview: (next) => { setSizePreview(next === null ? null : { sessionId: selected, size: next }) },
-        commit: (next) => { actions.setSize(chat.nodeId, next) },
-        label: t('chat.resize'), help: t('chat.resizeHelp'),
-      },
+      resize,
       tools: {
         width: toolWidths?.normal ?? 480,
         fullscreenWidth: toolWidths?.fullscreen ?? 960,

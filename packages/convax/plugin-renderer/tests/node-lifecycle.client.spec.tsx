@@ -83,6 +83,7 @@ async function fixture(nodeTypes: CanvasNodeTypeInfo[] = []) {
   })
   const command = vi.fn(async () => true)
   const openResource = vi.fn()
+  const setResourcePreviewSize = vi.fn()
   await runtime.mount({
     inject: ['slots'],
     apply(ctx) {
@@ -101,7 +102,7 @@ async function fixture(nodeTypes: CanvasNodeTypeInfo[] = []) {
           busy={false} viewport={undefined} setViewport={() => {}} inputMode="mouse" setInputMode={() => {}} command={command}
           history={{ canUndo: false, canRedo: false, pending: false }} replayHistory={() => {}}
           chatPresentations={{}} applyChatPresentation={() => {}} applyResourceView={() => {}}
-          resourceViews={{}} setResourceExpanded={() => {}} setResourcePreviewSize={() => {}}
+          resourceViews={{}} setResourceExpanded={() => {}} setResourcePreviewSize={setResourcePreviewSize}
           openResource={openResource} openSource={() => {}} resolveFilePath={() => ''} addResources={() => {}} addProject={() => {}} />
       }))
     },
@@ -118,7 +119,7 @@ async function fixture(nodeTypes: CanvasNodeTypeInfo[] = []) {
     return { handle, render }
   }
   await runtime.declare({ 'shell.workspace': { kind: 'single', scope: 'root' } })
-  return { runtime, source, command, openResource, mountDisplay }
+  return { runtime, source, command, openResource, setResourcePreviewSize, mountDisplay }
 }
 
 describe('Convax node display lifecycle', () => {
@@ -132,6 +133,8 @@ describe('Convax node display lifecycle', () => {
     expect(note.getAttribute('data-position')).toBe(JSON.stringify(document.nodes[0]!.position))
     expect(note.querySelector('[data-port-id="legacy-notes"]')?.getAttribute('data-connectable')).toBe('false')
     expect(view.view.getByTestId('edge-retained-edge').textContent).toContain('legacy-notes')
+    fireEvent.keyDown(within(note).getByRole('button', { name: 'Resize preview' }), { key: 'ArrowRight' })
+    expect(b.setResourcePreviewSize).toHaveBeenCalledExactlyOnceWith(noteId, { width: 330, height: 160 })
     fireEvent.click(view.view.getByRole('button', { name: `Move ${noteId}` }))
     expect(b.command).toHaveBeenCalledWith({ kind: 'move-nodes', nodes: [{ id: noteId, position: { x: 350, y: 220 } }] })
     fireEvent.click(within(note).getByRole('button', { name: 'Remove reference' }))

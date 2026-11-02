@@ -7,7 +7,7 @@ import type { ChatResizeControls } from '../src/client/props.ts'
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-function fixture() {
+function fixture(options: { useContainer?: boolean; collapsedHeight?: number } = {}) {
   const observers: FixtureResizeObserver[] = []
   class FixtureResizeObserver implements ResizeObserver {
     readonly targets = new Set<Element>()
@@ -25,14 +25,15 @@ function fixture() {
     commit: vi.fn<ChatResizeControls['commit']>(),
   }
   const view = render(<div ref={container}>
-    <div data-conversation-scroll="" />
-    <ChatResizeHandle container={container} actions={actions} label={actions.label} help={actions.help} />
+    {!options.useContainer && <div data-conversation-scroll="" />}
+    <ChatResizeHandle container={container} actions={actions} label={actions.label} help={actions.help} {...options} />
   </div>)
   const root = container.current
-  const scroll = root?.querySelector<HTMLElement>('[data-conversation-scroll]')
+  const scroll = options.useContainer ? root : root?.querySelector<HTMLElement>('[data-conversation-scroll]')
   if (root === null || scroll == null) throw new Error('Expected the mounted Conversation container and scrollport')
   Object.defineProperties(root, {
     offsetWidth: { configurable: true, value: 620 },
+    offsetHeight: { configurable: true, value: 360 },
     getBoundingClientRect: { configurable: true, value: () => new DOMRect(100, 200, 310, 400) },
   })
   Object.defineProperties(scroll, {
@@ -67,6 +68,7 @@ describe('Convax Chat resize gestures', () => {
   it('previews at half zoom and commits the pointer-up dimensions once', () => {
     const b = fixture()
     pointer(b.grip, 'pointerdown', 410, 420)
+    expect(document.activeElement).toBe(b.grip)
     expect(b.grip.hasAttribute('data-resizing')).toBe(true)
     expect(b.pointerCapture.setPointerCapture).toHaveBeenCalledWith(7)
     pointer(b.grip, 'pointermove', 450, 440)
@@ -116,6 +118,57 @@ describe('Convax Chat resize gestures', () => {
     expect(b.grip.hasAttribute('data-resizing')).toBe(false)
     expect(b.actions.preview).toHaveBeenLastCalledWith(null)
     pointer(b.grip, 'pointerup', 120, 130)
+    expect(b.actions.commit).not.toHaveBeenCalled()
+  })
+
+  it('resizes an initial, loading or failed placeholder without a transcript', () => {
+    const b = fixture({ useContainer: true })
+    expect(b.root.querySelector('[data-conversation-scroll]')).toBeNull()
+    expect(b.grip.hidden).toBe(false)
+    expect(b.grip.style.bottom).toBe('0px')
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointermove', 130, 140)
+    expect(b.actions.preview).toHaveBeenLastCalledWith({ width: 680, height: 440 })
+    pointer(b.grip, 'pointerup', 130, 140)
+    expect(b.actions.commit).toHaveBeenCalledExactlyOnceWith({ width: 680, height: 440 })
+  })
+
+  it('changes only the collapsed width and preserves the expanded height', () => {
+    const b = fixture({ useContainer: true, collapsedHeight: 480 })
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointermove', 130, 160)
+    expect(b.actions.preview).toHaveBeenLastCalledWith({ width: 680, height: 480 })
+    pointer(b.grip, 'pointerup', 130, 160)
+    expect(b.actions.commit).toHaveBeenCalledExactlyOnceWith({ width: 680, height: 480 })
+    fireEvent.keyDown(b.grip, { key: 'ArrowDown' })
+    fireEvent.keyDown(b.grip, { key: 'ArrowUp' })
+    expect(b.actions.commit).toHaveBeenCalledOnce()
+    fireEvent.keyDown(b.grip, { key: 'ArrowRight' })
+    expect(b.actions.commit).toHaveBeenLastCalledWith({ width: 630, height: 480 })
+  })
+
+  it.each(['Escape', 'blur'])('cancels on %s and ignores the subsequent pointer release', (event) => {
+    const b = fixture()
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointermove', 130, 160)
+    if (event === 'Escape') fireEvent.keyDown(b.grip, { key: event })
+    else fireEvent.blur(b.grip)
+    expect(b.grip.hasAttribute('data-resizing')).toBe(false)
+    expect(b.actions.preview).toHaveBeenLastCalledWith(null)
+    pointer(b.grip, 'pointerup', 130, 160)
+    expect(b.actions.commit).not.toHaveBeenCalled()
+  })
+
+  it('ignores modified arrow keys, composition and unmeasured containers', () => {
+    const b = fixture()
+    for (const modifier of ['altKey', 'ctrlKey', 'metaKey', 'isComposing']) {
+      fireEvent.keyDown(b.grip, { key: 'ArrowRight', [modifier]: true })
+    }
+    expect(b.actions.commit).not.toHaveBeenCalled()
+    Object.defineProperty(b.root, 'getBoundingClientRect', { configurable: true, value: () => new DOMRect() })
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointerup', 130, 160)
+    expect(b.pointerCapture.setPointerCapture).not.toHaveBeenCalled()
     expect(b.actions.commit).not.toHaveBeenCalled()
   })
 

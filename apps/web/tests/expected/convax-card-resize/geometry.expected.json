@@ -1,0 +1,27 @@
+{
+  "zoom": 0.75,
+  "cards": [
+    {
+      "kind": "file",
+      "width": 440,
+      "height": 300
+    },
+    {
+      "kind": "folder",
+      "width": 440,
+      "height": 300
+    },
+    {
+      "kind": "window",
+      "width": 600,
+      "height": 330
+    },
+    {
+      "kind": "chat",
+      "width": 740,
+      "height": 300
+    }
+  ],
+  "connections": 2,
+  "draft": "Keep this draft while resizing."
+}

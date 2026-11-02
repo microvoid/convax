@@ -264,6 +264,29 @@ describe('Convax resource card actions', () => {
     expect(screen.getByRole('button', { name: 'Expand preview' })).toBeDefined()
   })
 
+  it.each([
+    { folder: true, path: '/project/project-b' },
+    ...['README.md', 'image.png', 'clip.mp4', 'tone.wav', 'unsupported.bin'].map(name => ({ folder: false, path: `/project/${name}` })),
+  ])('resizes $path while expanded and retains its preview height when resized collapsed', ({ folder, path }) => {
+    const b = fixture(folder, path)
+    const view = render(<ControlledResourceNode {...b.props} resourceExpanded resourcePreviewWidth={360} resourcePreviewHeight={280} />)
+    const name = path.split('/').at(-1)!
+    const body = (): HTMLElement => view.container.querySelector<HTMLElement>(folder ? '[data-convax-directory-preview]' : '[data-convax-file-preview]')!
+    const grip = screen.getByRole('button', { name: 'Resize preview' })
+    expect(body().style.height).toBe('280px')
+    fireEvent.keyDown(grip, { key: 'ArrowRight' })
+    fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    expect(b.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 370, height: 290 })
+    fireEvent.click(screen.getByRole('button', { name: `Collapse ${name}` }))
+    expect(view.container.querySelector('[data-convax-resource-resize]')).toBe(grip)
+    fireEvent.keyDown(grip, { key: 'ArrowRight' })
+    expect(b.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 380, height: 290 })
+    fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    expect(b.setResourcePreviewSize).toHaveBeenCalledTimes(3)
+    fireEvent.click(screen.getByRole('button', { name: `Expand ${name}` }))
+    expect(body().style.height).toBe('290px')
+  })
+
   it('resizes both preview dimensions in fixed steps with or without Shift and retains the mounted preview', () => {
     const b = fixture(false)
     const view = render(<ControlledResourceNode {...b.props} resourceExpanded />)

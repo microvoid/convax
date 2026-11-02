@@ -9,6 +9,7 @@
   },
   "include": [
     "apps/web/tests/convax-activity.e2e.ts",
+    "apps/web/tests/convax-card-resize.e2e.ts",
     "apps/web/tests/convax-canvas-directories.e2e.ts",
     "apps/web/tests/convax-window-history.spec.ts",
     "apps/web/tests/convax-window-history.ts",

@@ -45,7 +45,11 @@ type GraphNode = Node<CardData, 'convaxNode'>
 
 function NodeCard({ data, selected }: NodeProps<GraphNode>) {
   const { definition, issue, node, renderSlot, t } = data
-  const retained = { node, ports: data.ports, remove: data.remove, selected, t }
+  const retained = { node, ports: data.ports, remove: data.remove, selected, t,
+    setResourcePreviewSize: data.setResourcePreviewSize,
+    ...(data.resourcePreviewWidth === undefined ? {} : { resourcePreviewWidth: data.resourcePreviewWidth }),
+    ...(data.resourcePreviewHeight === undefined ? {} : { resourcePreviewHeight: data.resourcePreviewHeight }),
+  }
   if (definition === undefined) return <NodePlaceholder {...retained} reason="provider" />
   if (issue !== undefined) return <NodePlaceholder {...retained} reason={issue.kind} detail={issue.message} />
   if (definition.dataVersion !== node.dataVersion) return <NodePlaceholder {...retained} reason="incompatible" />

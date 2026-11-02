@@ -1,6 +1,6 @@
 .chatNode { display: grid; grid-template-columns: var(--dsh-convax-chat-width) auto; grid-template-rows: auto auto; width: max-content; height: auto; min-width: 0; min-height: 0; }
 .chatNode[data-collapsed] { grid-template-rows: auto; }
-.chatFrameHeader { grid-column: 1; grid-row: 1; min-width: 0; border: 0.5px solid var(--dsw-alias-border-l2); border-bottom: 0; border-radius: var(--dsw-radius-lg) var(--dsw-radius-lg) 0 0; background: var(--dsw-alias-bg-base); }
+.chatFrameHeader { position: relative; grid-column: 1; grid-row: 1; min-width: 0; border: 0.5px solid var(--dsw-alias-border-l2); border-bottom: 0; border-radius: var(--dsw-radius-lg) var(--dsw-radius-lg) 0 0; background: var(--dsw-alias-bg-base); }
 .chatNode[data-collapsed] .chatFrameHeader { border-bottom: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-lg); }
 .chatDetails[hidden], .chatOccurrence[hidden], .chatBody[hidden] { display: none; }
 .chatOccurrence { display: contents; }
@@ -19,9 +19,10 @@
 .threadStatus { color: var(--dsw-alias-label-secondary); font-size: 11px; }
 .chatBody { grid-column: 1; grid-row: 2; display: flex; min-height: var(--dsh-convax-chat-view-height, 240px); min-width: 0; }
 .chatBody > div { flex: 1; min-height: 0; min-width: 0; }
-.chatPendingBody { border: 0.5px solid var(--dsw-alias-border-l2); border-top: 0; border-radius: 0 0 var(--dsw-radius-lg) var(--dsw-radius-lg); background: var(--dsw-alias-bg-base); }
+.chatPendingBody { position: relative; box-sizing: border-box; border: 0.5px solid var(--dsw-alias-border-l2); border-top: 0; border-radius: 0 0 var(--dsw-radius-lg) var(--dsw-radius-lg); background: var(--dsw-alias-bg-base); }
 .chatConversation { position: relative; display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; width: 100%; }
 .chatConversation [data-conversation-scroll] {
+  box-sizing: border-box;
   -webkit-user-select: text;
   user-select: text;
   cursor: text;
