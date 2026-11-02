@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "图命令保存 · 工作树交互说明",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "card",
+      "type": "frontend",
+      "label": "卡片组件",
+      "sublabel": "CanvasNodeOwner"
+    },
+    {
+      "id": "workspace",
+      "type": "frontend",
+      "label": "Workspace",
+      "sublabel": "command + Remote"
+    },
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "ConvaxHost",
+      "sublabel": "execute"
+    },
+    {
+      "id": "repository",
+      "type": "backend",
+      "label": "CanvasRepository",
+      "sublabel": "图命令与校验"
+    },
+    {
+      "id": "storage",
+      "type": "database",
+      "label": "StorageDomain",
+      "sublabel": "Convax 图存储"
+    }
+  ],
+  "messages": [
+    {
+      "id": "card-command",
+      "from": "card",
+      "to": "workspace",
+      "y": 170,
+      "label": "command(CanvasCommand)",
+      "note": "业务保存不在图事务内"
+    },
+    {
+      "id": "remote-execute",
+      "from": "workspace",
+      "to": "host",
+      "y": 240,
+      "label": "Remote execute(request)",
+      "variant": "emphasis",
+      "note": "封装 revision 与 operationId"
+    },
+    {
+      "id": "repository-execute",
+      "from": "host",
+      "to": "repository",
+      "y": 304,
+      "label": "execute(request)"
+    },
+    {
+      "id": "begin-transaction",
+      "from": "repository",
+      "to": "storage",
+      "y": 350,
+      "label": "domain.transaction",
+      "note": "检查 receipt、revision 和提供方数据"
+    },
+    {
+      "id": "write-graph-receipt",
+      "from": "repository",
+      "to": "storage",
+      "y": 420,
+      "label": "写 graph 与 receipt",
+      "variant": "emphasis",
+      "note": "同一事务；提交前检查取消"
+    },
+    {
+      "id": "commit",
+      "from": "storage",
+      "to": "repository",
+      "y": 490,
+      "label": "提交完成",
+      "variant": "return"
+    },
+    {
+      "id": "workspace-result",
+      "from": "repository",
+      "to": "host",
+      "y": 532,
+      "label": "已提交 workspace",
+      "variant": "return"
+    },
+    {
+      "id": "remote-result",
+      "from": "host",
+      "to": "workspace",
+      "y": 574,
+      "label": "Remote 结果",
+      "variant": "return"
+    },
+    {
+      "id": "reconcile",
+      "from": "workspace",
+      "to": "card",
+      "y": 616,
+      "label": "更新快照与视图",
+      "variant": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "事务范围",
+      "items": [
+        "图与 operation receipt 一起提交，之后才发布快照。",
+        "业务实体由所属服务保存，不参与这个图事务。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "重试规则",
+      "items": [
+        "相同请求复用 operationId；成功回执避免重复修改。",
+        "revision 冲突先读取当前状态，修订请求使用新标识。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "工作树说明",
+      "items": [
+        "描述当前工作树中的交互顺序，未声明为某个已提交版本的源码证明。",
+        "Remote 和内部辅助调用按职责合并；不表示测量耗时。"
+      ]
+    }
+  ]
+}

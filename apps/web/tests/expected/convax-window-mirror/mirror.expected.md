@@ -1,0 +1,4 @@
+- article:
+  - button "Collapse Mirror fixture" [expanded]
+  - text: Mirror fixture Read-only
+  - button "Resize preview"

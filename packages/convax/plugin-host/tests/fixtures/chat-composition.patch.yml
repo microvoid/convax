@@ -1,0 +1,23 @@
+- id: convax-host
+  config:
+    databasePath: !!js dshHomePath('storages', 'convax-canvas.sqlite')
+    legacyDatabasePath: !!js dshHomePath('storages', 'convax.sqlite')
+    canvasDirectoryRoot: !!js dshHomePath('canvas-workspaces')
+
+- id: session-telemetry-otel
+  disabled: true
+
+- id: web-runtime
+  config:
+    openBrowser: false
+    printUrl: false
+    surfaceContext: false
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd()
+
+- id: client-hmr
+  disabled: true

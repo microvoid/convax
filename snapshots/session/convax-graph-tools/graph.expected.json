@@ -1,0 +1,38 @@
+{
+  "revision": 7,
+  "canvases": [
+    {
+      "id": "graph-canvas",
+      "title": "Graph tools",
+      "revision": 7,
+      "nodes": [
+        {
+          "id": "graph-chat",
+          "typeId": "convax.chat",
+          "dataVersion": 1,
+          "data": { "title": "Graph Chat", "cwd": "{{cwd}}" },
+          "position": { "x": 100, "y": 200 },
+          "revision": 2
+        },
+        {
+          "id": "graph-file",
+          "typeId": "convax.file",
+          "dataVersion": 1,
+          "data": { "path": "{{cwd}}/reference.txt" },
+          "position": { "x": 500, "y": 200 },
+          "revision": 3
+        }
+      ],
+      "connections": [
+        {
+          "id": "graph-input",
+          "source": "graph-file",
+          "sourcePort": "output",
+          "target": "graph-chat",
+          "targetPort": "input",
+          "purpose": "input"
+        }
+      ]
+    }
+  ]
+}

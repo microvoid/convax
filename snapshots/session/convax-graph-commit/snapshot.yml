@@ -1,0 +1,10 @@
+version: 1
+scenario: convax-graph-commit
+profile: headless
+composition: default
+recording: live
+replay:
+  override: true
+header:
+  class: convax-graph-commit
+  pin: true

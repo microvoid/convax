@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Canvas connection actions > reveals the midpoint action on hover and deletes only the hovered connection > hovered connection tools 1`] = `
+{
+  "active": true,
+  "hovered": true,
+  "midpointAction": "Cut connection",
+  "selected": false,
+}
+`;

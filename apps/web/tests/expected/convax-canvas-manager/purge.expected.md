@@ -1,0 +1,7 @@
+- dialog "Permanently delete Independent copy copy?":
+  - heading "Permanently delete Independent copy copy?" [level=2]
+  - button "Cancel"
+  - paragraph: This permanently removes the canvas, its cards, connections, and undo history. This cannot be undone.
+  - paragraph: Original files and conversation history are retained. Running conversations will be stopped and archived.
+  - button "Cancel"
+  - button "Permanently delete"

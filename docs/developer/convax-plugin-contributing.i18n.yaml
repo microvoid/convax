@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for convax-plugin-contributing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/developer/convax-plugin-contributing.md
+/convax-integration-architecture:
+  en: 8e3855ccaf15d5d5
+  zh: 877e081007a794c8
+/convax-integration-architecture/summary:
+  en: 0e89b8c49b0c8218
+  zh: 47a637f48bfba6e6
+/convax-integration-architecture/table-of-contents:
+  en: 1cdacd617cb5c062
+  zh: eae6f0b5b7faa875
+/convax-integration-architecture/understand-runtime-composition:
+  en: ae94c8547524d506
+  zh: 1f567ddd9929f371
+/convax-integration-architecture/follow-ui-actions-and-graph-commands:
+  en: 66d6a8cf01991af2
+  zh: 069009a370155040
+/convax-integration-architecture/separate-edges-references-and-sessions:
+  en: e66da1f2bb5e949c
+  zh: 3c218b738bc5e3f3
+/convax-integration-architecture/handle-lifecycle-and-payload-versions:
+  en: cb953cd7afda2192
+  zh: 90851c30bf182831
+/convax-integration-architecture/read-and-verify-a-contribution:
+  en: b78cf9e7c38705e9
+  zh: 765eb50fc67096dd
+/convax-integration-architecture/further-exploration:
+  en: 79b3b120182f1857
+  zh: d0af7e97ee96cb30
+/convax-integration-architecture/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

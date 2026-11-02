@@ -1,0 +1,22 @@
+.trigger { flex: none; gap: 5px; }
+.badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; box-sizing: border-box; padding-inline: 4px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-button-primary-fill); color: var(--dsw-alias-label-primary-foreground); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.panel { position: fixed; z-index: 1100; display: flex; flex-direction: column; box-sizing: border-box; width: 360px; max-width: calc(100vw - 24px); max-height: min(480px, calc(100dvh - max(12px, var(--dsh-frame-top-clearance, 0px)) - 12px)); padding: 8px; color: var(--dsw-alias-label-primary); font-size: 13px; box-shadow: var(--dsw-elevation-prominent); }
+.header { display: flex; flex: none; align-items: center; gap: 6px; padding: 4px 4px 8px; }
+.header h2 { flex: 1; margin: 0; min-width: 0; font-size: 13px; font-weight: 500; }
+.list { min-height: 0; overflow: auto; padding: 2px; }
+.rows { margin: 0; padding: 0; list-style: none; }
+.row { display: flex; align-items: flex-start; gap: 8px; width: 100%; box-sizing: border-box; padding: 12px 8px; border: 0; border-radius: var(--dsw-radius-sm); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.row:disabled { cursor: default; opacity: .6; }
+.row:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: -2px; }
+.dot { flex: none; width: 6px; height: 6px; margin-top: 6px; border-radius: var(--dsw-radius-xs); background: transparent; }
+.row[data-unread] .dot { background: var(--dsw-alias-state-business-primary); }
+.content { display: flex; flex: 1; flex-direction: column; gap: 5px; min-width: 0; }
+.summary, .metadata { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.title, .canvas { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row[data-unread] .title { font-weight: 500; }
+.state { display: inline-flex; align-items: center; flex: none; gap: 3px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.metadata { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.metadata time { flex: none; }
+.empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 12px; color: var(--dsw-alias-label-secondary); text-align: center; }
+.empty p { margin: 0; }
+@media (hover: hover) { .row:not(:disabled):hover { background: var(--dsw-alias-interactive-bg-hover); } }

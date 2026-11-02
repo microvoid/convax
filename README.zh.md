@@ -1,0 +1,99 @@
+# Convax
+
+[English](README.md) | 中文
+
+基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的无限画布工作台，连接文件、应用窗口镜像与多线程 AI 对话。
+
+将项目和对话放在画布上，为任务连接所需资源，在同一工作区与 AI 协作。Convax 复用 DeepSeek Harness 的对话界面、输入框、智能体执行和插件系统。
+
+<a id="features"></a>
+## 主要功能
+
+| 功能 | 使用方式 |
+|---|---|
+| 无限画布 | 平移、缩放、多选卡片、吸附对齐、节点连线，以及图编辑的撤销和重做。支持触控板与鼠标导航模式。 |
+| 文件与文件夹 | 将本地资源拖入 Desktop，浏览文件夹卡片，展开预览文本、代码、Markdown、图片、PDF、表格、音频和视频。 |
+| AI 对话 | Chat 卡片支持多个 thread、对话分叉，以及 DSH 原有的输入框、模型选择、权限和工具。 |
+| 显式引用 | 连接资源到 Chat，将可删除的 reference 加入输入框。发送以当前草稿中的引用为准，删除引用保留画布连线。 |
+| 窗口镜像 | 在 macOS Desktop 中镜像一个具体应用窗口，连到 Chat 后，在发送时采集最新截图。 |
+| 多画布 | 像浏览器一样切换和拖拽排序标签页，支持搜索、重命名、归档、恢复、复制和永久删除已保存画布。 |
+| 默认工作目录 | 每张画布拥有独立工作目录，新建 Chat 直接使用；从文件夹创建 Chat 时使用该文件夹。 |
+
+窗口镜像为只读预览。智能体 Computer Use 是独立的可选 DSH 能力，使用 PTC 模式及原有的应用授权和 macOS 系统权限。
+
+<a id="run"></a>
+## 快速开始
+
+Convax 处于开发者预览阶段。从本仓库运行，需要 **Node.js 24.9.0 或更新版本**及 **pnpm 11.28.5**，版本要求见 [package.json](package.json)。
+
+<a id="run-from-source"></a>
+### 安装与构建
+
+克隆本仓库后，在仓库根目录运行：
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run build
+```
+
+<a id="desktop"></a>
+### Desktop 桌面端
+
+使用已构建产物启动开发版 Desktop：
+
+```sh
+pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop
+```
+
+在 Desktop 欢迎页或设置中配置 API key。Desktop 也可以继承启动进程中的 `DEEPSEEK_API_KEY` 环境变量。
+
+首次安装时，打开**插件 → 添加插件**，将 `link:/absolute/path/to/convax/packages/convax/plugin-renderer` 替换为当前检出仓库的实际绝对路径，安装后选择**立即启用**。它会启用 Convax Host 和画布 renderer。后续启动会保留该 bundle 的启用状态；启动器本身只负责选择 Convax 数据目录。
+
+修改源码后，重新构建并启动：
+
+```sh
+pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop:dev
+```
+
+需要原生文件和文件夹拖放，或 macOS 窗口镜像时，使用 Desktop。平台准备步骤见 [Desktop 开发说明](apps/desktop/README.zh.md#develop)。
+
+<a id="web"></a>
+### Web 网页端
+
+在仓库根目录创建 `.env`，用于 Web 对话和真实 API 测试：
+
+```dotenv
+DEEPSEEK_API_KEY=your-deepseek-api-key
+```
+
+为 Web profile 加载 Convax 覆盖配置并启动：
+
+```sh
+pnpm dsh web --patch packages/convax/plugin-renderer/cordis.patch.yml --no-open
+```
+
+打开终端打印的完整本地访问地址，服务默认使用 `http://127.0.0.1:3080`。覆盖配置会为本次启动启用两个 Convax 插件。Web 操作 Host 所在机器的文件系统；原生窗口镜像需要 macOS Desktop。
+
+<a id="data-and-working-directories"></a>
+## 数据与工作目录
+
+- Convax Desktop 启动器将 profile、Session 和画布数据库保存在仓库的 `.convax/` 目录，Electron 偏好保存在 `.convax/electron-user-data/`。
+- 新画布默认在 `~/Documents/convax/canvas-<canvas-id>/` 创建工作目录。同一画布中新建的 Chat 共用该目录，已有 Chat 保留原项目路径。重命名画布不移动目录。
+- 移除资源卡片或删除画布会保留原始文件。删除画布会停止并归档其中的对话，同时保留 Session 历史。
+- `.env` 和 `.convax/` 已加入 Git 忽略规则。真实 API 测试使用根目录 `.env` 中的 API key，凭据不写入源码或测试 fixture。
+
+<a id="development-and-documentation"></a>
+## 开发与文档
+
+- [Convax 包说明](packages/convax/README.zh.md)：Host 持久化与可独立停用的 renderer。
+- [画布界面](packages/convax/plugin-renderer/README.zh.md)：交互、预览、Chat 卡片及当前限制。
+- [插件开发](docs/cookbook/convax-plugin-development.zh.md)：扩展自定义画布节点与工具。
+- [开发指南](docs/development.zh.md)、[架构说明](docs/architecture.zh.md)和[贡献指南](CONTRIBUTING.zh.md)。
+- [Agent 约定](AGENTS.md)和[安全说明](SAFETY.zh.md)。
+
+Convax 构建于 DeepSeek Harness 和 Cordis 之上，本仓库保留上游运行时及插件文档。
+
+<a id="license"></a>
+## 许可证
+
+[MIT](LICENSE)。第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

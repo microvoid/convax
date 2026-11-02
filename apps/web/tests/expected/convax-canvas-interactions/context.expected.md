@@ -1,0 +1,12 @@
+- menu:
+  - menuitem "Add project"
+  - menuitem "Add files"
+  - menuitem "New chat"
+  - separator
+  - menuitem "Paste"
+  - separator
+  - menuitem "Select all"
+  - menuitem "Fit canvas"
+  - separator
+  - menuitem "Undo" [disabled]
+  - menuitem "Redo" [disabled]

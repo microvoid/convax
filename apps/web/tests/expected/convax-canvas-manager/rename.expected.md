@@ -1,0 +1,5 @@
+- dialog "Rename canvas":
+  - heading "Rename canvas" [level=2]
+  - button "Cancel"
+  - textbox "Canvas name": Rename active
+  - button "Save"

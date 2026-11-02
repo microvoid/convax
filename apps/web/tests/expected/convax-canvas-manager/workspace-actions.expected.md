@@ -1,0 +1,5 @@
+- menu:
+  - menuitem "All canvases"
+  - separator
+  - menuitem "Settings"
+  - menuitem "Plugins"

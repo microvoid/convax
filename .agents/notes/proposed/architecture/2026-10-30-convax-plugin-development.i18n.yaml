@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for 2026-10-30-convax-plugin-development.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-10-30-convax-plugin-development.md
+/agent-note-convax-plugin-development-and-dsh-compatibility:
+  en: 708e3a53e5c3e28b
+  zh: c335bb2a70344c19
+/agent-note-convax-plugin-development-and-dsh-compatibility/problem:
+  en: 93b5d2b0e57f8d20
+  zh: 8938397247cd934e
+/agent-note-convax-plugin-development-and-dsh-compatibility/proposal:
+  en: b0419a0f843e7e71
+  zh: 568addd9507d2670
+/agent-note-convax-plugin-development-and-dsh-compatibility/proposal/contribution-and-package-topology:
+  en: 975c1712f5719c34
+  zh: ddfddd52dab4bfbc
+/agent-note-convax-plugin-development-and-dsh-compatibility/proposal/existing-apis-and-optional-contributions:
+  en: 694677547cbf81ff
+  zh: c42c951e0eb52d55
+/agent-note-convax-plugin-development-and-dsh-compatibility/proposal/data-connections-and-execution:
+  en: c2c0547f376331d2
+  zh: 3fd11d06e8bb9c52
+/agent-note-convax-plugin-development-and-dsh-compatibility/proposal/lifecycle-and-compatibility:
+  en: 5d57ea4401987d60
+  zh: a0b56daef168bdc1
+/agent-note-convax-plugin-development-and-dsh-compatibility/proposal/ai-generated-plugin-compatibility:
+  en: 30a969b8c973d698
+  zh: 822ee287bba8203c
+/agent-note-convax-plugin-development-and-dsh-compatibility/proposal/delivery-sequence:
+  en: 1b751bd256a641d8
+  zh: 6303adffc931e8c0
+/agent-note-convax-plugin-development-and-dsh-compatibility/alternatives-considered:
+  en: be0eff05a8cb085f
+  zh: 061d474c0cd513c3
+/agent-note-convax-plugin-development-and-dsh-compatibility/acceptance-criteria:
+  en: e56680a6f35cfc8c
+  zh: 5b55b035b6ce9609
+/agent-note-convax-plugin-development-and-dsh-compatibility/risks:
+  en: 70af6c4b6ad69548
+  zh: 63edf9b3e8dafc01

@@ -1,0 +1,6 @@
+- dialog "Activity":
+  - banner:
+    - heading "Activity" [level=2]
+    - button "Mark all as read" [disabled]
+    - button "Close activity"
+  - paragraph: No activity yet

@@ -1,0 +1,37 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Canvas input gestures > records the rendered viewport while navigating across a document and then scrolling and pinching it 1`] = `
+{
+  "savedViewportCount": 2,
+  "steps": [
+    {
+      "action": "Pan the canvas",
+      "contentWheelCount": 0,
+      "displayedZoom": "100%",
+      "transform": "translate(-20px,-30px) scale(1)",
+      "wheelConsumed": true,
+    },
+    {
+      "action": "Continue over the document",
+      "contentWheelCount": 0,
+      "displayedZoom": "100%",
+      "transform": "translate(-30px,-50px) scale(1)",
+      "wheelConsumed": true,
+    },
+    {
+      "action": "Start scrolling the document",
+      "contentWheelCount": 1,
+      "displayedZoom": "100%",
+      "transform": "translate(-30px,-50px) scale(1)",
+      "wheelConsumed": false,
+    },
+    {
+      "action": "Pinch over the document",
+      "contentWheelCount": 1,
+      "displayedZoom": "132%",
+      "transform": "translate(-167.38840163234454px,-161.827768770513px) scale(1.3195079107728942)",
+      "wheelConsumed": true,
+    },
+  ],
+}
+`;

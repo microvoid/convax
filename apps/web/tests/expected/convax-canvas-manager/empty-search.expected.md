@@ -1,0 +1,12 @@
+- dialog "All canvases":
+  - banner:
+    - heading "All canvases" [level=2]
+    - button "Close canvas manager"
+  - searchbox "Search canvases": no canvas matches this query
+  - tablist "All canvases":
+    - tab "Canvases 2" [selected]
+    - tab "Archived 0"
+  - tabpanel "Canvases":
+    - status: No matching canvases
+  - contentinfo:
+    - button "New canvas"

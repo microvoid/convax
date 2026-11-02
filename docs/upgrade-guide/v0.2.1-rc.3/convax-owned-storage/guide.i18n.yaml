@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.3/convax-owned-storage/guide.md
+/:
+  en: 4a0e87d729453467
+  zh: f92202c8302fa80e
+/move-convax-data-to-its-own-repository:
+  en: 8c0e84846fc4814c
+  zh: eb8d11dfcc6e0c0c
+/move-convax-data-to-its-own-repository/change:
+  en: 2293da55f9861210
+  zh: bfe2dc968b39c5da
+/move-convax-data-to-its-own-repository/migration:
+  en: 23d3e528652fe2e6
+  zh: 9314734a511f0dff

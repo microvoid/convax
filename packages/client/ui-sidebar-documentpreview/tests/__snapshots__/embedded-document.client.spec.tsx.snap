@@ -1,0 +1,37 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`declares isolated HTML interaction explicitly without replacing its sandbox or browsing context > isolated content interaction 1`] = `
+{
+  "exit": "Stop interacting",
+  "frameTabIndex": 0,
+  "sandbox": "",
+  "surface": "content",
+}
+`;
+
+exports[`renders Markdown, code and unknown text through the root Factory without fetching or creating a Session 1`] = `
+<div
+  class="document"
+  data-document-markdown="true"
+>
+  <div
+    class="markdown"
+  >
+    <h1>
+      Notes
+    </h1>
+    
+
+    <p>
+      <img
+        alt="diagram"
+        class="image"
+        decoding="async"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+        src="http://localhost:3000/api/file?path=%2Fproject%2Fimages%2Fchart.png&load=1"
+      />
+    </p>
+  </div>
+</div>
+`;

@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "插件开发：Host 与 Client 注册",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "composition",
+      "type": "backend",
+      "label": "Profile 与 bundle",
+      "sublabel": "组合配置、加载两个入口",
+      "pos": [
+        370,
+        40
+      ],
+      "size": [
+        250,
+        76
+      ]
+    },
+    {
+      "id": "host-entry",
+      "type": "backend",
+      "label": "插件 Host 入口",
+      "sublabel": "ctx.inject(['convax'])",
+      "pos": [
+        40,
+        260
+      ],
+      "size": [
+        250,
+        76
+      ]
+    },
+    {
+      "id": "client-entry",
+      "type": "frontend",
+      "label": "插件 Client 入口",
+      "sublabel": "ctx.inject(['convaxRenderer'])",
+      "pos": [
+        700,
+        260
+      ],
+      "size": [
+        250,
+        76
+      ]
+    },
+    {
+      "id": "convax-host",
+      "type": "backend",
+      "label": "Convax Host",
+      "sublabel": "类型校验、图命令、repository",
+      "pos": [
+        40,
+        480
+      ],
+      "size": [
+        250,
+        76
+      ]
+    },
+    {
+      "id": "renderer",
+      "type": "frontend",
+      "label": "convaxRenderer",
+      "sublabel": "类型 id + 精确 dataVersion",
+      "pos": [
+        700,
+        480
+      ],
+      "size": [
+        250,
+        76
+      ]
+    },
+    {
+      "id": "storage",
+      "type": "database",
+      "label": "DSH 存储域 / SQLite",
+      "sublabel": "图与 operation receipt 同事务",
+      "pos": [
+        40,
+        700
+      ],
+      "size": [
+        250,
+        76
+      ]
+    },
+    {
+      "id": "factory",
+      "type": "frontend",
+      "label": "节点组件 / Factory",
+      "sublabel": "convax.node 接收图属性与回调",
+      "pos": [
+        700,
+        700
+      ],
+      "size": [
+        250,
+        76
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Host 上下文",
+      "wraps": [
+        "host-entry",
+        "convax-host"
+      ],
+      "pad": 30
+    },
+    {
+      "kind": "region",
+      "label": "Client 上下文",
+      "wraps": [
+        "client-entry",
+        "renderer",
+        "factory"
+      ],
+      "pad": 30
+    }
+  ],
+  "connections": [
+    {
+      "id": "mount-host",
+      "from": "composition",
+      "to": "host-entry",
+      "label": "Host 条目",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mount-client",
+      "from": "composition",
+      "to": "client-entry",
+      "label": "Client 模块",
+      "variant": "emphasis"
+    },
+    {
+      "id": "register-provider",
+      "from": "host-entry",
+      "to": "convax-host",
+      "label": "registerNodeType"
+    },
+    {
+      "id": "register-renderer",
+      "from": "client-entry",
+      "to": "renderer",
+      "label": "registerNodeRenderer"
+    },
+    {
+      "id": "commit-storage",
+      "from": "convax-host",
+      "to": "storage",
+      "label": "事务提交"
+    },
+    {
+      "id": "render-component",
+      "from": "renderer",
+      "to": "factory",
+      "label": "按类型分派"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "开发者要实现的部分",
+      "items": [
+        "Host 定义 parse、ports、migrations",
+        "Client 提供 component / Factory",
+        "可移植业务能力独立于画布适配"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "调用与生命周期",
+      "items": [
+        "卡片命令经 Workspace / Remote 到 Host",
+        "注册跟随可选注入的 Cordis 作用域",
+        "卸载取消异步工作，保留持久节点"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "源码阅读范围",
+      "items": [
+        "当前工作区的注册与职责摘要",
+        "源码定位与时序说明见贡献者导览",
+        "创建栏和工具栏贡献接口见独立提案"
+      ]
+    }
+  ]
+}

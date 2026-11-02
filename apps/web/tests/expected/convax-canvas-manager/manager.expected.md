@@ -1,0 +1,18 @@
+- dialog "All canvases":
+  - banner:
+    - heading "All canvases" [level=2]
+    - button "Close canvas manager"
+  - searchbox "Search canvases"
+  - tablist "All canvases":
+    - tab "Canvases 2" [selected]
+    - tab "Archived 0"
+  - tabpanel "Canvases":
+    - list:
+      - listitem:
+        - button "Lifecycle canvas": Lifecycle canvas 0 nodes · 0 chats
+        - button "Actions for Lifecycle canvas"
+      - listitem:
+        - button "Search destination": Search destination 0 nodes · 0 chats
+        - button "Actions for Search destination"
+  - contentinfo:
+    - button "New canvas"

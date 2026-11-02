@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Convax automation navigation > opens the shared global task manager in a modal without changing the canvas > global manager modal 1`] = `
+{
+  "canvas": "Current board",
+  "launcher": "Automation",
+  "portal": true,
+  "title": "Automation tasks",
+}
+`;
+
+exports[`Convax automation navigation > reopens a closed canvas and focuses an existing automation Session without creating another Chat > existing task opens its saved canvas 1`] = `
+{
+  "canvas": "Another board",
+  "managerClosed": true,
+  "tabs": [
+    {
+      "selected": "false",
+      "title": "Current board",
+    },
+    {
+      "selected": "true",
+      "title": "Another board",
+    },
+  ],
+}
+`;

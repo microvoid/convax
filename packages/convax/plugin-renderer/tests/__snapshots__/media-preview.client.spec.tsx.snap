@@ -1,0 +1,93 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`keeps a keyless snapshot of the audio waveform controls and hover-to-manual action labels > hover preview offers keep-playing 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": "Keep playing after the pointer leaves",
+    },
+    {
+      "disabled": false,
+      "label": "Volume",
+    },
+  ],
+  "position": "0:05 / 0:40",
+  "seekControls": 1,
+  "waveform": "<svg viewBox="0 0 16 64" preserveAspectRatio="none" aria-hidden="true"><line x1="2" x2="2" y1="32" y2="32"></line><line x1="6" x2="6" y1="24.5" y2="39.5"></line><line x1="10" x2="10" y1="2" y2="62"></line><line x1="14" x2="14" y1="17" y2="47"></line></svg>",
+}
+`;
+
+exports[`keeps a keyless snapshot of the audio waveform controls and hover-to-manual action labels > manual playback offers pause 1`] = `
+[
+  {
+    "disabled": false,
+    "label": "Pause",
+  },
+  {
+    "disabled": false,
+    "label": "Volume",
+  },
+]
+`;
+
+exports[`places video transport in one overlay group and retains the presentation across playback changes > paused video overlay 1`] = `
+{
+  "centralPlay": true,
+  "controls": [
+    {
+      "disabled": false,
+      "expanded": null,
+      "label": "Play",
+    },
+    {
+      "disabled": false,
+      "expanded": "false",
+      "label": "Volume",
+    },
+    {
+      "disabled": false,
+      "expanded": null,
+      "label": "Fullscreen",
+    },
+  ],
+  "position": "0:05 / 0:40",
+  "volumeSlider": false,
+}
+`;
+
+exports[`places video transport in one overlay group and retains the presentation across playback changes > playing video overlay 1`] = `
+{
+  "centralPlay": false,
+  "controls": [
+    {
+      "disabled": false,
+      "expanded": null,
+      "label": "Pause",
+    },
+    {
+      "disabled": false,
+      "expanded": "false",
+      "label": "Volume",
+    },
+    {
+      "disabled": false,
+      "expanded": null,
+      "label": "Fullscreen",
+    },
+  ],
+  "position": "0:12 / 0:40",
+  "volumeSlider": false,
+}
+`;
+
+exports[`retains the audio presentation across compact and expanded controls with one transport and no waveform work while folded > compact audio transport 1`] = `
+{
+  "buttons": [
+    "Pause",
+  ],
+  "time": "0:12 / 0:40",
+}
+`;
+
+exports[`shows native video metadata without mounting another player and keeps file metadata as the loading fallback > native video dimensions and duration 1`] = `"1920 × 1080 · 1:05"`;

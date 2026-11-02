@@ -1,0 +1,47 @@
+{
+  "patches": [
+    {
+      "at": 1,
+      "entry": {
+        "kind": "chunks",
+        "chunks": [
+          {
+            "type": "block-start",
+            "index": 0,
+            "blockType": "tool-call"
+          },
+          {
+            "type": "tool-call-delta",
+            "index": 0,
+            "id": "graph-call-2",
+            "name": "convax_add_file",
+            "argumentsDelta": "{\"expectedRevision\":3,\"operationId\":\"graph-add-file\",\"nodeId\":\"graph-file\",\"path\":\"{{fromRequest:Current working directory: \\\"([^\\\"]+)\\\"}}/reference.txt\",\"position\":{\"x\":30,\"y\":40}}"
+          },
+          {
+            "type": "block-end",
+            "index": 0,
+            "block": {
+              "type": "tool-call",
+              "id": "graph-call-2",
+              "name": "convax_add_file",
+              "arguments": "{\"expectedRevision\":3,\"operationId\":\"graph-add-file\",\"nodeId\":\"graph-file\",\"path\":\"{{fromRequest:Current working directory: \\\"([^\\\"]+)\\\"}}/reference.txt\",\"position\":{\"x\":30,\"y\":40}}"
+            }
+          },
+          {
+            "type": "usage",
+            "usage": {
+              "inputTokens": 12,
+              "outputTokens": 3
+            }
+          },
+          {
+            "type": "finish",
+            "reason": {
+              "kind": "tool-calls"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

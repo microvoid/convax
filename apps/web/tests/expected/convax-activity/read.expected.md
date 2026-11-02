@@ -1,0 +1,14 @@
+- dialog "Activity":
+  - banner:
+    - heading "Activity" [level=2]
+    - button "Mark all as read" [disabled]
+    - button "Close activity"
+  - list:
+    - listitem:
+      - button "Confirmation needed, Needs attention":
+        - text: Confirmation needed Needs attention Current board
+        - time: {{activityTime}}
+    - listitem:
+      - button "Completed review, Finished":
+        - text: Completed review Finished Background board
+        - time: {{activityTime}}

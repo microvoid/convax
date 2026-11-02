@@ -1,0 +1,26 @@
+.icon {
+  flex-shrink: 0;
+}
+
+.code,
+.document,
+.media {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.folder,
+.presentation {
+  color: color-mix(in srgb, var(--dsw-alias-state-warn-label) 75%, var(--dsw-alias-label-primary));
+}
+
+.sheet {
+  color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 75%, var(--dsw-alias-label-primary));
+}
+
+.pdf {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.other {
+  color: var(--dsw-alias-label-tertiary);
+}

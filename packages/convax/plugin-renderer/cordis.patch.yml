@@ -1,0 +1,9 @@
+# Install over a base-backed Web or Desktop profile; native UI rows stay enabled.
+- insert:
+    - id: convax-host
+      name: '@deepseek-ai/dsh-convax-plugin-host'
+      config:
+        databasePath: !!js dshHomePath('storages', 'convax-canvas.sqlite')
+        legacyDatabasePath: !!js dshHomePath('storages', 'convax.sqlite')
+    - id: convax-renderer
+      name: '@deepseek-ai/dsh-convax-plugin-renderer'

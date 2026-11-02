@@ -1,0 +1,29 @@
+.edge { color: var(--dsw-alias-state-business-primary); }
+.edge .line { stroke: var(--dsw-alias-label-tertiary); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.edge :global(.react-flow__edge-interaction) { vector-effect: non-scaling-stroke; }
+.edge[data-active] .line:global(.react-flow__edge-path) { stroke: currentColor; stroke-width: 1.5; }
+.blue { stop-color: var(--dsw-alias-state-business-primary); }
+.green { stop-color: var(--dsw-alias-state-success-primary); }
+.gold { stop-color: var(--dsw-alias-state-warn-primary); }
+.flow { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-dasharray: 0.28 0.72; pointer-events: none; filter: drop-shadow(0 0 3px currentColor); animation: flow 2.6s linear infinite both; animation-delay: 200ms; }
+.edge[data-selected] .flow,
+.edge:not([data-hovered]) .flow { animation-delay: 0ms; }
+.cut { position: absolute; z-index: 2; opacity: 0; pointer-events: none; }
+.cut[data-visible],
+.cut:focus-within { opacity: 1; pointer-events: auto; }
+.cut .cutButton { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-base); border: 0; border-radius: var(--dsw-radius-sm); box-shadow: var(--dsw-elevation-prominent); }
+.cutButton:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
+@media (hover: hover) {
+  .cut .cutButton:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+}
+@media (pointer: coarse) {
+  .cut .cutButton { width: 36px; height: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow { display: none; animation: none; }
+}
+@keyframes flow {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  12%, 88% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}

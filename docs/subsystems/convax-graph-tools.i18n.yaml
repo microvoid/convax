@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for convax-graph-tools.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/convax-graph-tools.md
+/convax-graph-tools:
+  en: 8e61c30d92c5854b
+  zh: f9b9500d45621715
+/convax-graph-tools/summary:
+  en: cddf95d37942f76b
+  zh: 64a6ffd0286e198e
+/convax-graph-tools/contents:
+  en: 9cf8b89143dd21e0
+  zh: 397c8b01944d9189
+/convax-graph-tools/read:
+  en: 93ae570d9c4b90f5
+  zh: 13cce537782aa822
+/convax-graph-tools/commit:
+  en: 8dbc2c8a6d4be9af
+  zh: f67056bd4e28ef82
+/convax-graph-tools/history-and-recovery:
+  en: 61e490af9de3f736
+  zh: 26a621d5533f980f
+/convax-graph-tools/provider-and-layout-integration:
+  en: d07ef48c1adda46d
+  zh: fb87846da20df854
+/convax-graph-tools/dev-note:
+  en: 794added7264b14d
+  zh: 0c967e84ac4d5f0a

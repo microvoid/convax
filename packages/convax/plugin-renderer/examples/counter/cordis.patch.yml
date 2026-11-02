@@ -1,0 +1,3 @@
+- insert:
+    - id: convax-counter-example
+      name: '@local/dsh-convax-counter-example'

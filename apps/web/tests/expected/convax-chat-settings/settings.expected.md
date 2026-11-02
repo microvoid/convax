@@ -1,0 +1,11 @@
+- dialog "Conversation settings":
+  - banner:
+    - heading "Conversation settings" [level=2]
+    - paragraph: {{workspace}}
+    - button "Close conversation settings"
+  - region "Conversation":
+    - heading "Conversation" [level=3]
+    - text: PTC mode
+  - region "Tools":
+    - heading "Tools" [level=3]
+    - button "More actions"

@@ -1,0 +1,8 @@
+- insert:
+    - id: convax-graph-tools-host
+      name: '../../../packages/convax/plugin-host/src/index.ts'
+      config:
+        databasePath: !!js dshHomePath('storages', 'convax-canvas.sqlite')
+        legacyDatabasePath: !!js dshHomePath('storages', 'convax.sqlite')
+    - id: convax-graph-tools-fixture
+      name: '../../../packages/convax/plugin-host/tests/fixtures/graph-tools.ts'

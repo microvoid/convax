@@ -1,0 +1,2 @@
+- Fresh composer: first preedit n → ni → committed 你; placeholder hidden
+- Cleared composer: first preedit n → ni → committed 你; placeholder hidden

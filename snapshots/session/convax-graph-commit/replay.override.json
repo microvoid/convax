@@ -1,0 +1,47 @@
+{
+  "patches": [
+    {
+      "at": 1,
+      "entry": {
+        "kind": "chunks",
+        "chunks": [
+          {
+            "type": "block-start",
+            "index": 0,
+            "blockType": "tool-call"
+          },
+          {
+            "type": "tool-call-delta",
+            "index": 0,
+            "id": "call_00_DIX0hWCr9Kx2EyoPKaf19741",
+            "name": "convax_commit",
+            "argumentsDelta": "{\"expectedRevision\":3,\"operationId\":\"graph-batch\",\"ops\":[{\"op\":\"node.add\",\"id\":\"graph-file\",\"typeId\":\"convax.file\",\"dataVersion\":1,\"data\":{\"path\":\"{{fromRequest:Current working directory: \\\"([^\\\"]+)\\\"}}/reference.txt\"},\"position\":{\"x\":30,\"y\":40}},{\"op\":\"edge.add\",\"id\":\"graph-input\",\"source\":\"graph-file\",\"sourcePort\":\"output\",\"target\":\"graph-chat\",\"targetPort\":\"input\",\"purpose\":\"input\"},{\"op\":\"node.set\",\"id\":\"graph-chat\",\"position\":{\"x\":100,\"y\":200}},{\"op\":\"node.set\",\"id\":\"graph-file\",\"ifRevision\":1,\"position\":{\"x\":500,\"y\":200}}]}"
+          },
+          {
+            "type": "block-end",
+            "index": 0,
+            "block": {
+              "type": "tool-call",
+              "id": "call_00_DIX0hWCr9Kx2EyoPKaf19741",
+              "name": "convax_commit",
+              "arguments": "{\"expectedRevision\":3,\"operationId\":\"graph-batch\",\"ops\":[{\"op\":\"node.add\",\"id\":\"graph-file\",\"typeId\":\"convax.file\",\"dataVersion\":1,\"data\":{\"path\":\"{{fromRequest:Current working directory: \\\"([^\\\"]+)\\\"}}/reference.txt\"},\"position\":{\"x\":30,\"y\":40}},{\"op\":\"edge.add\",\"id\":\"graph-input\",\"source\":\"graph-file\",\"sourcePort\":\"output\",\"target\":\"graph-chat\",\"targetPort\":\"input\",\"purpose\":\"input\"},{\"op\":\"node.set\",\"id\":\"graph-chat\",\"position\":{\"x\":100,\"y\":200}},{\"op\":\"node.set\",\"id\":\"graph-file\",\"ifRevision\":1,\"position\":{\"x\":500,\"y\":200}}]}"
+            }
+          },
+          {
+            "type": "usage",
+            "usage": {
+              "inputTokens": 12,
+              "outputTokens": 3
+            }
+          },
+          {
+            "type": "finish",
+            "reason": {
+              "kind": "tool-calls"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

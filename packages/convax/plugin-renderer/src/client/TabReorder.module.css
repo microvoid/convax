@@ -1,0 +1,14 @@
+.strip[data-reordering] .tab { transform: translateX(var(--dsh-convax-tab-offset, 0px)); transition: transform var(--ds-transition-duration-fast) var(--ds-ease-in-out); }
+.strip .tab:is([data-dragging], [data-settling]) { z-index: 1; background: var(--dsw-alias-bg-base); box-shadow: var(--dsw-elevation-prominent); }
+.strip[data-reordering] .tab[data-dragging] { transition: none; }
+.strip[data-reordering] button { cursor: grabbing; }
+.tab[data-settling] { animation: tabSettle var(--ds-transition-duration-fast) var(--ds-ease-in-out); }
+.strip:has([role='tab']:active) .tab[data-settling] { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .strip[data-reordering] .tab { transition: none; }
+  .tab[data-settling] { animation: tabSettleReduced 1ms; }
+}
+
+@keyframes tabSettle { from { transform: translateX(var(--dsh-convax-tab-settle, 0px)); } to { transform: none; } }
+@keyframes tabSettleReduced { from { opacity: 1; } to { opacity: 1; } }

@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "连线与输入引用 · 工作树交互说明",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "gesture",
+      "type": "frontend",
+      "label": "画布手势",
+      "sublabel": "Workspace + adapter"
+    },
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "Convax Host",
+      "sublabel": "图、资源与 thread"
+    },
+    {
+      "id": "draft",
+      "type": "frontend",
+      "label": "原生输入草稿",
+      "sublabel": "DSH composer"
+    },
+    {
+      "id": "session",
+      "type": "backend",
+      "label": "DSH Session",
+      "sublabel": "发送与消息日志"
+    }
+  ],
+  "messages": [
+    {
+      "id": "commit-edge",
+      "from": "gesture",
+      "to": "host",
+      "y": 170,
+      "label": "add-connection",
+      "variant": "emphasis",
+      "note": "手势开始时捕获目标 thread"
+    },
+    {
+      "id": "edge-confirmed",
+      "from": "host",
+      "to": "gesture",
+      "y": 224,
+      "label": "连线已提交",
+      "variant": "return"
+    },
+    {
+      "id": "prepare-reference",
+      "from": "gesture",
+      "to": "host",
+      "y": 262,
+      "label": "prepareReference",
+      "note": "准备失败不回滚已保存连线"
+    },
+    {
+      "id": "resource-ready",
+      "from": "host",
+      "to": "gesture",
+      "y": 324,
+      "label": "文件或文件夹引用",
+      "variant": "return",
+      "note": "检查提供方、版本、文件系统与源稳定性"
+    },
+    {
+      "id": "create-first-thread",
+      "from": "gesture",
+      "to": "host",
+      "y": 392,
+      "label": "无目标时创建 thread",
+      "note": "仅在没有捕获到目标时调用"
+    },
+    {
+      "id": "thread-ready",
+      "from": "host",
+      "to": "gesture",
+      "y": 446,
+      "label": "sessionId（如需）",
+      "variant": "return",
+      "note": "已有目标时略过创建及返回"
+    },
+    {
+      "id": "insert-reference",
+      "from": "gesture",
+      "to": "draft",
+      "y": 508,
+      "label": "insert / addReferences",
+      "variant": "emphasis",
+      "note": "写入捕获或新建的 thread；不发送消息"
+    },
+    {
+      "id": "remove-chip",
+      "from": "gesture",
+      "to": "draft",
+      "y": 570,
+      "label": "可选：移除 reference",
+      "note": "只改草稿；连线仍在"
+    },
+    {
+      "id": "native-send",
+      "from": "draft",
+      "to": "session",
+      "y": 624,
+      "label": "用户原生发送",
+      "variant": "emphasis",
+      "note": "仅保留引用进消息并记录 Session"
+    },
+    {
+      "id": "cut-edge",
+      "from": "gesture",
+      "to": "host",
+      "y": 690,
+      "label": "可选：remove-connections",
+      "note": "只改图关系；现有草稿不变"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "输入所属",
+      "items": [
+        "引用属于选中的输入草稿，发送复用原生 DSH 对话。",
+        "连线、草稿引用和执行是独立的状态与操作。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "失败语义",
+      "items": [
+        "引用准备拒绝取消、提供方变化和资源源变化。",
+        "准备失败保留连线，不插入过期值；不会自动执行下游。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "工作树说明",
+      "items": [
+        "当前引用只解析有效文件和文件夹，不包含任意笔记文本。",
+        "本图是工作树交互摘要，不是已提交版本源码证明或耗时测量。"
+      ]
+    }
+  ]
+}

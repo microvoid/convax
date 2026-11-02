@@ -1,0 +1,91 @@
+# Bilingual-pair consistency record for 2026-10-28-convax-canvas.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-10-28-convax-canvas.md
+/agent-note-convax-canvas-product-and-architecture-proposal:
+  en: 3601216b7693a15f
+  zh: f5958e7917875be8
+/agent-note-convax-canvas-product-and-architecture-proposal/problem:
+  en: f5de17b07ec54e2f
+  zh: f5223ef464826e40
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal:
+  en: 413ad825bf34e90a
+  zh: b462c55b72235d5d
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/agreed-product-behavior:
+  en: 4c09719abcca66b6
+  zh: f8d1b4283a7e8a81
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/existing-dsh-integration-points:
+  en: 3301d86dd500df66
+  zh: 68fc03adffa8fea3
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/plugin-composition:
+  en: e5636225e29d5367
+  zh: 05107dc0434ce5d3
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/state-ownership-and-storage:
+  en: 00c070a679a35ded
+  zh: f93659251eadd594
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/public-interfaces:
+  en: dbe1c85bacf1a063
+  zh: 5173d604ee1f67c2
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/repository-records:
+  en: ff6ab89a0b4478c6
+  zh: 72e8630055c498b6
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/sqlite-transactions-ownership-and-upgrades:
+  en: 8fba29aebe2f9a43
+  zh: 593a2866216a2c31
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/explicit-references-and-failure-recovery:
+  en: 0c53d0ba8e7e172d
+  zh: 93d6941b981c0af5
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/session-coordination-and-delivery-projection:
+  en: 04a2438cf0690e4e
+  zh: 386280b2377198df
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/view-state-resources-and-agent-actions:
+  en: 23a18723818175b4
+  zh: 2615832f2f8d4d1a
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification:
+  en: d9a6a1171aadccbb
+  zh: e00f4f75743ab120
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-1-persistent-file-canvas-workspace:
+  en: d7bea1ce543502b0
+  zh: 8806d3fb4116b6c4
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-1-persistent-file-canvas-workspace/desktop-and-conversation-composition-proof:
+  en: 6a485aa79303a8c2
+  zh: 71a8baf3197d4d13
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-1-persistent-file-canvas-workspace/durable-host:
+  en: e1a704d160d96b25
+  zh: ea415eca8d735f53
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-1-persistent-file-canvas-workspace/file-workspace:
+  en: 502bc898f5517763
+  zh: 08867777fc48a60d
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-2-chat-input-to-delivery-workflow:
+  en: 5bae2b0eaefcca1d
+  zh: f5f1ed04bab47ca9
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-2-chat-input-to-delivery-workflow/durable-conversations-and-deletion:
+  en: 851ca8e0286deac0
+  zh: 54b0e8ceb4b6a5f0
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-2-chat-input-to-delivery-workflow/native-composer-references:
+  en: 87d95130983e46ce
+  zh: 4912088b7e592b22
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-2-chat-input-to-delivery-workflow/delivered-files:
+  en: 9cc3b29e4233fdd6
+  zh: be7f1f1e25d3ce75
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-3-plugin-extensions-and-integrated-acceptance:
+  en: 4ca14e42ef8a397b
+  zh: e242d5affe890725
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-3-plugin-extensions-and-integrated-acceptance/provider-lifecycle-and-migration:
+  en: 06833bb72708cca2
+  zh: 6c88a20abf71cbea
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/step-3-plugin-extensions-and-integrated-acceptance/agent-tools-and-integrated-acceptance:
+  en: 623fa299e9237429
+  zh: a99aad14f378afec
+/agent-note-convax-canvas-product-and-architecture-proposal/proposal/implementation-order-and-verification/review-parallel-work-and-verification:
+  en: 9073fd689060de1a
+  zh: 02a83336f5191aaa
+/agent-note-convax-canvas-product-and-architecture-proposal/alternatives-considered:
+  en: b4db2e3dc89e581b
+  zh: 2c2e3dce9e141106
+/agent-note-convax-canvas-product-and-architecture-proposal/acceptance-criteria:
+  en: a0751d3f6ff84990
+  zh: 93c46b466af9f245
+/agent-note-convax-canvas-product-and-architecture-proposal/risks:
+  en: a8652e7794b5a89e
+  zh: 849ccdc23ee56b03

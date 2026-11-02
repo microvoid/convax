@@ -1,0 +1,52 @@
+{
+  "images": [
+    {
+      "id": "image:1",
+      "name": "Mirror fixture.png",
+      "mediaType": "image/png",
+      "width": 64,
+      "height": 48
+    }
+  ],
+  "queuedImages": [
+    {
+      "message": "message:2",
+      "images": [
+        "image:1"
+      ]
+    }
+  ],
+  "messages": [
+    {
+      "id": "message:1",
+      "content": [
+        {
+          "type": "text",
+          "text": "Wait for the next window image"
+        }
+      ]
+    },
+    {
+      "id": "message:2",
+      "content": [
+        {
+          "type": "image",
+          "image": "image:1"
+        },
+        {
+          "type": "text",
+          "text": "Inspect this window snapshot\n\nApplication window: Mirror fixture\nCaptured at: <CAPTURE_TIME>\nImage: 64 × 48"
+        }
+      ]
+    },
+    {
+      "id": "message:3",
+      "content": [
+        {
+          "type": "text",
+          "text": "Continue with the queued window snapshot"
+        }
+      ]
+    }
+  ]
+}

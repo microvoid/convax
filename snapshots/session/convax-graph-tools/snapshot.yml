@@ -1,0 +1,10 @@
+version: 1
+scenario: convax-graph-tools
+profile: headless
+composition: default
+recording: authored
+replay:
+  override: true
+header:
+  class: convax-graph-tools
+  pin: true
