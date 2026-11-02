@@ -42,6 +42,11 @@ function node(id = NODE, bindingId = BINDING): CanvasNode {
   return { id, typeId: 'convax.window' as CanvasNodeTypeId, dataVersion: 1, data: { bindingId, name: 'Test window' }, position: { x: 0, y: 0 }, revision: 0 }
 }
 
+function disconnect(track: TestTrack): void {
+  track.readyState = 'ended'
+  track.dispatchEvent(new Event('ended'))
+}
+
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren() })
 
 it('takes a fresh immutable image per attempt and verifies the exact native source twice', async () => {
@@ -176,4 +181,297 @@ it('stops native frame capture before draining its consumer, then releases the l
   await rejected
   await closing
   expect(b.bridge.release).toHaveBeenCalledOnce()
+})
+
+it('reconnects the same occurrence and lets its existing draft reference capture a fresh image', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  b.mirrors.reconcile([node()])
+  const reference = { nodeId: NODE, bindingId: BINDING }
+  disconnect(b.tracks[0]!)
+  expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('disconnected')
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('connected')
+  expect(b.bridge.prepare).toHaveBeenNthCalledWith(2, SOURCE)
+  expect(b.mirrors.getSnapshot()[BINDING]).toEqual({ nodeId: NODE, name: 'Test window', status: 'live' })
+  vi.mocked(b.platform.image).mockResolvedValueOnce({ data: 'cmVjb25uZWN0ZWQ=', width: 640, height: 480 })
+  const prepared = await b.mirrors.prepare(reference, new AbortController().signal)
+  expect(prepared.attachments[0]?.data).toBe('cmVjb25uZWN0ZWQ=')
+  expect(b.platform.image).toHaveBeenCalledWith(b.tracks[1])
+  expect(b.bridge.release).toHaveBeenCalledOnce()
+})
+
+it('requires user selection after restart, for a copied occurrence, or after an explicit release', async () => {
+  const b = fixture()
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('selection-required')
+  expect(b.bridge.list).not.toHaveBeenCalled()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  b.mirrors.reconcile([node()])
+  await expect(b.mirrors.reconnect('copy' as CanvasNodeId, BINDING)).resolves.toBe('selection-required')
+  expect(b.platform.acquire).toHaveBeenCalledOnce()
+  disconnect(b.tracks[0]!)
+  await b.mirrors.release(BINDING)
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('selection-required')
+  expect(b.bridge.list).not.toHaveBeenCalled()
+  expect(b.mirrors.getSnapshot()).toEqual({})
+})
+
+it.each([
+  { id: 'window:202:0' as DesktopWindowSourceId, name: 'Test window' },
+  { id: SOURCE, name: 'Different window' },
+])('does not replace an unavailable source with $id / $name', async (source) => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  b.mirrors.reconcile([node()])
+  disconnect(b.tracks[0]!)
+  vi.mocked(b.bridge.list).mockResolvedValueOnce([source])
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('unavailable')
+  expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('failed')
+  expect(b.bridge.prepare).toHaveBeenCalledOnce()
+  expect(b.platform.acquire).toHaveBeenCalledOnce()
+})
+
+it.each(['NotAllowedError', 'AbortError'])('retains the exact candidate for retry after %s', async (name) => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  disconnect(b.tracks[0]!)
+  vi.mocked(b.platform.acquire).mockRejectedValueOnce(new DOMException('Capture was declined', name))
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('unavailable')
+  expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('failed')
+  expect(b.bridge.release).toHaveBeenCalledTimes(2)
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('connected')
+  expect(b.bridge.prepare).toHaveBeenNthCalledWith(3, SOURCE)
+  expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('live')
+})
+
+it('settles enumeration failure and refuses a source changed between enumeration and reservation', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  disconnect(b.tracks[0]!)
+  vi.mocked(b.bridge.list).mockRejectedValueOnce(new Error('Native permissions unavailable'))
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('unavailable')
+  expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('failed')
+  vi.mocked(b.bridge.prepare).mockResolvedValueOnce({ id: 'changed-lease' as DesktopCaptureLeaseId,
+    source: { id: SOURCE, name: 'Different window' } })
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('unavailable')
+  expect(b.bridge.release).toHaveBeenCalledWith('changed-lease')
+  expect(b.platform.acquire).toHaveBeenCalledOnce()
+})
+
+it('shares reconnect clicks and serializes the new grant with other window selections', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  disconnect(b.tracks[0]!)
+  const entered = Promise.withResolvers<undefined>()
+  const stream = Promise.withResolvers<MediaStream>()
+  const acquire = vi.mocked(b.platform.acquire).getMockImplementation()!
+  vi.mocked(b.platform.acquire).mockImplementationOnce(() => { entered.resolve(undefined); return stream.promise })
+  const first = b.mirrors.reconnect(NODE, BINDING)
+  const second = b.mirrors.reconnect(NODE, BINDING)
+  let other: ReturnType<CanvasWindowMirrors['bind']> | undefined
+  try {
+    expect(first).toBe(second)
+    expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('connecting')
+    await entered.promise
+    other = b.mirrors.bind('other' as CanvasNodeId, randomUUID() as CanvasWindowBindingId,
+      'window:202:0' as DesktopWindowSourceId)
+    expect(b.bridge.prepare).toHaveBeenCalledTimes(2)
+    stream.resolve(await acquire())
+    await expect(first).resolves.toBe('connected')
+    await other
+    expect(b.bridge.prepare).toHaveBeenCalledTimes(3)
+    expect(b.platform.acquire).toHaveBeenCalledTimes(3)
+  } finally {
+    stream.reject(new Error('Reconnect acquisition fixture finished'))
+    await Promise.allSettled([stream.promise, first, second, other])
+  }
+})
+
+it('shares reconnect work when a state observer requests the same occurrence', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  disconnect(b.tracks[0]!)
+  let observed = false
+  let duplicate: ReturnType<CanvasWindowMirrors['reconnect']> | undefined
+  const release = b.mirrors.subscribe(() => {
+    if (b.mirrors.getSnapshot()[BINDING]?.status !== 'connecting' || observed) return
+    observed = true
+    duplicate = b.mirrors.reconnect(NODE, BINDING)
+  })
+  try {
+    const first = b.mirrors.reconnect(NODE, BINDING)
+    expect(duplicate).toBe(first)
+    await expect(first).resolves.toBe('connected')
+    expect(b.platform.acquire).toHaveBeenCalledTimes(2)
+  } finally { release() }
+})
+
+it.each(['enumeration', 'reservation'] as const)('retires a reconnect waiting for native %s without admitting its late grant', async (phase) => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  b.mirrors.reconcile([node()])
+  disconnect(b.tracks[0]!)
+  const entered = Promise.withResolvers<undefined>()
+  const resume = Promise.withResolvers<undefined>()
+  if (phase === 'enumeration') {
+    const list = vi.mocked(b.bridge.list).getMockImplementation()!
+    vi.mocked(b.bridge.list).mockImplementationOnce(async () => { entered.resolve(undefined); await resume.promise; return await list() })
+  } else {
+    const prepare = vi.mocked(b.bridge.prepare).getMockImplementation()!
+    vi.mocked(b.bridge.prepare).mockImplementationOnce(async (id) => {
+      entered.resolve(undefined)
+      await resume.promise
+      return await prepare(id)
+    })
+  }
+  const reconnect = b.mirrors.reconnect(NODE, BINDING)
+  try {
+    await entered.promise
+    b.mirrors.reconcile([])
+    resume.resolve(undefined)
+    await expect(reconnect).resolves.toBe('unavailable')
+    expect(b.platform.acquire).toHaveBeenCalledOnce()
+    expect(b.bridge.release).toHaveBeenCalledTimes(phase === 'reservation' ? 2 : 1)
+    expect(b.mirrors.getSnapshot()).toEqual({})
+  } finally {
+    resume.resolve(undefined)
+    await Promise.allSettled([reconnect])
+  }
+})
+
+it.each(['removed', 'rebound', 'released', 'disposed'] as const)('releases a late reconnect stream after its owner is %s', async (retirement) => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  b.mirrors.reconcile([node()])
+  disconnect(b.tracks[0]!)
+  const entered = Promise.withResolvers<undefined>()
+  const stream = Promise.withResolvers<MediaStream>()
+  const acquire = vi.mocked(b.platform.acquire).getMockImplementation()!
+  vi.mocked(b.platform.acquire).mockImplementationOnce(() => { entered.resolve(undefined); return stream.promise })
+  const reconnect = b.mirrors.reconnect(NODE, BINDING)
+  let closing: Promise<void> | undefined
+  try {
+    await entered.promise
+    if (retirement === 'removed') b.mirrors.reconcile([])
+    else if (retirement === 'rebound') b.mirrors.reconcile([node(NODE, randomUUID() as CanvasWindowBindingId)])
+    else if (retirement === 'released') await b.mirrors.release(BINDING)
+    else closing = b.mirrors.dispose()
+    stream.resolve(await acquire())
+    await expect(reconnect).resolves.toBe('unavailable')
+    await closing
+    expect(b.tracks[1]?.stop).toHaveBeenCalledOnce()
+    expect(b.bridge.release).toHaveBeenCalledTimes(2)
+    expect(b.mirrors.getSnapshot()).toEqual({})
+    await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe(retirement === 'disposed' ? 'unavailable' : 'selection-required')
+  } finally {
+    stream.reject(new Error('Retired reconnect acquisition fixture finished'))
+    await Promise.allSettled([stream.promise, reconnect, closing])
+  }
+})
+
+it('does not let a retired validation disconnect the new capture after reconnect', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  const validation = Promise.withResolvers<boolean>()
+  vi.mocked(b.bridge.validate).mockReturnValueOnce(validation.promise)
+  const validating = b.mirrors.validate(NODE, BINDING)
+  try {
+    disconnect(b.tracks[0]!)
+    await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('connected')
+    validation.resolve(false)
+    await validating
+    expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('live')
+    expect(b.tracks[1]?.stop).not.toHaveBeenCalled()
+  } finally {
+    validation.resolve(false)
+    await Promise.allSettled([validating])
+  }
+})
+
+it('rejects a frame from the old stream even when the same occurrence has already reconnected', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  const entered = Promise.withResolvers<undefined>()
+  const image = Promise.withResolvers<{ data: string; width: number; height: number }>()
+  vi.mocked(b.platform.image).mockImplementationOnce(() => { entered.resolve(undefined); return image.promise })
+  const captured = b.mirrors.prepare({ nodeId: NODE, bindingId: BINDING }, new AbortController().signal)
+  const rejected = expect(captured).rejects.toThrow('disconnected')
+  try {
+    await entered.promise
+    disconnect(b.tracks[0]!)
+    await b.mirrors.reconnect(NODE, BINDING)
+    image.resolve({ data: 'old-image', width: 10, height: 10 })
+    await rejected
+    expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('live')
+  } finally {
+    image.reject(new Error('Retired frame fixture finished'))
+    await Promise.allSettled([image.promise, captured, rejected])
+  }
+})
+
+it('retries a failed revocation before permitting another native capture', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  const revoked = Promise.withResolvers<unknown>()
+  b.failures.mockImplementationOnce((error: unknown) => { revoked.resolve(error) })
+  vi.mocked(b.bridge.release).mockRejectedValueOnce(new Error('Native revoke failed'))
+  disconnect(b.tracks[0]!)
+  await revoked.promise
+  vi.mocked(b.bridge.release).mockRejectedValueOnce(new Error('Native revoke still failed'))
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('unavailable')
+  expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('failed')
+  expect(b.bridge.prepare).toHaveBeenCalledOnce()
+  expect(b.platform.acquire).toHaveBeenCalledOnce()
+  await expect(b.mirrors.reconnect(NODE, BINDING)).resolves.toBe('connected')
+  expect(b.bridge.prepare).toHaveBeenCalledTimes(2)
+  const lease = vi.mocked(b.bridge.release).mock.calls[0]![0]
+  expect(vi.mocked(b.bridge.release).mock.calls.slice(0, 3)).toEqual([[lease], [lease], [lease]])
+})
+
+it('retains a retired late grant for disposal when its first revocation fails', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  b.mirrors.reconcile([node()])
+  disconnect(b.tracks[0]!)
+  const entered = Promise.withResolvers<undefined>()
+  const stream = Promise.withResolvers<MediaStream>()
+  const acquire = vi.mocked(b.platform.acquire).getMockImplementation()!
+  vi.mocked(b.platform.acquire).mockImplementationOnce(() => { entered.resolve(undefined); return stream.promise })
+  const reconnect = b.mirrors.reconnect(NODE, BINDING)
+  try {
+    await entered.promise
+    b.mirrors.reconcile([])
+    vi.mocked(b.bridge.release).mockRejectedValueOnce(new Error('Late native revoke failed'))
+    stream.resolve(await acquire())
+    await expect(reconnect).resolves.toBe('unavailable')
+    expect(b.mirrors.getSnapshot()).toEqual({})
+    expect(b.failures).toHaveBeenCalledOnce()
+    await b.mirrors.dispose()
+    const calls = vi.mocked(b.bridge.release).mock.calls
+    expect(calls).toHaveLength(3)
+    expect(calls[2]).toEqual(calls[1])
+  } finally {
+    stream.reject(new Error('Late grant fixture finished'))
+    await Promise.allSettled([stream.promise, reconnect])
+  }
+})
+
+it('keeps capture alive when a view unmounts before its play request rejects', async () => {
+  const b = fixture()
+  await b.mirrors.bind(NODE, BINDING, SOURCE)
+  const playing = Promise.withResolvers<undefined>()
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockReturnValueOnce(playing.promise)
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  const viewport = document.createElement('div')
+  viewport.id = 'retired-window-view'
+  document.body.append(viewport)
+  try {
+    b.mirrors.mount(NODE, BINDING, viewport.id)()
+    playing.reject(new Error('Detached video'))
+    await playing.promise.catch((_error: unknown) => { /* The view already relinquished its playback request. */ })
+    expect(b.mirrors.getSnapshot()[BINDING]?.status).toBe('live')
+    expect(b.tracks[0]?.stop).not.toHaveBeenCalled()
+  } finally {
+    playing.resolve(undefined)
+    await Promise.allSettled([playing.promise])
+  }
 })

@@ -1,0 +1,8 @@
+- article:
+  - button "Collapse Mirror fixture" [expanded]
+  - text: Mirror fixture Read-only
+  - status:
+    - paragraph: Connecting…
+    - button "Reconnect" [disabled]
+    - button "Choose another window" [disabled]
+  - button "Resize preview"

@@ -1,0 +1,8 @@
+- article:
+  - button "Collapse Mirror fixture" [expanded]
+  - text: Mirror fixture Read-only
+  - alert:
+    - paragraph: Could not reconnect. Restore the window and check screen recording permission, or choose another window.
+    - button "Reconnect"
+    - button "Choose another window"
+  - button "Resize preview"

@@ -262,6 +262,7 @@ export async function apply(ctx: Context): Promise<void> {
     const mirrorActions: WindowMirrorInjected = {
       mountWindow: (nodeId, bindingId, viewportId) => mirrors.mount(nodeId, bindingId, viewportId),
       validateWindow: (nodeId, bindingId) => mirrors.validate(nodeId, bindingId),
+      reconnectWindow: (nodeId, bindingId) => mirrors.reconnect(nodeId, bindingId),
       hooks: { windowMirrors: { getSnapshot: mirrors.getSnapshot, subscribe: mirrors.subscribe } },
     }
     scope.slots.registerFactory({ name: 'convax.window.content', scope: 'root', locale: NS,

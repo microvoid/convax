@@ -1,6 +1,6 @@
 /** Read-only window card shares resource-card layout and window-retained capture ownership. */
 import { useEffect, useId, useRef, useState } from 'react'
-import { AppWindow, ChevronDown, ChevronRight } from 'lucide-react'
+import { AppWindow, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasWindowBindingId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { CanvasNodeRendererProps } from './props.ts'
@@ -43,6 +43,9 @@ export function WindowMirror(props: WindowMirrorProps) {
   const name = typeof node.data.name === 'string' ? node.data.name : t('window.add')
   const status = props.useWindowMirrors(state => state[bindingId])
   const live = status?.nodeId === node.id && status.status === 'live'
+  const connecting = status?.nodeId === node.id && status.status === 'connecting'
+  const failed = status?.nodeId === node.id && status.status === 'failed'
+  const reconnectAttempt = useRef<AbortController | null>(null)
   const viewportId = useId()
   const contentsId = useId()
   const card = useRef<HTMLElement>(null)
@@ -51,6 +54,21 @@ export function WindowMirror(props: WindowMirrorProps) {
   const width = props.resourcePreviewWidth ?? Math.max(RESOURCE_CARD_WIDTH, 480)
   const size = { width, height: props.resourcePreviewHeight ?? 270 }
   const expanded = props.resourceExpanded
+  useEffect(() => () => {
+    reconnectAttempt.current?.abort()
+    reconnectAttempt.current = null
+  }, [node.id, bindingId])
+  const reconnect = async (): Promise<void> => {
+    if (reconnectAttempt.current !== null) return
+    const attempt = new AbortController()
+    reconnectAttempt.current = attempt
+    try {
+      const result = await props.reconnectWindow(node.id, bindingId)
+      if (!attempt.signal.aborted && result === 'selection-required') props.chooseWindow?.(node.id)
+    } finally {
+      if (reconnectAttempt.current === attempt) reconnectAttempt.current = null
+    }
+  }
   useEffect(() => {
     if (!expanded || !live) return
     return props.mountWindow(node.id, bindingId, viewportId)
@@ -68,7 +86,7 @@ export function WindowMirror(props: WindowMirrorProps) {
     data-convax-window={node.id} data-expanded={expanded || undefined}>
     <CardToolbar nodeId={node.id} name={name} t={t} actions={[
       { id: 'zoom', label: t('node.focus'), onClick: props.focusNode },
-      { id: 'window', label: t('window.rebind'), disabled: busy || props.chooseWindow === undefined,
+      { id: 'window', label: t('window.rebind'), disabled: busy || connecting || props.chooseWindow === undefined,
         onClick: () => { props.chooseWindow?.(node.id) } },
       { id: 'chat', label: t('chat.new'), disabled: busy, onClick: () => { props.createChat(undefined, node.id) } },
       { id: 'remove', label: t('files.reference'), disabled: busy, onClick: props.remove },
@@ -90,10 +108,16 @@ export function WindowMirror(props: WindowMirrorProps) {
     {expanded && <div ref={body} id={contentsId} className={`${css.resourcePreview} ${windowCss.body} nodrag nopan nowheel`}
       style={{ height: preview?.height ?? size.height }} data-convax-window-preview=""
       onPointerEnter={() => { if (live) void props.validateWindow(node.id, bindingId) }}>
-      {live ? <div id={viewportId} className={windowCss.viewport} /> : <div className={windowCss.disconnected} role="status">
-        <AppWindow size={28} aria-hidden /><p>{t(props.chooseWindow === undefined ? 'window.unavailable' : 'window.disconnected')}</p>
-        {props.chooseWindow !== undefined && <Button size="sm" disabled={busy}
-          onClick={() => { props.chooseWindow?.(node.id) }}>{t('window.rebind')}</Button>}
+      {live ? <div id={viewportId} className={windowCss.viewport} /> : <div className={windowCss.disconnected}
+        role={failed ? 'alert' : 'status'} aria-busy={connecting || undefined}>
+        <AppWindow size={28} aria-hidden /><p>{t(props.chooseWindow === undefined ? 'window.unavailable'
+          : connecting ? 'window.connecting' : failed ? 'window.reconnectFailed' : 'window.disconnected')}</p>
+        {props.chooseWindow !== undefined && <div className={windowCss.actions}>
+          <Button size="sm" variant="primary" icon={<RefreshCw size={14} aria-hidden />} disabled={busy || connecting}
+            onClick={() => { void reconnect() }}>{t('window.reconnect')}</Button>
+          <Button size="sm" disabled={busy || connecting}
+            onClick={() => { props.chooseWindow?.(node.id) }}>{t('window.rebind')}</Button>
+        </div>}
       </div>}
     </div>}
     <CardResizeHandle container={card} content={body} size={size} collapsed={!expanded} resize={resizeResource}
