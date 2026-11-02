@@ -6,6 +6,23 @@ An infinite canvas workspace for files, live window mirrors, and multi-threaded 
 
 Arrange your projects and conversations on a canvas, connect the resources a task needs, and work with AI in one workspace. Convax reuses DeepSeek Harness's conversation UI, composer, agent execution, and plugin system.
 
+<a id="demos"></a>
+## Demos
+
+Comic-style walkthroughs of parallel projects and app control. Click a preview for the full MP4.
+
+### Run multiple projects in parallel on one canvas
+
+[![Run multiple projects in parallel on one canvas — English, 34 seconds](docs/assets/convax-demos/projects-en.gif)](docs/assets/convax-demos/projects-en.mp4)
+
+[中文版视频 · 34 秒](docs/assets/convax-demos/projects-zh.mp4)
+
+### Control Chrome and Excel through chat
+
+[![Control Chrome and Excel through chat — English, 36 seconds](docs/assets/convax-demos/apps-en.gif)](docs/assets/convax-demos/apps-en.mp4)
+
+[中文版视频 · 36 秒](docs/assets/convax-demos/apps-zh.mp4)
+
 <a id="features"></a>
 ## Features
 

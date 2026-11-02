@@ -6,6 +6,23 @@
 
 将项目和对话放在画布上，为任务连接所需资源，在同一工作区与 AI 协作。Convax 复用 DeepSeek Harness 的对话界面、输入框、智能体执行和插件系统。
 
+<a id="demos"></a>
+## 演示视频
+
+通过漫画风演示了解多项目并行与应用操作。点击预览可打开完整 MP4。
+
+### 在画布上并行处理多个项目
+
+[English video · 34 seconds](docs/assets/convax-demos/projects-en.mp4)
+
+[![在画布上并行处理多个项目 — 中文，34 秒](docs/assets/convax-demos/projects-zh.gif)](docs/assets/convax-demos/projects-zh.mp4)
+
+### 在画布上，通过对话操作 Chrome 和 Excel
+
+[English video · 36 seconds](docs/assets/convax-demos/apps-en.mp4)
+
+[![在画布上，通过对话操作 Chrome 和 Excel — 中文，36 秒](docs/assets/convax-demos/apps-zh.gif)](docs/assets/convax-demos/apps-zh.mp4)
+
 <a id="features"></a>
 ## 主要功能
 

@@ -3,8 +3,17 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
 /convax:
-  en: a30550a6fb46b194
-  zh: b6e0f433ad2d1b67
+  en: e51fe3809cb1aaf8
+  zh: 7005edfeb8b705dd
+/convax/demos:
+  en: fb70c9b96a1f6450
+  zh: 4c28994005810633
+/convax/demos/run-multiple-projects-in-parallel-on-one-canvas:
+  en: 41ff05dfb9de25c9
+  zh: 09e81a20842d7101
+/convax/demos/control-chrome-and-excel-through-chat:
+  en: 394cd9829c0b95de
+  zh: 3ec9536892764eb8
 /convax/features:
   en: 57b8af1bcc4223c3
   zh: 4d4f12bbd18d6704
