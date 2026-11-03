@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for convax.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/convax.md
+/convax-canvas-subsystem:
+  en: c50c8a1fb4642f1f
+  zh: da9bd79f3033a0dc
+/convax-canvas-subsystem/records-and-commands:
+  en: 95b3bb59472d9c14
+  zh: ede96645b9b3135a
+/convax-canvas-subsystem/ui-composition:
+  en: ebcb933eb3551966
+  zh: 537f744cb64fb689
+/convax-canvas-subsystem/chat-sessions-and-inputs:
+  en: b03569184467ab1e
+  zh: 7cf51c26b97f8b24
+/convax-canvas-subsystem/deliveries-and-deletion:
+  en: fa81d54e4e44c422
+  zh: e7befa7e908a2bf0
+/convax-canvas-subsystem/providers-migrations-and-agent-tools:
+  en: c57c45317cd92bfe
+  zh: 119306a967edd258
+/convax-canvas-subsystem/plugin-authoring:
+  en: 1cefc41d5dd045df
+  zh: 310076d012cbc1af

@@ -1,0 +1,24 @@
+- application:
+  - group:
+    - article:
+      - button "Expand notes.txt"
+      - text: notes.txt TXT · 29B
+      - button "Resize preview"
+  - group:
+    - article:
+      - button "Expand outline.md"
+      - text: outline.md MD · 29B
+      - button "Resize preview"
+  - img
+  - button "Add project"
+  - button "Add files"
+  - button "New chat"
+- combobox "Canvas input mode":
+  - option "Touchpad mode" [selected]
+  - option "Mouse mode"
+- button "Zoom out"
+- button "Reset zoom to 100%": 100%
+- button "Zoom in"
+- button "Fit canvas"
+- button "Undo"
+- button "Redo" [disabled]

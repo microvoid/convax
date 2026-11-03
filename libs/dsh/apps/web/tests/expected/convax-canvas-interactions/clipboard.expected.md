@@ -1,0 +1,45 @@
+- application:
+  - img:
+    - group "Edge from {{uuid}} to {{uuid}}"
+  - img:
+    - group "Edge from {{uuid}} to {{uuid}}"
+  - button "Cut connection"
+  - button "Cut connection"
+  - group:
+    - article:
+      - button "Collapse notes.txt" [expanded]
+      - text: notes.txt TXT · 29B
+      - button "Line wrap"
+      - text: Canvas interaction fixture 1
+      - button "Resize preview"
+  - group:
+    - article:
+      - button "Expand outline.md"
+      - text: outline.md MD · 29B
+      - button "Resize preview"
+  - group:
+    - article:
+      - button "Collapse notes.txt" [expanded]
+      - text: notes.txt TXT · 29B
+      - button "Line wrap"
+      - text: Canvas interaction fixture 1
+      - button "Resize preview"
+  - group:
+    - article:
+      - button "Expand outline.md"
+      - text: outline.md MD · 29B
+      - button "Resize preview"
+  - button "Remove selected references"
+  - img
+  - button "Add project"
+  - button "Add files"
+  - button "New chat"
+- combobox "Canvas input mode":
+  - option "Touchpad mode" [selected]
+  - option "Mouse mode"
+- button "Zoom out"
+- button "Reset zoom to 100%": 147%
+- button "Zoom in"
+- button "Fit canvas"
+- button "Undo"
+- button "Redo" [disabled]

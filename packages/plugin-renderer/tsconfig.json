@@ -1,0 +1,90 @@
+{
+  "extends": "../../libs/dsh/tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../libs/dsh/vendor/cordis"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/locale/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/store"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-layout"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-primitives"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-renderer"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-slots"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/gateway/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/resources"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-settings-general/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-plugin-manager/tsconfig.client.json"
+    },
+    {
+      "path": "../plugin-host"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-conversation/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/util/crypto"
+    },
+    {
+      "path": "../../libs/dsh/packages/util/values"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-workspace"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-schedule"
+    },
+    {
+      "path": "../../libs/dsh/packages/workspace/workspace"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-sidebar-right"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/shortcuts/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-sidebar-documentpreview/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/workspace-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-input-trigger"
+    },
+    {
+      "path": "../../libs/dsh/packages/util/desktop-capture"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../packages/plugin-host/templates/canvas-note/README.md
+/:
+  en: 391824a63a3cae82
+  zh: f64633eaaf7f3606
+/canvas-note-example:
+  en: 0069a760b4d7e5cb
+  zh: 5247b1b6b153ae6f
+/canvas-note-example/summary:
+  en: 990fd3b767648031
+  zh: bb5255d085e92419
+/canvas-note-example/table-of-contents:
+  en: 23386452a66b2fbd
+  zh: 55b2121ae6059425
+/canvas-note-example/use-this-package:
+  en: 7b1d9634579a92f1
+  zh: 38fdedeafab05170
+/canvas-note-example/understand-the-implementation:
+  en: 28672870feb9b34d
+  zh: 40965854cc806bc8
+/canvas-note-example/further-exploration:
+  en: c75b4ac039bfbfd5
+  zh: e034d2fe51792505
+/canvas-note-example/model-experience:
+  en: 06b7b8ea13f1ebe6
+  zh: 453cc376fc848bf0
+/canvas-note-example/known-limitations-and-deferred-work:
+  en: 7faa48666c297090
+  zh: 58b25a34fcec07a3
+/canvas-note-example/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

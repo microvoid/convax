@@ -1,31 +1,25 @@
 # Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write packages/README.md
+#   pnpm run verify-translation-pairing --write ../../packages/README.md
 /:
-  en: b2be0c61aa2780eb
-  zh: c308e935e481f211
-/packages:
-  en: 9f8cdc7bf95bed2b
-  zh: 9e25684a309f580a
-/packages/summary:
-  en: 299fb58abec76411
-  zh: e9fdd53d39b755de
-/packages/table-of-contents:
-  en: ffc55792d6e922e1
-  zh: 83bd759638857e2d
-/packages/package-groups:
-  en: 2a9682cb8aee642a
-  zh: eb1f07ab8a9b44b0
-/packages/release-expectations:
-  en: 236081c1659b25ab
-  zh: 809110adf003802e
-/packages/dependencies:
-  en: 9576e7c486bf123f
-  zh: fedd18da3e27ad00
-/packages/package-readme-contracts:
-  en: 9f35ef77d1b4c388
-  zh: 39cdc988e87a96c2
-/packages/dev-note:
-  en: 5de1d6304e00c58f
-  zh: 8d8225361cfa29e5
+  en: 4083b22b135e5d0b
+  zh: 01c83429769cae60
+/packages-application-canvases:
+  en: 9a96fd1886724a0f
+  zh: 68a134359da1289c
+/packages-application-canvases/summary:
+  en: 7100cbf88e91329a
+  zh: f6d824e4d498265a
+/packages-application-canvases/table-of-contents:
+  en: 1eb35b015a6c423f
+  zh: 1879a567e9a26d46
+/packages-application-canvases/packages:
+  en: a705ed38c08d5a38
+  zh: e0ebbdd742858a27
+/packages-application-canvases/related-documentation:
+  en: 3593a6821c0082a5
+  zh: 51a943cc21ed655d
+/packages-application-canvases/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

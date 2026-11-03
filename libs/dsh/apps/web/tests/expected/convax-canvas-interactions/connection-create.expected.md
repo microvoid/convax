@@ -1,0 +1,57 @@
+- application:
+  - img:
+    - group "Edge from {{uuid}} to {{uuid}}"
+  - button "Cut connection"
+  - group:
+    - article:
+      - button "Expand notes.txt"
+      - text: notes.txt TXT · 29B
+      - button "Resize preview"
+  - group:
+    - article:
+      - button "Expand outline.md"
+      - text: outline.md MD · 29B
+      - button "Resize preview"
+  - group:
+    - article:
+      - button "Collapse chat" [expanded]
+      - tablist "Chat threads":
+        - tab "{{workspace}}" [selected]
+        - button "Current thread actions"
+      - button "New thread"
+      - button "Open right sidebar"
+      - group "Pending attachments":
+        - text: notes.txt @{{cwd}}/connection-cancellation/notes.txt
+        - button "Remove reference notes.txt"
+      - textbox "Describe what you want to build, / commands, @ files or sessions":
+        - paragraph
+      - button "Add files or run commands"
+      - 'button "Agent mode: Standard mode"': Standard mode
+      - 'button "Access mode, current: Workspace Write"': Workspace Write
+      - button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
+      - button "Send message"
+      - button "Resize chat"
+  - group:
+    - article:
+      - button "Expand cancelled-project"
+      - text: cancelled-project Folder
+      - button "Resize preview"
+  - toolbar "Actions for cancelled-project":
+    - button "Focus this card"
+    - button "Show in file manager"
+    - button "New chat"
+    - separator
+    - button "Remove reference"
+  - img
+  - button "Add project"
+  - button "Add files"
+  - button "New chat"
+- combobox "Canvas input mode":
+  - option "Touchpad mode" [selected]
+  - option "Mouse mode"
+- button "Zoom out"
+- button "Reset zoom to 100%": 122%
+- button "Zoom in"
+- button "Fit canvas"
+- button "Undo"
+- button "Redo" [disabled]

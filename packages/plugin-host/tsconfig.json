@@ -1,0 +1,78 @@
+{
+  "extends": "../../libs/dsh/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../libs/dsh/vendor/cordis"
+    },
+    {
+      "path": "../../libs/dsh/vendor/schemastery"
+    },
+    {
+      "path": "../../libs/dsh/packages/util/brand"
+    },
+    {
+      "path": "../../libs/dsh/packages/util/values"
+    },
+    {
+      "path": "../../libs/dsh/packages/fs/fs"
+    },
+    {
+      "path": "../../libs/dsh/packages/document/office-to-pdf"
+    },
+    {
+      "path": "../../libs/dsh/packages/typert/protocol"
+    },
+    {
+      "path": "../../libs/dsh/packages/core/agent"
+    },
+    {
+      "path": "../../libs/dsh/packages/core/session"
+    },
+    {
+      "path": "../../libs/dsh/packages/session/session-persistence"
+    },
+    {
+      "path": "../../libs/dsh/packages/session/session-projection"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/session-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/remote-access/tsconfig.host.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/workspace/workspace"
+    },
+    {
+      "path": "../../libs/dsh/packages/deliverables/tool-present"
+    },
+    {
+      "path": "../../libs/dsh/packages/core/tools"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/connection/tsconfig.host.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/session-query/session-query"
+    },
+    {
+      "path": "../../libs/dsh/packages/preset/agent-preset-registry"
+    },
+    {
+      "path": "../../libs/dsh/packages/jobs/jobs"
+    },
+    {
+      "path": "../../libs/dsh/packages/skill/skill"
+    },
+    {
+      "path": "../../libs/dsh/packages/skill/skill-filesystem"
+    }
+  ]
+}

@@ -1,118 +1,45 @@
 ---
-description: "DeepSeek Harness 包工作区：packages/ 下的 npm 包如何分组、每个组负责什么，以及约束它们的约定。"
+description: "Convax 画布 Host、文件引用持久化和可独立启停的 Desktop renderer 包地图。"
 kind: "package-group"
 ---
 
-# 包
+# packages/ — 应用级画布
 
 [English](README.md) | 中文
 
 ## 概述
 
-harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会话与 agent loop（智能体循环）、面向模型的工具、shell 与文件系统执行、Web 访问、subagent 等等。把本页当作顶层地图使用：先找到拥有某能力的组，再打开其 README 查看包列表。每个包都以 `@deepseek-ai/dsh-*` 为作用域、只属于一个组；每个组的 README 都是该能力系列的权威包映射。
+通过持久画布与浏览器式 Tab 组织本地文件、文件夹和 DSH 对话。Host 独立于 renderer 持久化图并恢复 thread 操作；停用画布界面后返回 DSH 原生界面。Chat 节点复用原生对话流与输入框。Convax 自己拥有 SQLite 事务、迁移和删除协调，使用 DSH 已有 Session API。提供方定义、数据升级和 agent 图工具共享 Host 命令。[Convax 设计](../libs/dsh/.agents/notes/proposed/feature/2026-10-28-convax-canvas.zh.md)记录所有权和恢复决策。
 
 ## 目录
 
-- [包分组](#package-groups)
-- [发布预期](#release-expectations)
-- [依赖](#dependencies)
-- [包 README 约定](#package-readme-contracts)
+- [包列表](#packages)
+- [相关文档](#related-documentation)
 - [开发备注](#dev-note)
 
 -----
 
-<a id="package-groups"></a>
-## 包分组
+<a id="packages"></a>
+## 包列表
 
-每个包只属于一个组；新包加入现有组，新组则更新其自身 README 与本表。
+这些包共享 [Convax 子系统](../libs/dsh/docs/subsystems/convax.zh.md)，Host 与 renderer 生命周期相互独立。
 
-| 组 | 职责 |
+| 包 | 职责 |
 |---|---|
-| [`core/`](core/README.zh.md) | 产品 API 主干：会话、提示词、工具、agent 服务与具体循环 |
-| [`api/`](api/README.zh.md) | Remote BFF 装配与 Typert RPC 网关 |
-| [`typert/`](typert/README.zh.md) | 类型图生成、产物加载与运行时注册表 |
-| [`goal/`](goal/README.zh.md) | 同会话 goal 的持久化与生命周期 |
-| [`schedule/`](schedule/README.zh.md) | Host 拥有的定时后续操作 |
-| [`feedback/`](feedback/README.zh.md) | 人类反馈的采集与命令 |
-| [`telemetry/`](telemetry/README.zh.md) | 共享 Cordis OTel 上报通道 |
-| [`identity/`](identity/README.zh.md) | 共享匿名身份 |
-| [`llm/`](llm/README.zh.md) | LLM（大语言模型）能力系列：抽象服务 + 提供方适配器 |
-| [`subprocess/`](subprocess/README.zh.md) | 子进程能力系列：Service Definition + 本地进程树提供方 |
-| [`ssh/`](ssh/README.zh.md) | POSIX 远端连接及配套文件系统、子进程与沙箱提供方 |
-| [`shell/`](shell/README.zh.md) | Bash 能力系列：执行器 seam、本地实现、面向模型的工具 |
-| [`terminal/`](terminal/README.zh.md) | 持久 PTY 服务：限定所有者范围的会话与本地 shell 后端 |
-| [`ptc-runtime/`](ptc-runtime/README.zh.md) | PTC 执行能力族：Service Definition + 沙箱 Node 提供方 + PTC mode Consumer |
-| [`computer-use/`](computer-use/README.zh.md) | 按名称独占注册桌面提供方 |
-| [`browser-use/`](browser-use/README.zh.md) | 按名称独占注册浏览器提供方 |
-| [`sandbox/`](sandbox/README.zh.md) | 进程限制 seam；bwrap、Landlock、Seatbelt 后端 |
-| [`deliverables/`](deliverables/README.zh.md) | 轮次交付物：显式文件交付与记录的工作区改动 |
-| [`fs/`](fs/README.zh.md) | 文件系统能力系列：seam、本地实现、面向模型的文件工具、发现工具 |
-| [`lsp/`](lsp/README.zh.md) | LSP 能力系列：seam、通用 stdio 提供方和 `lsp` 工具 |
-| [`skill/`](skill/README.zh.md) | skill（技能）能力系列：提供方注册表、本地提供方、面向模型的目录／loader |
-| [`compaction/`](compaction/README.zh.md) | 压缩（compaction）能力系列：Service Definition + 基础提供方 + 命令 Consumer |
-| [`context/`](context/README.zh.md) | 模型可见请求上下文：workspace 指令、时间上下文、引用 |
-| [`subagent/`](subagent/README.zh.md) | subagent 能力系列：提供方注册表约定和面向模型的委托工具 |
-| [`jobs/`](jobs/README.zh.md) | 通用后台任务运行时和面向模型的作业控制工具 |
-| [`experimental/`](experimental/README.zh.md) | 仍在评估中的能力；[状态与支持策略](experimental/README.zh.md#status) |
-| [`workflow/`](workflow/README.zh.md) | 工作流 seam、PTC 进程引擎、面向模型的 `workflow` 工具 |
-| [`web/`](web/README.zh.md) | Web 能力系列：seam、搜索／获取提供方、面向模型的 Web 工具 |
-| [`document/`](document/README.zh.md) | 共享宿主 Office 到 PDF 转换 |
-| [`attachment/`](attachment/README.zh.md) | 持久附件标识、校验、本地内容寻址存储 |
-| [`spill/`](spill/README.zh.md) | spill 能力系列：存储 seam、本地实现、工具结果 spill 策略 |
-| [`todo/`](todo/README.zh.md) | 面向模型的 `todo_write` 工具 |
-| [`plan/`](plan/README.zh.md) | Plan 协作状态，提供直接进入命令与经评审的退出 |
-| [`preset/`](preset/README.zh.md) | 由 preset `cordis.yml` 按会话组装 agent |
-| [`guard/`](guard/README.zh.md) | 循环卫生守卫：建议性重复调用提醒 + `tools/execute` 截止时间强制执行器 |
-| [`bundle/`](bundle/README.zh.md) | 可安装的 `dsh --profile` 补丁层 |
-| [`extensions/`](extensions/README.zh.md) | agent 运行时自修改：实时插件／服务检查与模型所写挂载／卸载 |
-| [`mcp/`](mcp/README.zh.md) | 将外部 Model Context Protocol 服务器的工具接入为原生工具 |
-| [`session/`](session/README.zh.md) | 持久会话数据平面：持久化 seam + 后端、投影 seam、基于日志的标题、会话上报 |
-| [`session-query/`](session-query/README.zh.md) | 会话检索系列：逻辑语料库、有界读取、血缘、语义过滤、SQLite 全文搜索 |
-| [`settings/`](settings/README.zh.md) | 用户设置 seam + 基于文件的提供方 |
-| [`credentials/`](credentials/README.zh.md) | 凭据引用与凭据记录 seam + 环境变量优先于 `.env` 的提供方 + 需要向人询问的授权流程 |
-| [`storage/`](storage/README.zh.md) | 非会话存储中枢 + 后端 + 领域形式 |
-| [`workspace/`](workspace/README.zh.md) | Workspace 实体 |
-| [`sdk/`](sdk/README.zh.md) | 进程外 SDK：JSON-RPC 协议与 TypeScript 客户端／服务器 |
-| [`acp/`](acp/README.zh.md) | 仅面向自动化的 ACP（Agent Client Protocol）服务器 |
-| [`interaction/`](interaction/README.zh.md) | 人机协作平面：批准／交互 seam、权限预设、命令、询问用户的工具 |
-| [`boot/`](boot/README.zh.md) | 共享的 app bin 启动粘合层 |
-| [`host/`](host/README.zh.md) | Web GUI 宿主服务、目录选择、应用启动、插件清单和产品遥测 |
-| [`client/`](client/README.zh.md) | web GUI 浏览器半侧：shell、协议层、对象服务、slot、`ui-*` 插件 |
-| [`convax/`](convax/README.zh.md) | 应用级画布，Host 持久化与 Desktop renderer 独立启停 |
-| [`test-support/`](test-support/README.zh.md) | 测试基础设施（testkit、回放、Loader 冒烟测试） |
-| [`util/`](util/README.zh.md) | 组间共享的低层工具与纯数据包列表（`Branded<B>`、home／路径辅助函数、超时、留存、官方组合包列表） |
+| [plugin-host](plugin-host/README.zh.md) | 自有 SQLite 图、单一 thread 恢复账本、删除协调、显式引用、交付恢复和类型化 Remote 命令。 |
+| [plugin-renderer](plugin-renderer/README.zh.md) | 全窗口画布、嵌入式原生对话和可安装的产品组合。 |
 
------
+<a id="related-documentation"></a>
+## 相关文档
 
-<a id="release-expectations"></a>
-## 发布预期
-
-产品组承担维护职责，但其公开 API 仍处于预稳定阶段。[实验性状态](experimental/README.zh.md#status)独立于发布、安装和可选交付。非实验运行时包必须被产品使用或在[包分类策略](../scripts/product-package-policy.ts)中明确列出；SDK、构建、测试与声明基础设施分别分类。
-
------
-
-<a id="dependencies"></a>
-## 依赖
-
-依赖图由工具生成：[docs/module-graph.md](../docs/module-graph.zh.md)（`pnpm run gen-module-graph`，CI 中有新鲜度门禁）。
-
-**扩展插件依赖 Service Definition，绝不依赖具体提供方。** `dsh-agent-loop` 可替换；UI、钩子和工具插件使用 `dsh-agent`。组合包可以依赖主干插件。能力在需要独立演进时分离 Service Definition／Service Provider／Consumer 角色；详见[能力 seam](../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)。
-
------
-
-<a id="package-readme-contracts"></a>
-## 包 README 约定
-
-每个包 README 都覆盖用途、配置、扩展点与[模型体验](../docs/cookbook/adding-a-package.zh.md#4-write-the-package-readme)，列入模型无关[省略允许清单](../scripts/verify-package-readme-model-experience.ts)的包除外。它还要包含 `## Known Limitations and Deferred Work`，或列入其[允许清单](../scripts/verify-package-readme-limitations.ts)。包约定——导出、服务访问、测试——见 [packages/AGENTS.md](AGENTS.md)。
-
------
+- [Convax 接入指南](../libs/dsh/docs/cookbook/convax-plugin-development.zh.md)与 [counter 示例](plugin-renderer/examples/counter/README.zh.md)——为已有 DSH 插件注册节点、展示卡片并保存状态。
+- [随包开发 skill](plugin-host/skills/convax-plugin-development/SKILL.md) 和 [canvas-note 模板](plugin-host/templates/canvas-note/)——通过已有 DSH 注册和安装编写画布专用节点。
+- [插件架构方案](../libs/dsh/.agents/notes/proposed/architecture/2026-10-30-convax-plugin-development.zh.md)——最少 DSH 改动、可选适配和 Convax 自有编写指导。
+- [Slot](../libs/dsh/docs/subsystems/slots.zh.md)——应用组合。
+- [存储](../libs/dsh/docs/subsystems/storage.zh.md)——可复用业务插件使用的 DSH 持久化服务；Convax 图使用自有数据库。
+- [Desktop 开发](../libs/dsh/apps/desktop/README.zh.md#develop)——本地数据目录与启动命令。
 
 <a id="dev-note"></a>
 ## 开发备注
 
-<details>
-<summary>维护者的工作上下文——点击展开</summary>
-
 无。
-
-</details>

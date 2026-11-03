@@ -40,13 +40,15 @@ jobs:
       - name: Lint
         run: pnpm run lint
       - name: Test canvas Host and renderer
-        run: pnpm exec vitest run packages/convax/plugin-host/tests packages/convax/plugin-renderer/tests --maxWorkers=2
+        run: pnpm exec vitest run --config vitest.config.ts packages/plugin-host/tests packages/plugin-renderer/tests --maxWorkers=2
+      - name: Test monorepo wiring
+        run: pnpm run test:workspace
       - name: Test workflow scheduling
-        run: pnpm exec vitest run scripts/convax-ci-workflow.spec.ts scripts/ci-workflow.spec.ts scripts/ci-compatible-selfhosted.spec.ts scripts/tests/ci-master-platforms.spec.ts scripts/preview-workflow.spec.ts --maxWorkers=2
+        run: pnpm exec vitest run --config vitest.config.ts tests/convax-ci-workflow.spec.ts tests/workspace-resolution.client.spec.ts --maxWorkers=2
       - name: Install browser
         run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium
       - name: Prepare local process sandbox
-        run: bash scripts/prepare-ci-bubblewrap.sh
+        run: bash libs/dsh/scripts/prepare-ci-bubblewrap.sh
       - name: Test canvas workflows in Chromium
         run: >-
           pnpm run test:web:built
@@ -56,6 +58,7 @@ jobs:
           apps/web/tests/convax-chat-settings.e2e.ts
           apps/web/tests/convax-window-mirror.e2e.ts
           apps/web/tests/convax-activity.e2e.ts
+          apps/web/tests/convax-card-resize.e2e.ts
 
   windows:
     name: Native Windows canvas smoke
@@ -77,8 +80,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Test canvas layout and navigation
         run: >-
-          pnpm exec vitest run
-          packages/convax/plugin-host/tests/layout.spec.ts
-          packages/convax/plugin-renderer/tests/placement.client.spec.ts
-          packages/convax/plugin-renderer/tests/store.client.spec.ts
+          pnpm exec vitest run --config vitest.config.ts
+          packages/plugin-host/tests/layout.spec.ts
+          packages/plugin-renderer/tests/placement.client.spec.ts
+          packages/plugin-renderer/tests/store.client.spec.ts
           --maxWorkers=2

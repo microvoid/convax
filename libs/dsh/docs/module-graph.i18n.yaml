@@ -1,0 +1,10 @@
+# Bilingual-pair consistency record for module-graph.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/module-graph.md
+/:
+  en: 6b06a1af5ffbdefb
+  zh: 3718d990c23682de
+/shared-instance-dependency-graph:
+  en: 0a4bfdc985ac9654
+  zh: 67cfc3d2be660770

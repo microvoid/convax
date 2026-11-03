@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../packages/plugin-renderer/examples/counter/README.md
+/:
+  en: 3db7c0356eb801d2
+  zh: b2801e1b1f9ebdeb
+/example-connect-a-counter-to-convax:
+  en: c3b13b7241d59bbd
+  zh: c4fbe6f8aafce52a
+/example-connect-a-counter-to-convax/summary:
+  en: fc9eaecf2321bffc
+  zh: a6a4fb10e4a3e617
+/example-connect-a-counter-to-convax/table-of-contents:
+  en: 46d8de7a6daf030a
+  zh: c46e6a11b69c9d1c
+/example-connect-a-counter-to-convax/run-from-zero-to-one:
+  en: 8baf4ddb82112919
+  zh: 5820000e38214892
+/example-connect-a-counter-to-convax/understand-the-implementation:
+  en: 119f7e7936edf3da
+  zh: 0e3b0e35736ce1d7
+/example-connect-a-counter-to-convax/verify-the-example:
+  en: 913c5923f2a3dfb7
+  zh: 164eea1232bcb697
+/example-connect-a-counter-to-convax/further-exploration:
+  en: df2e112e2804c77f
+  zh: c947319bcc231fc7
+/example-connect-a-counter-to-convax/model-experience:
+  en: b802e771411a7933
+  zh: 29701bc32a29b09e
+/example-connect-a-counter-to-convax/known-limitations-and-deferred-work:
+  en: c8e0f5b9be11b4a0
+  zh: ff9be7fe89d1ab99
+/example-connect-a-counter-to-convax/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

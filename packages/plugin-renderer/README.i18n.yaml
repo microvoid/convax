@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../packages/plugin-renderer/README.md
+/:
+  en: 9e9465f6b0d265e3
+  zh: ceb56135e2b756fe
+/deepseek-ai-dsh-convax-plugin-renderer:
+  en: 7c3a9f3ef049a43c
+  zh: 49a75c49f361524f
+/deepseek-ai-dsh-convax-plugin-renderer/summary:
+  en: c3f839ad58c2201f
+  zh: 43a31b768b01c347
+/deepseek-ai-dsh-convax-plugin-renderer/table-of-contents:
+  en: 122f0d41696980b1
+  zh: f366d2759fbb78b1
+/deepseek-ai-dsh-convax-plugin-renderer/use-this-package:
+  en: 0f90f81131a0ba04
+  zh: 3edfb30712fe127a
+/deepseek-ai-dsh-convax-plugin-renderer/understand-the-implementation:
+  en: 1778eb0f2fc0d939
+  zh: a1a19837f1ba968a
+/deepseek-ai-dsh-convax-plugin-renderer/model-experience:
+  en: caa5d0ac4199359d
+  zh: 50e60973d89e1f13
+/deepseek-ai-dsh-convax-plugin-renderer/model-experience/kv-cache-effect:
+  en: dab0e0e648da8607
+  zh: a879ab220ad66814
+/deepseek-ai-dsh-convax-plugin-renderer/known-limitations-and-deferred-work:
+  en: 9a8c7f6a47f0f1e2
+  zh: d6e16954438c9cec
+/deepseek-ai-dsh-convax-plugin-renderer/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

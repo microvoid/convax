@@ -1,23 +1,18 @@
 packages:
-  - vendor/*
-  - packages/*/*
-  # The Landlock launcher is developed with its harness consumers but keeps
-  # its native build and publication scripts under native/system.
-  - native/system
-  - native/system/packages/*
-  # Product assemblies over the package tier; apps/cli owns the `dsh` bin.
-  - apps/*
-  # Private package owning repository-level benchmark dependencies.
-  - benchmarks
-  - website
-  # Deploy root of the single-exe build: a pure dependency manifest whose
-  # closure is what the exe bundles and what the Python runtime distributes.
-  - python/sdk-runtime
+  - packages/*
+  - libs/dsh/vendor/*
+  - libs/dsh/packages/*/*
+  - libs/dsh/native/system
+  - libs/dsh/native/system/packages/*
+  - libs/dsh/apps/*
+  - libs/dsh/benchmarks
+  - libs/dsh/website
+  - libs/dsh/python/sdk-runtime
 
 overrides:
   'extract-zip>yauzl': '3.4.0'
-  '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
-  '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  '@deepseek-ai/cosmokit': 'link:libs/dsh/vendor/cosmokit'
+  '@deepseek-ai/schemastery': 'link:libs/dsh/vendor/schemastery'
 
 peerDependencyRules:
   allowedVersions:
@@ -46,7 +41,7 @@ allowBuilds:
   koffi: true
   # The Python runtime deploy includes the reviewed workspace postinstall that
   # restores the executable bit on node-pty's macOS spawn helper.
-  '@deepseek-ai/dsh-subprocess-local@file:packages/subprocess/subprocess-local': true
+  '@deepseek-ai/dsh-subprocess-local@file:libs/dsh/packages/subprocess/subprocess-local': true
   # electron-builder pulls in the optional Squirrel.Windows helper, whose
   # install script only selects its bundled 7-Zip executable. Desktop ships
   # Windows through NSIS, so that mutation is not part of our build.
@@ -108,13 +103,13 @@ minimumReleaseAgeExclude:
   # Desktop packaging requires this Electron fingerprint with node-addon-require-builtin 0.1.9.
   - electron@44.7.0
 patchedDependencies:
-  '@botiverse/oar@0.67.0': patches/@botiverse__oar@0.67.0.patch
-  '@earendil-works/pi-ai@1.3.0': patches/@earendil-works__pi-ai@1.3.0.patch
-  '@electron/osx-sign@1.3.3': patches/@electron__osx-sign@1.3.3.patch
-  '@fortune-sheet/core@1.0.4': patches/@fortune-sheet__core@1.0.4.patch
-  '@fortune-sheet/react@1.0.4': patches/@fortune-sheet__react@1.0.4.patch
-  '@yao-pkg/pkg@6.21.0': patches/@yao-pkg__pkg@6.21.0.patch
-  app-builder-lib@26.17.0: patches/app-builder-lib@26.17.0.patch
-  exceljs@4.4.0: patches/exceljs@4.4.0.patch
-  lexical@0.49.0: patches/lexical@0.49.0.patch
-  node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch
+  '@botiverse/oar@0.67.0': libs/dsh/patches/@botiverse__oar@0.67.0.patch
+  '@earendil-works/pi-ai@1.3.0': libs/dsh/patches/@earendil-works__pi-ai@1.3.0.patch
+  '@electron/osx-sign@1.3.3': libs/dsh/patches/@electron__osx-sign@1.3.3.patch
+  '@fortune-sheet/core@1.0.4': libs/dsh/patches/@fortune-sheet__core@1.0.4.patch
+  '@fortune-sheet/react@1.0.4': libs/dsh/patches/@fortune-sheet__react@1.0.4.patch
+  '@yao-pkg/pkg@6.21.0': libs/dsh/patches/@yao-pkg__pkg@6.21.0.patch
+  app-builder-lib@26.17.0: libs/dsh/patches/app-builder-lib@26.17.0.patch
+  exceljs@4.4.0: libs/dsh/patches/exceljs@4.4.0.patch
+  lexical@0.49.0: libs/dsh/patches/lexical@0.49.0.patch
+  node-pty@1.2.0-beta.15: libs/dsh/patches/node-pty@1.2.0-beta.15.patch

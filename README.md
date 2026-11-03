@@ -38,6 +38,27 @@ Comic-style walkthroughs of parallel projects and app control. Click a preview f
 
 Window mirrors are read-only. Agent Computer Use is a separate, optional DSH capability that uses PTC mode and its existing application and macOS permissions.
 
+<a id="repository-layout"></a>
+## Repository layout
+
+One root pnpm workspace and lockfile cover the repository. Turborepo coordinates builds, type checks, lint, and Convax tests. DSH source stays in `libs/dsh/`; the Convax Host and renderer live directly in `packages/`, keeping their package names and runtime entry points.
+
+```text
+packages/
+  plugin-host/
+  plugin-renderer/
+libs/
+  dsh/
+  DSH_UPGRADE.md
+scripts/
+  dsh.mjs
+pnpm-workspace.yaml
+pnpm-lock.yaml
+turbo.json
+```
+
+[DSH upgrade notes](libs/DSH_UPGRADE.md) record the upstream commit, local adaptations, and upgrade checks. `libs/dsh/` is a source copy tracked in this repository, rather than a nested installation or Git submodule; install dependencies only at the repository root.
+
 <a id="run"></a>
 ## Quick start
 
@@ -53,26 +74,41 @@ pnpm install --frozen-lockfile
 pnpm run build
 ```
 
+<a id="development-commands"></a>
+### Common commands
+
+Run these commands from the repository root. Turbo tasks reuse DSH's build order, including Convax source, tests, and artifacts, and retain the Typert and client generation steps.
+
+| Command | Purpose |
+|---|---|
+| `pnpm run build` | Build runtime and client artifacts, then check aggregate types. |
+| `pnpm run test` | Run the Convax Host, renderer, and workspace regression tests. |
+| `pnpm run test:workspace` | Check workspace discovery, Turbo tasks, and launcher data paths. |
+| `pnpm run typecheck` | Check DSH and Convax types. |
+| `pnpm run lint` | Run code lint. |
+| `pnpm run start:desktop` | Start Desktop with existing artifacts. |
+| `pnpm run dev:desktop` | Rebuild and start Desktop. |
+
 <a id="desktop"></a>
 ### Desktop
 
 Launch the development Desktop application using the built artifacts:
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop
+pnpm run start:desktop
 ```
 
 Configure your API key in the Desktop welcome screen or settings. Desktop can also inherit `DEEPSEEK_API_KEY` from its launching process.
 
-On a fresh installation, open **Plugins → Add plugin**, install `link:/absolute/path/to/convax/packages/convax/plugin-renderer` using your checkout's actual absolute path, and choose **Enable now**. This activates the Convax Host and canvas renderer. Later launches retain the enabled bundle; the launcher itself only selects the Convax data directories.
+On a fresh installation, open **Plugins → Add plugin**, install `link:/absolute/path/to/convax/packages/plugin-renderer` using your checkout's actual absolute path, and choose **Enable now**. This activates the Convax Host and canvas renderer. Later launches retain the enabled bundle; the launcher itself only selects the Convax data directories.
 
 To rebuild and launch after source changes:
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop:dev
+pnpm run dev:desktop
 ```
 
-Use Desktop for native file and folder drops and macOS window mirrors. See [Desktop development](apps/desktop/README.md#develop) for platform setup.
+Use Desktop for native file and folder drops and macOS window mirrors. See [Desktop development](libs/dsh/apps/desktop/README.md#develop) for platform setup.
 
 <a id="web"></a>
 ### Web
@@ -86,7 +122,7 @@ DEEPSEEK_API_KEY=your-deepseek-api-key
 Start the Web profile with the Convax overlay:
 
 ```sh
-pnpm dsh web --patch packages/convax/plugin-renderer/cordis.patch.yml --no-open
+pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
 ```
 
 Open the complete local access URL printed in the terminal; the server defaults to `http://127.0.0.1:3080`. The overlay enables both Convax plugins for this launch. Web runs against the Host filesystem; native window mirrors require macOS Desktop.
@@ -102,15 +138,15 @@ Open the complete local access URL printed in the terminal; the server defaults 
 <a id="development-and-documentation"></a>
 ## Development and documentation
 
-- [Convax packages](packages/convax/README.md): Host persistence and the independently switchable renderer.
-- [Canvas UI](packages/convax/plugin-renderer/README.md): interactions, previews, Chat cards, and current limitations.
-- [Plugin development](docs/cookbook/convax-plugin-development.md): add custom canvas nodes and tools.
-- [Development guide](docs/development.md), [architecture](docs/architecture.md), and [contributing](CONTRIBUTING.md).
-- [Agent instructions](AGENTS.md) and [safety notice](SAFETY.md).
+- [Convax packages](packages/README.md): Host persistence and the independently switchable renderer.
+- [Canvas UI](packages/plugin-renderer/README.md): interactions, previews, Chat cards, and current limitations.
+- [Plugin development](libs/dsh/docs/cookbook/convax-plugin-development.md): add custom canvas nodes and tools.
+- [Development guide](libs/dsh/docs/development.md), [architecture](libs/dsh/docs/architecture.md), and [contributing](libs/dsh/CONTRIBUTING.md).
+- [Agent instructions](AGENTS.md) and [safety notice](libs/dsh/SAFETY.md).
 
-Convax is built on DeepSeek Harness and Cordis. Upstream runtime and plugin documentation remains available in this repository.
+Convax is built on DeepSeek Harness and Cordis. Upstream runtime and plugin documentation remains under `libs/dsh/`.
 
 <a id="license"></a>
 ## License
 
-[MIT](LICENSE). Third-party dependencies and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). Third-party dependencies and their licenses are listed in [THIRD_PARTY_NOTICES.md](libs/dsh/THIRD_PARTY_NOTICES.md).

@@ -1,0 +1,14 @@
+{
+  "extends": "./libs/dsh/tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true
+  },
+  "include": [
+    "libs/dsh/**/*.ts",
+    "libs/dsh/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "tests/**/*.ts"
+  ]
+}

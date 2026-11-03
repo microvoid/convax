@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for 2026-11-02-convax-window-mirror.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-11-02-convax-window-mirror.md
+/agent-note-convax-interactive-window-mirror-nodes:
+  en: 35f9378dbec406a3
+  zh: 390de09ef6ab9381
+/agent-note-convax-interactive-window-mirror-nodes/problem:
+  en: ab24e1a94c429df4
+  zh: d2c601fc3b291830
+/agent-note-convax-interactive-window-mirror-nodes/proposal:
+  en: 986dd8097aac4d3d
+  zh: 2c89af85628555c5
+/agent-note-convax-interactive-window-mirror-nodes/proposal/confirmed-behavior:
+  en: f45bcd9bd15d8396
+  zh: 7a4518c2396cbb7c
+/agent-note-convax-interactive-window-mirror-nodes/proposal/creation-and-card-interaction:
+  en: 84a823e1ebcf6805
+  zh: 3c885c6592913b58
+/agent-note-convax-interactive-window-mirror-nodes/proposal/connections-and-reference-ownership:
+  en: 2355c309e0acb9c4
+  zh: c904b9fc6108f40d
+/agent-note-convax-interactive-window-mirror-nodes/proposal/send-time-preparation:
+  en: f14571da4a88cf2e
+  zh: c80796fa2c764c31
+/agent-note-convax-interactive-window-mirror-nodes/proposal/existing-capabilities-and-required-extensions:
+  en: 093180c91cb0722a
+  zh: e1ae5c7c9f137bac
+/agent-note-convax-interactive-window-mirror-nodes/proposal/runtime-and-persistence-ownership:
+  en: 09dc82894eb07f31
+  zh: 4ab9204eafd565b2
+/agent-note-convax-interactive-window-mirror-nodes/proposal/delivery-sequence:
+  en: 337cf1d85e6edf8d
+  zh: f67ff221a8f03416
+/agent-note-convax-interactive-window-mirror-nodes/alternatives-considered:
+  en: d2621b744f6b1543
+  zh: 5379b06ff50445f8
+/agent-note-convax-interactive-window-mirror-nodes/acceptance-criteria:
+  en: e15129e1790236a6
+  zh: 29362cd35fbe8f88
+/agent-note-convax-interactive-window-mirror-nodes/risks:
+  en: 0091244499a0da00
+  zh: 7cc7ae6742eb137d

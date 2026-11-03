@@ -38,6 +38,27 @@
 
 窗口镜像为只读预览。智能体 Computer Use 是独立的可选 DSH 能力，使用 PTC 模式及原有的应用授权和 macOS 系统权限。
 
+<a id="repository-layout"></a>
+## 仓库结构
+
+根目录使用一个 pnpm workspace 和 lockfile，Turborepo 编排构建、类型检查、lint 和 Convax 测试。DSH 源码保留在 `libs/dsh/`，Convax Host 与 renderer 直接位于 `packages/`；包名和运行时入口保持不变。
+
+```text
+packages/
+  plugin-host/
+  plugin-renderer/
+libs/
+  dsh/
+  DSH_UPGRADE.md
+scripts/
+  dsh.mjs
+pnpm-workspace.yaml
+pnpm-lock.yaml
+turbo.json
+```
+
+[DSH 升级记录](libs/DSH_UPGRADE.md)记录依赖的上游 commit、本地适配及升级验证步骤。`libs/dsh/` 由本仓库直接管理，不是嵌套安装目录或 Git submodule；只在根目录安装依赖。
+
 <a id="run"></a>
 ## 快速开始
 
@@ -53,26 +74,41 @@ pnpm install --frozen-lockfile
 pnpm run build
 ```
 
+<a id="development-commands"></a>
+### 常用命令
+
+以下命令均在仓库根目录执行。Turbo 任务复用 DSH 原有的构建顺序，包含 Convax 的源码、测试及产物；不跳过 Typert 或客户端生成步骤。
+
+| 命令 | 用途 |
+|---|---|
+| `pnpm run build` | 构建运行时与客户端产物，并检查聚合类型。 |
+| `pnpm run test` | 运行 Convax Host、renderer 和工作区回归测试。 |
+| `pnpm run test:workspace` | 验证 workspace、Turbo 任务和启动器的数据目录。 |
+| `pnpm run typecheck` | 检查 DSH 与 Convax 类型。 |
+| `pnpm run lint` | 运行代码 lint。 |
+| `pnpm run start:desktop` | 使用已有产物启动 Desktop。 |
+| `pnpm run dev:desktop` | 重新构建并启动 Desktop。 |
+
 <a id="desktop"></a>
 ### Desktop 桌面端
 
 使用已构建产物启动开发版 Desktop：
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop
+pnpm run start:desktop
 ```
 
 在 Desktop 欢迎页或设置中配置 API key。Desktop 也可以继承启动进程中的 `DEEPSEEK_API_KEY` 环境变量。
 
-首次安装时，打开**插件 → 添加插件**，将 `link:/absolute/path/to/convax/packages/convax/plugin-renderer` 替换为当前检出仓库的实际绝对路径，安装后选择**立即启用**。它会启用 Convax Host 和画布 renderer。后续启动会保留该 bundle 的启用状态；启动器本身只负责选择 Convax 数据目录。
+首次安装时，打开**插件 → 添加插件**，将 `link:/absolute/path/to/convax/packages/plugin-renderer` 替换为当前检出仓库的实际绝对路径，安装后选择**立即启用**。它会启用 Convax Host 和画布 renderer。后续启动会保留该 bundle 的启用状态；启动器本身只负责选择 Convax 数据目录。
 
 修改源码后，重新构建并启动：
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop:dev
+pnpm run dev:desktop
 ```
 
-需要原生文件和文件夹拖放，或 macOS 窗口镜像时，使用 Desktop。平台准备步骤见 [Desktop 开发说明](apps/desktop/README.zh.md#develop)。
+需要原生文件和文件夹拖放，或 macOS 窗口镜像时，使用 Desktop。平台准备步骤见 [Desktop 开发说明](libs/dsh/apps/desktop/README.zh.md#develop)。
 
 <a id="web"></a>
 ### Web 网页端
@@ -86,7 +122,7 @@ DEEPSEEK_API_KEY=your-deepseek-api-key
 为 Web profile 加载 Convax 覆盖配置并启动：
 
 ```sh
-pnpm dsh web --patch packages/convax/plugin-renderer/cordis.patch.yml --no-open
+pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
 ```
 
 打开终端打印的完整本地访问地址，服务默认使用 `http://127.0.0.1:3080`。覆盖配置会为本次启动启用两个 Convax 插件。Web 操作 Host 所在机器的文件系统；原生窗口镜像需要 macOS Desktop。
@@ -102,15 +138,15 @@ pnpm dsh web --patch packages/convax/plugin-renderer/cordis.patch.yml --no-open
 <a id="development-and-documentation"></a>
 ## 开发与文档
 
-- [Convax 包说明](packages/convax/README.zh.md)：Host 持久化与可独立停用的 renderer。
-- [画布界面](packages/convax/plugin-renderer/README.zh.md)：交互、预览、Chat 卡片及当前限制。
-- [插件开发](docs/cookbook/convax-plugin-development.zh.md)：扩展自定义画布节点与工具。
-- [开发指南](docs/development.zh.md)、[架构说明](docs/architecture.zh.md)和[贡献指南](CONTRIBUTING.zh.md)。
-- [Agent 约定](AGENTS.md)和[安全说明](SAFETY.zh.md)。
+- [Convax 包说明](packages/README.zh.md)：Host 持久化与可独立停用的 renderer。
+- [画布界面](packages/plugin-renderer/README.zh.md)：交互、预览、Chat 卡片及当前限制。
+- [插件开发](libs/dsh/docs/cookbook/convax-plugin-development.zh.md)：扩展自定义画布节点与工具。
+- [开发指南](libs/dsh/docs/development.zh.md)、[架构说明](libs/dsh/docs/architecture.zh.md)和[贡献指南](libs/dsh/CONTRIBUTING.zh.md)。
+- [Agent 约定](AGENTS.md)和[安全说明](libs/dsh/SAFETY.zh.md)。
 
-Convax 构建于 DeepSeek Harness 和 Cordis 之上，本仓库保留上游运行时及插件文档。
+Convax 构建于 DeepSeek Harness 和 Cordis 之上，上游运行时及插件文档保留在 `libs/dsh/`。
 
 <a id="license"></a>
 ## 许可证
 
-[MIT](LICENSE)。第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[MIT](LICENSE)。第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](libs/dsh/THIRD_PARTY_NOTICES.md)。

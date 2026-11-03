@@ -1,0 +1,29 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "tasks": {
+    "//#dsh:build": {
+      "cache": false
+    },
+    "//#dsh:build:artifacts": {
+      "cache": false
+    },
+    "//#dsh:build:check": {
+      "cache": false
+    },
+    "//#dsh:typecheck": {
+      "cache": false
+    },
+    "//#dsh:lint": {
+      "cache": false
+    },
+    "//#convax:test": {
+      "cache": false
+    }
+  },
+  "globalPassThroughEnv": [
+    "DSH_*",
+    "DEEPSEEK_*",
+    "ELECTRON_*",
+    "NODE_*"
+  ]
+}

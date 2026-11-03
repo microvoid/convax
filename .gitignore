@@ -50,3 +50,8 @@ worktrees/
 .agents/worktrees/
 .typert-*/
 native/system/test/bin/
+
+# Root workspace orchestration
+.turbo/
+libs/dsh/apps/desktop/.desktop-build/
+libs/dsh/apps/web/dist/

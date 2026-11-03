@@ -1,0 +1,58 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../packages/plugin-host/README.md
+/:
+  en: ee65cd91309c62cb
+  zh: b31dba08f2d45e74
+/deepseek-ai-dsh-convax-plugin-host:
+  en: 7ce014074e079ecd
+  zh: 68f3035f9977bbd6
+/deepseek-ai-dsh-convax-plugin-host/summary:
+  en: c83a84ade03b9471
+  zh: 9d0661a4087f7c14
+/deepseek-ai-dsh-convax-plugin-host/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 1db86285abf6c499
+/deepseek-ai-dsh-convax-plugin-host/use-this-package:
+  en: 8fb35df59789290b
+  zh: 580c9d0085ef02e4
+/deepseek-ai-dsh-convax-plugin-host/understand-the-implementation:
+  en: 32b5438386ef3945
+  zh: 0a5a758cbdcf881d
+/deepseek-ai-dsh-convax-plugin-host/further-exploration:
+  en: 297e97cbbdb8f38c
+  zh: ea2a42099d510a76
+/deepseek-ai-dsh-convax-plugin-host/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-convax-plugin-host/model-experience/explicit-composer-references:
+  en: 725961d32486bb5b
+  zh: aed2eeb600e29ce8
+/deepseek-ai-dsh-convax-plugin-host/model-experience/explicit-composer-references/what-the-model-sees:
+  en: 4fc152803f0032cf
+  zh: 582cd07620b247a1
+/deepseek-ai-dsh-convax-plugin-host/model-experience/explicit-composer-references/token-effect:
+  en: d1a34281cb41adda
+  zh: e7671893e539c80c
+/deepseek-ai-dsh-convax-plugin-host/model-experience/explicit-composer-references/kv-cache-effect:
+  en: 49046a3c53cd00f2
+  zh: 2013d416c5d34169
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools:
+  en: f933976f95c2273c
+  zh: 075744ca1a499508
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools/what-the-model-sees:
+  en: a7076b48ec884778
+  zh: 7290e5e6f5f15111
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools/token-effect:
+  en: 04bd743c68cb6e65
+  zh: a4ec833cac614d78
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools/kv-cache-effect:
+  en: 77985be3002e7fc9
+  zh: 87c19809786dc4e0
+/deepseek-ai-dsh-convax-plugin-host/known-limitations-and-deferred-work:
+  en: b2745a5e6f2a1c03
+  zh: 012bca673c2fefcb
+/deepseek-ai-dsh-convax-plugin-host/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

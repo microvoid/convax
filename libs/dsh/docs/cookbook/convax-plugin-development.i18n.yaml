@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for convax-plugin-development.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/cookbook/convax-plugin-development.md
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin:
+  en: 4f982ff82c338a67
+  zh: 614736c29b05905d
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/summary:
+  en: b52b603bf460c606
+  zh: 7291d273c2ecac5b
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/table-of-contents:
+  en: aaae31c064de7728
+  zh: ab723def61872107
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/prerequisites:
+  en: db4a116ce7c0b6b7
+  zh: 035250d024c6fd24
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/reference-available-convax-capabilities:
+  en: ba43743b0bc127a4
+  zh: 09367acf58e7d846
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/reference-available-convax-capabilities/graph-and-input-semantics:
+  en: fec26ae46e39ea67
+  zh: 35d404973a0de6c1
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/tutorial-run-and-adapt-the-counter-example:
+  en: 4cb4e03c1f05cdac
+  zh: db24c9ebd6570555
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/tutorial-run-and-adapt-the-counter-example/1-load-the-example-in-an-enabled-convax-profile:
+  en: b0909d2d3aadb813
+  zh: aadd686ac9eecbd7
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/tutorial-run-and-adapt-the-counter-example/2-locate-the-adapter-files:
+  en: 2c814334e2fcc306
+  zh: e6f3ea6338d07cea
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/tutorial-run-and-adapt-the-counter-example/3-register-the-host-definition:
+  en: 975c6463059b0456
+  zh: 10196877b5302cbf
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/tutorial-run-and-adapt-the-counter-example/4-register-and-save-through-the-client-adapter:
+  en: 7d3888c691b7ba22
+  zh: 2328c0523ee61c2e
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/tutorial-run-and-adapt-the-counter-example/5-observe-persistence-and-adapter-removal:
+  en: 2232789bb4c6cc91
+  zh: e286f24d249fd185
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/reference-compatibility-and-current-limits:
+  en: 90a946f327c3a61a
+  zh: dc50a131b241b501
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/reference-compatibility-and-current-limits/when-the-example-does-not-appear-or-save:
+  en: 749eebfad7c7cd6c
+  zh: 2441d7479e08bcca
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/further-exploration:
+  en: de1502fcb6f341ee
+  zh: d523fbdf17844602
+/cookbook-add-a-convax-adapter-to-a-dsh-plugin/dev-note:
+  en: b75c8458928b72b9
+  zh: 45e76642489dcc3c
