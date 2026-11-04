@@ -104,7 +104,7 @@ describe('internal artifact build order', () => {
     const expected = [
       ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'],
       ...hostOnly ? [] : [
-        ['--filter', '@deepseek-ai/dsh-desktop', 'run', 'bundle'],
+        ['--dir', 'apps/desktop', 'run', 'bundle'],
         ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'],
       ],
     ]
@@ -154,7 +154,7 @@ describe('internal artifact build order', () => {
     expect(commands()).toEqual([
       ['run', 'build:native-system'],
       ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'],
-      ['--filter', '@deepseek-ai/dsh-desktop', 'run', 'bundle'],
+      ['--dir', 'apps/desktop', 'run', 'bundle'],
       ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'],
       ['exec', 'tsdown', '--config-loader', 'native', '--config', 'benchmarks/tsdown.config.ts'],
       ['run', 'build:web'],

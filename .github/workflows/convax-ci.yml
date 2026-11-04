@@ -46,7 +46,7 @@ jobs:
           pnpm exec tsc --project scripts/tsconfig.i18n.json
           pnpm exec vitest run --config scripts/vitest.i18n.config.ts
       - name: Test canvas Host and renderer
-        run: pnpm exec vitest run --config vitest.config.ts packages/plugin-host/tests packages/plugin-renderer/tests --maxWorkers=2
+        run: pnpm exec vitest run --config vitest.config.ts packages/plugin-host/tests packages/plugin-renderer/tests packages/plugin-inernal-nodes-host/tests packages/plugin-inernal-nodes-renderer/tests --maxWorkers=2
       - name: Test monorepo wiring
         run: pnpm run test:workspace
       - name: Test workflow scheduling
@@ -64,6 +64,7 @@ jobs:
           apps/web/tests/convax-canvas-manager.e2e.ts
           apps/web/tests/convax-canvas-interactions.e2e.ts
           apps/web/tests/convax-chat-settings.e2e.ts
+          apps/web/tests/convax-internal-nodes.e2e.ts
           apps/web/tests/convax-window-mirror.e2e.ts
           apps/web/tests/convax-activity.e2e.ts
           apps/web/tests/convax-card-resize.e2e.ts

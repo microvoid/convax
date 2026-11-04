@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
-import type { CanvasCommand, CanvasDocument, CanvasNode, CanvasNodeId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasCommand, CanvasData, CanvasDocument, CanvasNode, CanvasNodeId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import {
   copyCanvasSelection, parseCanvasClipboard, type CanvasClipboardNotice, type CanvasClipboardPayload, type CanvasClipboardView,
   type ClipboardNodeSize,
@@ -11,6 +11,7 @@ import { canvasClipboardBounds, createClipboardSubgraph, type ClipboardObstacle 
 import { RESOURCE_CARD_GAP } from './placement.ts'
 
 interface ClipboardOwner {
+  readonly copyData?: (node: CanvasNode) => CanvasData
   readonly document: CanvasDocument
   readonly dimensions: Readonly<Record<string, ClipboardNodeSize>>
   readonly views: Readonly<Record<string, CanvasClipboardView>>
@@ -90,7 +91,7 @@ export function useCanvasClipboard(owner: ClipboardOwner): CanvasClipboardAction
 
   const copy = async (nodeIds: readonly CanvasNodeId[]): Promise<void> => {
     const snapshot = owner.document
-    const payload = copyCanvasSelection(snapshot, nodeIds, owner.dimensions, owner.views)
+    const payload = copyCanvasSelection(snapshot, nodeIds, owner.dimensions, owner.views, owner.copyData)
     if (payload === null) return
     const operation = begin('copy')
     if (operation === null) return
@@ -127,7 +128,7 @@ export function useCanvasClipboard(owner: ClipboardOwner): CanvasClipboardAction
       const bounds = canvasClipboardBounds(payload)
       const desired = position ?? (center === null ? null : { x: center.x - bounds.width / 2, y: center.y - bounds.height / 2 })
       if (desired === null) return
-      const command = createClipboardSubgraph(payload, desired, present.obstacles, randomUUID)
+      const command = createClipboardSubgraph(payload, desired, present.obstacles, randomUUID, present.copyData)
       operation.phase = 'commit'
       await commitCopy(payload, command, snapshot)
     } catch (_clipboardPasteFailure) {
@@ -137,14 +138,14 @@ export function useCanvasClipboard(owner: ClipboardOwner): CanvasClipboardAction
 
   const duplicate = async (nodeIds: readonly CanvasNodeId[]): Promise<void> => {
     const snapshot = owner.document
-    const payload = copyCanvasSelection(snapshot, nodeIds, owner.dimensions, owner.views)
+    const payload = copyCanvasSelection(snapshot, nodeIds, owner.dimensions, owner.views, owner.copyData)
     if (payload === null) return
     const operation = begin('commit')
     if (operation === null) return
     try {
       const bounds = canvasClipboardBounds(payload)
       const command = createClipboardSubgraph(payload,
-        { x: bounds.x + RESOURCE_CARD_GAP, y: bounds.y + RESOURCE_CARD_GAP }, owner.obstacles, randomUUID)
+        { x: bounds.x + RESOURCE_CARD_GAP, y: bounds.y + RESOURCE_CARD_GAP }, owner.obstacles, randomUUID, owner.copyData)
       await commitCopy(payload, command, snapshot)
     } catch (_duplicateFailure) {
       if (sameCanvas(snapshot)) owner.report('clipboard.invalid')

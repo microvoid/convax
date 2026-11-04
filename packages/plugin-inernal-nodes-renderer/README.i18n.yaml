@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../packages/plugin-inernal-nodes-renderer/README.md
+/:
+  en: 5726ee0f52054896
+  zh: 4cb465f5fd8f97c5
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer:
+  en: 20b3d8bf7b9ad2cc
+  zh: 9b73f9426dc8f938
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/summary:
+  en: fa727f3c0894be51
+  zh: c8d872bda800b475
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/table-of-contents:
+  en: 122f0d41696980b1
+  zh: 122f0d41696980b1
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/use-this-package:
+  en: b8968d0e7e975e79
+  zh: 337f8ff0bce323c6
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/understand-the-implementation:
+  en: c0f19c9536405805
+  zh: 7826a1b06089eac1
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/model-experience/nodes-and-messages:
+  en: ac58e60cb6e9dc81
+  zh: 5e0632d74af03aa2
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/model-experience/nodes-and-messages/what-the-model-sees:
+  en: c54f6f09dd01513e
+  zh: ae7d4c7fba1c59af
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/model-experience/nodes-and-messages/token-effect:
+  en: 76d87d7b67ebeaef
+  zh: 67960be0e130002b
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/model-experience/nodes-and-messages/kv-cache-effect:
+  en: b10951a74ff115af
+  zh: ddf5015f00860cd7
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/known-limitations-and-deferred-work:
+  en: c77f71dc758c633d
+  zh: 1b0b160eeb994611
+/deepseek-ai-dsh-convax-plugin-inernal-nodes-renderer/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 0a1253c6f7b5e8b9

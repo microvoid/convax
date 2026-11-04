@@ -28,6 +28,8 @@ kind: "package-group"
 |---|---|
 | [plugin-host](plugin-host/README.zh.md) | 自有 SQLite 图、单一 thread 恢复账本、删除协调、显式引用、交付恢复和类型化 Remote 命令。 |
 | [plugin-renderer](plugin-renderer/README.zh.md) | 全窗口画布、嵌入式原生对话和可安装的产品组合。 |
+| [plugin-inernal-nodes-host](plugin-inernal-nodes-host/README.zh.md) | 默认节点定义、DSH Session 和交付适配，可独立于画布 Host 启停。 |
+| [plugin-inernal-nodes-renderer](plugin-inernal-nodes-renderer/README.zh.md) | 通过公开 Renderer 扩展提供文件和文件夹预览、Chat 卡片、窗口镜像及节点创建。 |
 
 <a id="related-documentation"></a>
 ## 相关文档

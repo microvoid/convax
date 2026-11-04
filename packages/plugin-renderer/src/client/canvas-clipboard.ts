@@ -76,8 +76,7 @@ const clipboardSchema: z.ZodType<CanvasClipboardPayload> = z.object({
     context.addIssue({ code: 'custom', message: 'Clipboard identities are duplicated' })
   }
   for (const node of value.nodes) {
-    const expected = node.typeId === 'convax.chat' ? 'chat' : node.typeId === 'convax.file' || node.typeId === 'convax.folder' ? 'resource' : 'default'
-    if (!Object.hasOwn(value.views, node.id) || value.views[node.id]?.kind !== expected) {
+    if (!Object.hasOwn(value.views, node.id)) {
       context.addIssue({ code: 'custom', message: 'Clipboard node presentation is missing or incompatible' })
     }
     const size = Object.hasOwn(value.dimensions, node.id) ? value.dimensions[node.id] : undefined
@@ -114,12 +113,7 @@ const clipboardSchema: z.ZodType<CanvasClipboardPayload> = z.object({
  * @returns Independent JSON fields without Chat bindings, drafts or thread history.
  */
 export function clipboardNodeData(node: CanvasNode): CanvasData {
-  if (node.typeId !== 'convax.chat') return structuredClone(node.data)
-  const data: CanvasData = {}
-  if (typeof node.data.title === 'string') data.title = node.data.title
-  if (node.data.defaultTitle === true) data.defaultTitle = true
-  if (typeof node.data.cwd === 'string') data.cwd = node.data.cwd
-  return data
+  return structuredClone(node.data)
 }
 
 /**
@@ -133,10 +127,11 @@ export function clipboardNodeData(node: CanvasNode): CanvasData {
 export function copyCanvasSelection(
   document: CanvasDocument, selection: readonly CanvasNodeId[], dimensions: Readonly<Record<string, ClipboardNodeSize>>,
   views: Readonly<Record<string, CanvasClipboardView>>,
+  copyData: (node: CanvasNode) => CanvasData = clipboardNodeData,
 ): CanvasClipboardPayload | null {
   const selected = new Set(selection)
   const nodes = document.nodes.filter(node => selected.has(node.id)).map(node => ({ ...node,
-    data: clipboardNodeData(node), position: { ...node.position },
+    data: copyData(node), position: { ...node.position },
   }))
   if (nodes.length === 0) return null
   const retained = new Set<string>(nodes.map(node => node.id))

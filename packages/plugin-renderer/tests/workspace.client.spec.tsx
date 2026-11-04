@@ -1,3 +1,4 @@
+import { defaultNodeActions, defaultNodeCreations, defaultNodePresentation, WindowPicker } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -110,6 +111,7 @@ function fixture(workspace: CanvasWorkspace, readWorkspace: () => CanvasWorkspac
       }
       return <CanvasGraphSurface {...surfaceProps} />
     }
+    if (name === 'convax.window.picker') return <WindowPicker {...owner as Parameters<typeof WindowPicker>[0]} t={props.t} />
     if (name !== 'workspace.directoryPicker') return null
     const flow = owner as DirectoryFlowOwnerProps
     picker.owner = flow
@@ -145,6 +147,9 @@ function fixture(workspace: CanvasWorkspace, readWorkspace: () => CanvasWorkspac
     useSessions: (selector: (value: object) => unknown) => selector({ byId: {} }),
     useSessionStatus: (selector: (value: object) => unknown) => selector(new Map()),
   } as WorkspaceProps
+  const nodeSnapshot = { definitions: defaultNodePresentation,
+    creations: defaultNodeCreations(props.t), actions: defaultNodeActions(path => props.describe(path)) }
+  props.nodePlugins = { getSnapshot: () => nodeSnapshot, subscribe: () => () => {} }
   return { activity, store, chatStore, props, execute, captureInput, insertInputs, picker, renderFactorySlot }
 }
 

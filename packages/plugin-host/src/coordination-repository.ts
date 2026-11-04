@@ -6,8 +6,8 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { z } from 'zod'
 import { canvasCommandRequestSchema, graphSchema, type threadOperationSchema, type deletionSchema, type sessionReservationSchema, type restorationSchema } from './schema.ts'
 import type {
-  CanvasCommandRequest, CanvasDeliveryId, CanvasId, CanvasNodeId, CanvasNodeTypeId,
-  CanvasConnectionId, CanvasOperationId, CanvasSessionBinding, CanvasThreadRequest,
+  CanvasCommandRequest, CanvasDeliveryId, CanvasId, CanvasNodeId,
+  CanvasConnectionId, CanvasOperationId, CanvasSessionBinding, CanvasThreadRequest, CanvasNode, CanvasDocument, CanvasConnection,
 } from './types.ts'
 
 /** Durable state of one Session creation request. */
@@ -19,8 +19,20 @@ export type CanvasDeletionIntent = z.infer<typeof deletionSchema>
 /** Durable native archive restoration state. */
 export type CanvasRestorationIntent = z.infer<typeof restorationSchema>
 
+/** A pure feature-owned delivery projection inside the graph transaction. */
+export type CanvasDeliveryOutputFactory = (input: {
+  canvas: CanvasDocument
+  source: CanvasNode
+  file: { path: string; description?: string | undefined }
+  index: number
+  nodeId: CanvasNodeId
+  connectionId: CanvasConnectionId
+}) => { node: CanvasNode; connection: CanvasConnection }
+
 /** Graph commits remain with the repository while coordination owns external work. */
 export interface CanvasCoordinationGraph {
+  /** @param node - Graph envelope. @returns Whether registered semantics or durable ownership identify a Session container. */
+  isSessionNode(node: CanvasNode): boolean
   /** @param tx - Active transaction. @param canvasId - Existing or removed canvas. @returns Its retained version fence. */
   revision(tx: CanvasTransaction, canvasId: CanvasId): number
   /** @param tx - Active transaction. @param request - History or removal request. @returns Nodes removed by this request. */
@@ -121,7 +133,7 @@ export class CanvasCoordinationRepository {
       }
       const graph = tx.global.get()
       const canvas = graph.canvases.find(value => value.id === request.canvasId)
-      const node = canvas?.nodes.find(value => value.id === request.nodeId && value.typeId === 'convax.chat')
+      const node = canvas?.nodes.find(value => value.id === request.nodeId && this.graph.isSessionNode(value))
       if (canvas === undefined || node === undefined) throw new CanvasCoordinationError('not-found', 'Chat no longer exists')
       if (this.deleting(request.canvasId, request.nodeId)) throw new CanvasCoordinationError('deleting', 'Chat is stopping and archiving its threads')
       if (canvas.revision !== request.expectedRevision) throw new CanvasCoordinationError('conflict', 'Canvas changed before thread creation')
@@ -371,10 +383,12 @@ export class CanvasCoordinationRepository {
    * @param sessionId - Actual producing Session.
    * @param seq - Durable event sequence.
    * @param files - Absolute paths recorded by DSH's present tool.
+   * @param createOutput - Pure provider-owned node and connection construction.
    * @returns Once every file receipt and the event cursor commit together.
    */
   async projectDelivery(
     sessionId: SessionId, seq: number, files: readonly { path: string; description?: string | undefined }[],
+    createOutput: CanvasDeliveryOutputFactory,
   ): Promise<void> {
     const preparedFiles = files.map(file => ({ file, node: randomUUID() as CanvasNodeId, edge: randomUUID() as CanvasConnectionId }))
     const changed = await this.domain.transaction((tx) => {
@@ -389,13 +403,13 @@ export class CanvasCoordinationRepository {
         const key = `${sessionId}:${seq}:${index}` as CanvasDeliveryId
         if (tx.table('deliveries').get(key) !== undefined) return
         if (canvas !== undefined && chat !== undefined && !suppressed) {
-          canvas.nodes.push({
-            id: outputId, typeId: 'convax.file' as CanvasNodeTypeId, dataVersion: 1,
-            data: { path: file.path, ...(file.description === undefined ? {} : { description: file.description }) },
-            position: { x: chat.position.x + 760,
-              y: chat.position.y + index * 160 + canvas.nodes.filter(value => value.typeId === 'convax.file').length * 24 }, revision: 1,
-          })
-          canvas.connections.push({ id: edge, source: chat.id, sourcePort: 'output', target: outputId, targetPort: 'input', purpose: 'delivery' })
+          const output = createOutput({ canvas, source: chat, file, index, nodeId: outputId, connectionId: edge })
+          if (output.node.id !== outputId || output.connection.id !== edge
+            || output.connection.source !== chat.id || output.connection.target !== outputId) {
+            throw new CanvasCoordinationError('invalid-command', 'Delivery projection changed its reserved graph identities')
+          }
+          canvas.nodes.push(output.node)
+          canvas.connections.push(output.connection)
         }
         tx.table('deliveries').put(key, { sessionId, seq, index, canvasId: binding.canvasId, nodeId: binding.nodeId, outputId, phase: suppressed ? 'suppressed' : 'projected' })
       })

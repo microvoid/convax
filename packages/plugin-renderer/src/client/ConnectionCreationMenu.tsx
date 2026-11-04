@@ -2,7 +2,7 @@
 import { getBezierPath, Position, useStore as useFlowStore, ViewportPortal } from '@xyflow/react'
 import { Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
-import type { CanvasConnectionOrigin, WorkspaceProps } from './props.ts'
+import type { CanvasConnectionOrigin } from './props.ts'
 import css from './Workspace.module.css'
 
 const OPPOSITE_POSITION: Record<Position, Position> = {
@@ -42,24 +42,15 @@ export function ConnectionCreationPreview({ origin, from, to, position }: {
  * @param props - Screen anchor, operation state, translated copy and creation callbacks.
  * @returns The shared portaled menu with no persistent graph side effects.
  */
-export function ConnectionCreationMenu({ point, busy, t, close, newChat, addProject, addFiles }: {
+export function ConnectionCreationMenu({ point, busy, close, creations }: {
   readonly point: CanvasPoint
   readonly busy: boolean
-  readonly t: WorkspaceProps['t']
   readonly close: () => void
-  readonly newChat: () => void
-  readonly addProject: () => void
-  readonly addFiles: () => void
+  readonly creations: readonly { id: string; label: string; create: () => void }[]
 }) {
   return <Menu open portal autoFocus anchor={<span data-convax-connection-menu="" aria-hidden="true" />}
-    getAnchorRect={() => new DOMRect(point.x, point.y, 0, 0)} onClose={close} items={[
-      { id: 'chat', label: t('chat.new'), disabled: busy },
-      { id: 'project', label: t('workspace.addProject'), disabled: busy },
-      { id: 'files', label: t('workspace.addFile'), disabled: busy },
-    ]} onSelect={(id) => {
+    getAnchorRect={() => new DOMRect(point.x, point.y, 0, 0)} onClose={close} items={creations.map(entry => ({ id: `create:${entry.id}`, label: entry.label, disabled: busy }))} onSelect={(id) => {
       close()
-      if (id === 'chat') newChat()
-      else if (id === 'project') addProject()
-      else if (id === 'files') addFiles()
+      creations.find(entry => `create:${entry.id}` === id)?.create()
     }} />
 }

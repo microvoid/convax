@@ -18,7 +18,7 @@ export function ownsNativeCanvasContextMenu(target: EventTarget | null): boolean
   const selection = target.ownerDocument.getSelection()
   if (selection?.isCollapsed === false && selection.containsNode(target, true)) return true
   if (target.closest('input, textarea, select, button, a, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"], [role="menu"], [role="dialog"], .xterm') !== null) return true
-  return target.closest('[data-convax-chat]') !== null && target.closest('[data-convax-chat-drag]') === null
+  return target.closest('[data-convax-input-owner]') !== null && target.closest('[data-convax-node-drag]') === null
 }
 
 /**

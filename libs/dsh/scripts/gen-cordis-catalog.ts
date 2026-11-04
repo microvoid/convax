@@ -857,6 +857,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   CanvasNodeIssue: 'convax.md',
   CanvasNodeRendererDefinition: 'convax.md',
   CanvasNodeRendererProps: 'convax.md',
+  CanvasSessionOperations: 'convax.md',
+  CanvasDeliveryOperations: 'convax.md',
   Workspace: 'workspace.md',
   ArchiveSessionOptions: 'workspace.md',
   SessionActivity: 'workspace.md',

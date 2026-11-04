@@ -1,5 +1,5 @@
 /** Place independent graph copies near the intended point while preserving their relative coordinates. */
-import type { CanvasCommand, CanvasConnectionId, CanvasNodeId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasCommand, CanvasData, CanvasNode, CanvasConnectionId, CanvasNodeId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { clipboardNodeData, type CanvasClipboardPayload, type ClipboardNodeSize } from './canvas-clipboard.ts'
 import { RESOURCE_CARD_GAP } from './placement.ts'
 
@@ -81,6 +81,7 @@ function freeOrigin(payload: CanvasClipboardPayload, desired: CanvasPoint, obsta
  */
 export function createClipboardSubgraph(
   payload: CanvasClipboardPayload, desired: CanvasPoint, obstacles: readonly ClipboardObstacle[], allocate: () => string,
+  copyData: (node: CanvasNode) => CanvasData = clipboardNodeData,
 ): Extract<CanvasCommand, { kind: 'add-subgraph' }> {
   const source = canvasClipboardBounds(payload)
   if (![source.x, source.y, source.width, source.height, desired.x, desired.y].every(Number.isFinite)) {
@@ -96,7 +97,7 @@ export function createClipboardSubgraph(
     if (![position.x, position.y, position.x + size.width, position.y + size.height].every(Number.isFinite)) {
       throw new RangeError('Copied node coordinates are not finite')
     }
-    return { ...node, id, revision: 1, data: clipboardNodeData(node), position }
+    return { ...node, id, revision: 1, data: copyData(node), position }
   })
   return { kind: 'add-subgraph', nodes, connections: payload.connections.map((edge) => {
     const source = ids.get(edge.source)

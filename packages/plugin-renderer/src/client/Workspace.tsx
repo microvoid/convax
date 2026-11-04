@@ -1,9 +1,9 @@
 /** Full-window canvas navigation, resource intake, and file preview. */
 import { Clock3, Ellipsis, Plus } from 'lucide-react'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, Input, Menu, Modal, Toast, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
-  CanvasCommand, CanvasCommandRequest, CanvasConnection, CanvasConnectionId, CanvasDocument, CanvasId, CanvasNodeId, CanvasNodeTypeId,
+  CanvasCommand, CanvasCommandRequest, CanvasConnection, CanvasConnectionId, CanvasDocument, CanvasId, CanvasNodeId,
   CanvasOperationId, CanvasPoint, CanvasResource, CanvasWorkspace,
   CanvasWindowBindingId,
 } from '@deepseek-ai/dsh-convax-plugin-host/types'
@@ -11,7 +11,6 @@ import type { CanvasConnectionOrigin, WorkspaceProps } from './props.ts'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { DroppedResource } from './CanvasGraph.tsx'
 import { nextResourcePosition, RESOURCE_CARD_GAP, RESOURCE_CARD_WIDTH } from './placement.ts'
-import { ResourcePreview } from './ResourcePreview.tsx'
 import css from './Workspace.module.css'
 import { CanvasTabs } from './CanvasTabs.tsx'
 import { canvasDisplayTitle } from './localized-content.ts'
@@ -19,8 +18,13 @@ import { CanvasManager } from './CanvasManager.tsx'
 import { recordsCanvasHistory, removedResourceViews, restoredResourceViews } from './canvas-history.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { DesktopWindowSourceId } from '@deepseek-ai/dsh-util-desktop-capture'
-import { WindowPicker } from './WindowPicker.tsx'
+import type {} from '@deepseek-ai/dsh-client-ui-schedule/client'
 import { ActivityMenu } from './ActivityMenu.tsx'
+import type { CanvasRendererSnapshot } from './contributions.ts'
+
+const EMPTY_NODE_PLUGINS: CanvasRendererSnapshot = { definitions: {}, creations: [], actions: {} }
+const emptySnapshot = (): CanvasRendererSnapshot => EMPTY_NODE_PLUGINS
+const subscribeEmpty = (): (() => void) => () => {}
 
 interface ImportNotice {
   added: number
@@ -49,7 +53,7 @@ function createdConnection(nodeId: CanvasNodeId, origin: CanvasConnectionOrigin)
   }
 }
 
-function Preview({ path, useResource, renderFactorySlot, t, close }: {
+function Preview({ path, renderFactorySlot, t, close }: {
   readonly path: string
   readonly useResource: WorkspaceProps['useResource']
   readonly renderFactorySlot: WorkspaceProps['renderFactorySlot']
@@ -60,7 +64,7 @@ function Preview({ path, useResource, renderFactorySlot, t, close }: {
     <Modal open onClose={close} title={path.split(/[\\/]/).at(-1) ?? path} closeLabel={t('files.preview.close')}
       className={`${css.preview}`}>
       <div className={css.previewBody}>
-        <ResourcePreview path={path} useResource={useResource} renderFactorySlot={renderFactorySlot} t={t} />
+        {renderFactorySlot('convax.resource.preview', { path })}
       </div>
     </Modal>
   )
@@ -68,6 +72,8 @@ function Preview({ path, useResource, renderFactorySlot, t, close }: {
 
 /** Render the full workspace through its single declared shell Slot. */
 export function ConvaxWorkspace(props: WorkspaceProps) {
+  const plugins = useSyncExternalStore(props.nodePlugins?.subscribe ?? subscribeEmpty, props.nodePlugins?.getSnapshot ?? emptySnapshot)
+  props = { ...props, ...plugins.actions }
   const { t, useResource, useStore, actions, execute, describe, refresh } = props
   const view = useStore(value => value)
   const latestView = useRef(view)
@@ -336,12 +342,9 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
           const request: CanvasCommandRequest = {
             canvasId: canvas.id, expectedRevision: canvas.revision, operationId: randomUUID() as CanvasOperationId,
             command: {
-              kind: 'add-node', node: {
-                id: nodeId, typeId: `convax.${resource.kind}` as CanvasNodeTypeId,
-                dataVersion: 1, data: { path: resource.path }, revision: 0,
-                position: position === undefined ? nextResourcePosition(canvas.nodes)
-                  : { x: position.x + notice.added * (RESOURCE_CARD_WIDTH + RESOURCE_CARD_GAP), y: position.y },
-              },
+              kind: 'add-node', node: plugins.actions.createResourceNode?.(resource, nodeId,
+                position === undefined ? nextResourcePosition(canvas.nodes, plugins.definitions)
+                  : { x: position.x + notice.added * (RESOURCE_CARD_WIDTH + RESOURCE_CARD_GAP), y: position.y }) ?? (() => { throw new Error('The resource node plugin is unavailable') })(),
               ...(connections.length === 0 ? {} : { initialConnections: connections }),
             },
           }
@@ -382,15 +385,8 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
   const connectionDirectory = async (origin: CanvasConnectionOrigin | undefined): Promise<string | undefined> => {
     if (origin?.direction !== 'output') return undefined
     const source = active?.nodes.find(node => node.id === origin.nodeId)
-    if ((source?.typeId !== 'convax.folder' && source?.typeId !== 'convax.file') || typeof source.data.path !== 'string') return undefined
-    try {
-      const resource = await describe(source.data.path)
-      if (resource.kind === 'folder') return resource.path
-      if (resource.kind !== 'file') return undefined
-      const separator = Math.max(resource.path.lastIndexOf('/'), resource.path.lastIndexOf('\\'))
-      const parent = await describe(resource.path.slice(0, separator + 1))
-      return parent.kind === 'folder' ? parent.path : undefined
-    } catch (_sourceUnavailable) { return undefined }
+    return source === undefined ? undefined : plugins.actions.inputDirectory?.(source)
+
   }
   const addChat = async (
     directory?: string, folderId?: CanvasNodeId, position?: CanvasPoint, origin?: CanvasConnectionOrigin,
@@ -418,10 +414,8 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
       }
       let committed: CanvasDocument | undefined
       const added = await run(active, {
-        kind: 'add-node', node: {
-          id: nodeId, typeId: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1,
-          data: { title: t('chat.untitled'), defaultTitle: true, cwd }, position: position ?? nextResourcePosition(active.nodes), revision: 0,
-        },
+        kind: 'add-node', node: plugins.actions.createChatNode?.(nodeId, cwd, t('chat.untitled'),
+          position ?? nextResourcePosition(active.nodes, plugins.definitions)) ?? (() => { throw new Error('The conversation node plugin is unavailable') })(),
         ...(connections.length === 0 ? {} : { initialConnections: connections }),
       }, (document) => { committed = document }, target)
       if (automation && added && committed !== undefined) {
@@ -448,8 +442,8 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
       const name = await props.bindWindow(nodeId, bindingId, sourceId)
       if (!mounted.current) return false
       admitted = await run(canvas, windowPicker.nodeId === undefined ? {
-        kind: 'add-node', node: { id: nodeId, typeId: 'convax.window' as CanvasNodeTypeId, dataVersion: 1,
-          data: { bindingId, name }, position: windowPicker.position, revision: 0 },
+        kind: 'add-node', node: plugins.actions.createWindowNode?.(nodeId, bindingId, name, windowPicker.position)
+          ?? (() => { throw new Error('The window node plugin is unavailable') })(),
       } : { kind: 'update-node', nodeId, dataVersion: 1, data: { bindingId, name } })
       if (admitted) actions.setResourceExpanded(nodeId, true)
       return admitted
@@ -468,7 +462,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
     try {
       const result = await props.openSession({
         canvasId: active.id, expectedRevision: active.revision, nodeId: randomUUID() as CanvasNodeId,
-        sessionId, position: nextResourcePosition(active.nodes),
+        sessionId, position: nextResourcePosition(active.nodes, plugins.definitions),
       })
       if (!result.ok) { setToast({ id: Date.now(), key: 'automation.failed' }); return }
       actions.focusThread(result.canvasId, result.nodeId, result.sessionId)
@@ -508,6 +502,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
           ) : (
             <Fragment key={active.id}>{props.renderFactorySlot('convax.graph', {
               document: active, busy, nodeTypes: workspace.nodeTypes, nodeIssues: workspace.nodeIssues,
+              rendererDefinitions: plugins.definitions, creations: plugins.creations,
               chats: workspace.chats.filter(chat => chat.canvasId === active.id),
               createChat: (cwd, folderId, position, origin) => { void addChat(cwd, folderId, position, origin) },
               addProject: (position, origin) => { void addProject(position, origin) },
@@ -540,8 +535,9 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
             renderFactorySlot={props.renderFactorySlot} t={t} close={() => { setPreviewPath(null) }} />
         )}
       </div>
-      {windowPicker !== null && props.listWindows !== undefined && <WindowPicker rebind={windowPicker.nodeId !== undefined}
-        list={props.listWindows} select={selectWindow} close={() => { setWindowPicker(null) }} t={t} />}
+      {windowPicker !== null && props.listWindows !== undefined && props.renderFactorySlot('convax.window.picker', {
+        rebind: windowPicker.nodeId !== undefined, list: props.listWindows, select: selectWindow, close: () => { setWindowPicker(null) },
+      })}
       {/* Electron applies drag rectangles in DOM order, including clipped canvas controls. */}
       <nav className={css.tabbar} aria-label={t('canvas.all')} data-workspace-titlebar="integrated" data-window-drag="">
         <span className={css.brand}>{t('workspace.title')}</span>

@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-通过 [Convax 产品组合](../plugin-renderer/cordis.patch.yml)挂载 Host。Convax 独占配置的应用 home 下的 `storages/convax-canvas.sqlite`，DSH 保留已有存储路由。Host 需要文件系统、Agent、Session 持久化、投影、工具与 Remote 访问控制服务；Chat 创建还需要 Workspace 和 Session 查询服务。renderer 的启用独立于 Host。
+通过 [Convax 产品组合](../plugin-renderer/cordis.patch.yml)挂载 Host。Convax 独占配置的应用 home 下的 `storages/convax-canvas.sqlite`，DSH 保留已有存储路由。画布 Host 需要文件系统、工具与 Remote 访问控制服务。独立的[默认节点 Host](../plugin-inernal-nodes-host/README.zh.md)提供文件、文件夹、Chat、窗口定义及原生 Session 协调。Renderer 启用独立于两个 Host 插件。移除节点提供方会保留已存节点、连线与 Session 归属，依赖提供方的操作则暂不可用。
 
 存在 DSH 技能注册表时，本 Host 通过已有文件系统技能提供方暴露打包的 [Convax 开发技能](skills/convax-plugin-development/SKILL.md)。结合原有 Creator 工作流，将可运行的[画布笔记 Bundle](templates/canvas-note/README.zh.md)复制到工作区，再通过 Plugin Manager 安装。模板属于纯画布能力，没有 Convax 时可加载，但不提供原生笔记视图。Host API 发布为公开的 `lib/types/index.d.ts`；Client 节点 API 由 renderer 的公开 `./client` 声明提供。这些可选注册不依赖静态中央目录。
 

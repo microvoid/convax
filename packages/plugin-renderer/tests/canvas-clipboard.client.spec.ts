@@ -1,3 +1,4 @@
+import { defaultNodeClipboardData } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 /** Clipboard parsing and clone placement preserve graph semantics without sharing Chat history. */
 import { describe, expect, it } from 'vitest'
 import type { CanvasConnectionId, CanvasDocument, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
@@ -25,7 +26,7 @@ const views: Record<string, CanvasClipboardView> = {
   [FIRST]: { kind: 'resource', presentation: { expanded: false } },
   [SECOND]: { kind: 'chat', presentation: { collapsed: false } },
 }
-const payload = () => copyCanvasSelection(document, [FIRST, SECOND], dimensions, views)!
+const payload = () => copyCanvasSelection(document, [FIRST, SECOND], dimensions, views, defaultNodeClipboardData)!
 
 describe('Canvas clipboard protocol', () => {
   it('copies only selected graph data and internal edges, with independent JSON fields', () => {
@@ -68,10 +69,10 @@ describe('Copied graph placement', () => {
     const source = structuredClone(document)
     source.nodes[1]!.data = { title: 'Untitled chat', cwd: '/project',
       ...(defaultTitle === undefined ? {} : { defaultTitle }) }
-    const copied = copyCanvasSelection(source, [SECOND], dimensions, views)!
+    const copied = copyCanvasSelection(source, [SECOND], dimensions, views, defaultNodeClipboardData)!
     const parsed = parseCanvasClipboard(JSON.stringify(copied))!
     let next = 0
-    const command = createClipboardSubgraph(parsed, { x: 800, y: 500 }, [], () => `new-${next++}`)
+    const command = createClipboardSubgraph(parsed, { x: 800, y: 500 }, [], () => `new-${next++}`, defaultNodeClipboardData)
     const expected = { title: 'Untitled chat', cwd: '/project', ...(defaultTitle === true ? { defaultTitle: true } : {}) }
     expect(copied.nodes[0]?.data).toEqual(expected)
     expect(command.nodes[0]?.data).toEqual(expected)
@@ -81,7 +82,7 @@ describe('Copied graph placement', () => {
     const copied = payload()
     const hostile = { ...copied, nodes: copied.nodes.map(node => node.id === SECOND ? { ...node, data: { ...node.data, sessionId: 'injected', draft: 'injected' } } : node) }
     let next = 0
-    const command = createClipboardSubgraph(hostile, { x: 800, y: 500 }, [], () => `new-${next++}`)
+    const command = createClipboardSubgraph(hostile, { x: 800, y: 500 }, [], () => `new-${next++}`, defaultNodeClipboardData)
     expect(command.nodes.map(node => node.id)).toEqual(['new-0', 'new-1'])
     expect(command.nodes.map(node => node.position)).toEqual([{ x: 800, y: 500 }, { x: 1040, y: 560 }])
     expect(command.nodes.map(node => node.revision)).toEqual([1, 1])
@@ -113,6 +114,6 @@ describe('Copied graph placement', () => {
     const copied = payload()
     const enormous = { ...copied, nodes: copied.nodes.map((node, index) => ({ ...node, position: { x: index * 9e307, y: 0 } })) }
     let next = 0
-    expect(() => createClipboardSubgraph(enormous, { x: 1e308, y: 0 }, [], () => `new-${next++}`)).toThrow('Copied node coordinates are not finite')
+    expect(() => createClipboardSubgraph(enormous, { x: 1e308, y: 0 }, [], () => `new-${next++}`, defaultNodeClipboardData)).toThrow('Copied node coordinates are not finite')
   })
 })

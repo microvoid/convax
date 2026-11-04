@@ -12,7 +12,7 @@ import type { SessionObservation } from '@deepseek-ai/dsh-session-query'
 import { CanvasDatabase } from '../src/database.ts'
 import { CanvasRepository } from '../src/repository.ts'
 import { CanvasNodeRegistry } from '../src/registry.ts'
-import { CanvasChatCoordinator } from '../src/chats.ts'
+import { CanvasChatCoordinator } from '../../plugin-inernal-nodes-host/src/chats.ts'
 import { ConvaxHost } from '../src/index.ts'
 import type { CanvasId, CanvasNodeId, CanvasNodeTypeId, CanvasOpenSessionRequest, CanvasOperationId } from '../src/types.ts'
 
@@ -41,7 +41,7 @@ async function fixture() {
     ctx.provide('remoteAccess', { allows } as never)
     const domain = await CanvasDatabase.open({ path: join(cwd, 'canvas.sqlite') })
     const registry = new CanvasNodeRegistry((error) => { throw error })
-    registry.register({ id: brandString<CanvasNodeTypeId>('convax.chat'), dataVersion: 1, ports: [], parse: data => data })
+    registry.register({ id: brandString<CanvasNodeTypeId>('convax.chat'), dataVersion: 1, capabilities: { sessions: true }, ports: [], parse: data => data })
     const repository = new CanvasRepository(domain, registry, (error) => { throw error })
     const materialize = vi.fn(async () => { throw new Error('Opening must not create a Session') })
     const coordinator = new CanvasChatCoordinator(ctx, repository, { materialize })

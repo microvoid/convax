@@ -142,7 +142,7 @@ export function registerCanvasTools(ctx: Context, host: CanvasToolHost): void {
           canvas: { ...NULLABLE_CANVAS, required: true },
           nodeTypes: { type: 'array', required: true, items: { type: 'object', additionalProperties: false, properties: {
             id: { type: 'string', required: true }, dataVersion: { type: 'integer', required: true },
-            description: { type: 'string' }, dataSchema: { type: 'json' },
+            description: { type: 'string' }, dataSchema: { type: 'json' }, capabilities: { type: 'json' },
             ports: { type: 'array', required: true, items: { type: 'object', additionalProperties: false, properties: {
               id: { type: 'string', required: true }, direction: { type: 'string', enum: ['input', 'output'], required: true },
               valueKind: { type: 'string', required: true },
@@ -188,9 +188,8 @@ export function registerCanvasTools(ctx: Context, host: CanvasToolHost): void {
       const canvas = targetCanvas(host, exec, args.canvasId)
       const resource = await host.describe(args.path, exec.signal)
       if (resource.kind !== 'file' && resource.kind !== 'folder') throw new Error('Only regular files and folders can be added as canvas references')
-      const typeId = resource.kind === 'file' ? 'convax.file' : 'convax.folder'
-      const provider = host.workspace().nodeTypes.find(value => value.id === typeId)
-      if (provider === undefined) throw new Error(`Node provider ${typeId} is unavailable. Enable its provider before adding a reference.`)
+      const provider = host.workspace().nodeTypes.find(value => value.capabilities?.resourceKind === resource.kind)
+      if (provider === undefined) throw new Error(`Node provider for ${resource.kind} references is unavailable. Enable its provider before adding a reference.`)
       return commit(mutationRequest(canvas.id, args, { kind: 'add-node', node: {
         id: identity(args.nodeId, 'nodeId') as CanvasNodeId, typeId: provider.id, dataVersion: provider.dataVersion,
         revision: 0, data: { path: resource.path }, position: args.position,

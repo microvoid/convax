@@ -10,8 +10,10 @@ import { CanvasNodeRegistry } from '../src/registry.ts'
 import { canvasCommandRequestSchema, graphSchema } from '../src/schema.ts'
 import { CanvasDatabase } from '../src/database.ts'
 import { ConvaxHost, apply as applyHost } from '../src/index.ts'
-import { CanvasChatCoordinator } from '../src/chats.ts'
-import { CanvasDeliveryCoordinator, canvasDeliveryProjection } from '../src/deliveries.ts'
+import { createFileDeliveryOutput } from '../../plugin-inernal-nodes-host/src/file-delivery.ts'
+import { apply as applyNodes } from '../../plugin-inernal-nodes-host/src/index.ts'
+import { CanvasChatCoordinator } from '../../plugin-inernal-nodes-host/src/chats.ts'
+import { CanvasDeliveryCoordinator, canvasDeliveryProjection } from '../../plugin-inernal-nodes-host/src/deliveries.ts'
 import SessionStore, { SESSION_FORMAT_VERSION, SessionId, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import type { SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session'
@@ -20,7 +22,7 @@ import type { ToolCallId } from '@deepseek-ai/dsh-llm/brand'
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import { FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
 import { DatabaseSync } from 'node:sqlite'
-import type { CanvasThreadSessions, CanvasSessionReceipt } from '../src/session-materializer.ts'
+import type { CanvasThreadSessions, CanvasSessionReceipt } from '../../plugin-inernal-nodes-host/src/session-materializer.ts'
 import type { OfficeToPdfRequest, OfficeToPdfResult } from '@deepseek-ai/dsh-office-to-pdf'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import type { CanvasCommand, CanvasCommandRequest, CanvasConnectionId, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasOperationId, CanvasThreadRequest } from '../src/types.ts'
@@ -218,6 +220,27 @@ describe('CanvasRepository', () => {
     expect(f.domain.table('operations').get(add.operationId)).toBeUndefined()
     expect(await f.repository.execute({ ...add, command: { kind: 'add-subgraph', nodes: [node('corrected')], connections: [] } }))
       .toMatchObject({ ok: true })
+  })
+
+  it('preserves third-party Session ownership and deletion protection after its provider unloads', async () => {
+    const f = await fixture()
+    const typeId = brandString<CanvasNodeTypeId>('thirdparty.conversation')
+    const remove = f.registry.register({ id: typeId, dataVersion: 1, capabilities: { sessions: true }, ports: [], parse: data => data })
+    await f.repository.execute(request('custom-canvas', 0, { kind: 'create', title: 'Third-party Session node' }))
+    const sessionNode = { ...node('custom-session'), typeId, data: { title: 'Custom conversation', cwd: '/project' } }
+    expect(await f.repository.execute(request('custom-session', 1, { kind: 'add-node', node: sessionNode }))).toMatchObject({ ok: true })
+    const operationId = brandString<CanvasOperationId>('custom-thread')
+    const sessionId = SessionId('custom-native-session')
+    await f.repository.coordination.reserveThread({ kind: 'create', canvasId, nodeId: sessionNode.id, expectedRevision: 2, operationId }, '/project')
+    await f.repository.coordination.completeThread(operationId, sessionId, 0)
+    const before = f.repository.snapshot().canvases
+    await remove()
+    expect(f.repository.snapshot().canvases).toEqual(before)
+    expect(f.repository.snapshot().chats[0]).toMatchObject({ nodeId: sessionNode.id, threads: [{ sessionId }] })
+    expect(f.repository.bindingOf(sessionId)).toMatchObject({ canvasId, nodeId: sessionNode.id })
+    expect(await f.repository.execute(request('uncoordinated-removal', 3, { kind: 'remove-nodes', nodeIds: [sessionNode.id] })))
+      .toMatchObject({ ok: false, code: 'invalid-command', message: 'Chat deletion requires Session coordination' })
+    expect(f.repository.snapshot().canvases).toEqual(before)
   })
 
   it('connects a new subgraph to compatible existing nodes', async () => {
@@ -473,7 +496,7 @@ describe('Durable graph history', () => {
 async function chatFixture() {
   const value = await fixture()
   value.registry.register({
-    id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1,
+    id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1, capabilities: { sessions: true },
     ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }, { id: 'output', direction: 'output', valueKind: 'resource' }],
     parse: data => data,
   })
@@ -679,7 +702,7 @@ describe('Canvas organization', () => {
     expect(archived.has(lateSession)).toBe(true)
     expect(f.repository.coordination.thread(f.create.operationId)?.phase).toBe('suppressed')
     const saved = f.repository.snapshot()
-    await f.repository.coordination.projectDelivery(lateSession, 4, [{ path: '/project/late-output.txt' }])
+    await f.repository.coordination.projectDelivery(lateSession, 4, [{ path: '/project/late-output.txt' }], createFileDeliveryOutput)
     expect(f.repository.snapshot()).toEqual(saved)
     expect([...f.domain.table('deliveries').entries()].map(([, value]) => value.phase)).toEqual(['suppressed'])
   })
@@ -831,7 +854,7 @@ describe('Chat graph history', () => {
     expect(archived).toEqual(new Set([lateSession]))
     expect(f.repository.bindingOf(lateSession)?.nodeId).toBe(f.chat.id)
     const restored = f.repository.snapshot()
-    await f.repository.coordination.projectDelivery(lateSession, 2, [{ path: '/project/suppressed-output.txt' }])
+    await f.repository.coordination.projectDelivery(lateSession, 2, [{ path: '/project/suppressed-output.txt' }], createFileDeliveryOutput)
     expect(f.repository.snapshot()).toEqual(restored)
     expect([...f.domain.table('deliveries').entries()].map(([, value]) => value.phase)).toEqual(['suppressed'])
     expect(await coordinator.createThread(late)).toMatchObject({ ok: false, code: 'deleting' })
@@ -849,7 +872,7 @@ describe('Chat graph history', () => {
     const native = historyArchives(f.ctx, archived, headers)
     await f.repository.coordination.reserveThread(f.create, '/project')
     await f.repository.coordination.completeThread(f.create.operationId, root, 0)
-    await f.repository.coordination.projectDelivery(root, 2, [{ path: '/project/result.txt' }])
+    await f.repository.coordination.projectDelivery(root, 2, [{ path: '/project/result.txt' }], createFileDeliveryOutput)
     const before = f.repository.snapshot().canvases[0]!
     const remove = { ...request('delete-for-history', before.revision, { kind: 'remove-nodes', nodeIds: [f.chat.id] }), confirmed: true }
     const coordinator = new CanvasChatCoordinator(f.ctx, f.repository)
@@ -865,10 +888,10 @@ describe('Chat graph history', () => {
     expect(f.repository.bindingOf(root)).toMatchObject({ canvasId, nodeId: f.chat.id })
     expect(f.repository.snapshot().canvases[0]?.nodes.find(node => node.id === f.chat.id)?.revision).toBe(2)
     const restored = f.repository.snapshot()
-    await f.repository.coordination.projectDelivery(root, 2, [{ path: '/project/result.txt' }])
+    await f.repository.coordination.projectDelivery(root, 2, [{ path: '/project/result.txt' }], createFileDeliveryOutput)
     expect(f.repository.snapshot()).toEqual(restored)
     expect([...f.domain.table('deliveries').entries()].map(([, value]) => value.phase)).toEqual(['suppressed'])
-    await f.repository.coordination.projectDelivery(root, 3, [{ path: '/project/new-result.txt' }])
+    await f.repository.coordination.projectDelivery(root, 3, [{ path: '/project/new-result.txt' }], createFileDeliveryOutput)
     expect([...f.domain.table('deliveries').entries()].map(([, value]) => value.phase)).toEqual(['suppressed', 'projected'])
     const next = { ...f.create, expectedRevision: f.repository.snapshot().canvases[0]!.revision, operationId: 'post-restore-thread' as CanvasOperationId }
     await expect(f.repository.coordination.reserveThread(next, '/project')).resolves.toMatchObject({ phase: 'pending' })
@@ -967,7 +990,7 @@ describe('Chat coordination records', () => {
     await f.close()
 
     const reopened = await f.open()
-    reopened.registry.register({ id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1, ports: [], parse: data => data })
+    reopened.registry.register({ id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1, capabilities: { sessions: true }, ports: [], parse: data => data })
     const sessionId = SessionId('preset-recovered-thread')
     const recoveredCreate = vi.fn(async (creation: TestSessionCreateRequest) => ({
       phase: 'completed' as const, operationId: creation.operationId, sessionId, inheritedEventCount: 0,
@@ -1062,7 +1085,7 @@ describe('Chat coordination records', () => {
     expect(await f.repository.execute(request('reuse-in-batch', canvas.revision, { kind: 'add-subgraph',
       nodes: [node('new-resource'), f.chat], connections: [],
     }))).toMatchObject({ ok: false, code: 'invalid-command' })
-    await f.repository.coordination.projectDelivery(sessionId, 4, [{ path: '/project/late.txt' }])
+    await f.repository.coordination.projectDelivery(sessionId, 4, [{ path: '/project/late.txt' }], createFileDeliveryOutput)
     expect(f.repository.snapshot().canvases[0]?.nodes).toEqual([])
     const removeCanvas = request('retire-canvas', canvas.revision, { kind: 'delete' })
     await f.repository.coordination.beginDeletion({ ...removeCanvas, confirmed: true })
@@ -1081,7 +1104,7 @@ describe('Chat coordination records', () => {
     expect(reopened.repository.snapshot().chats[0]?.issue).toContain('reserved Session')
     await reopened.repository.coordination.completeThread(f.create.operationId, 'unique-session' as SessionId, 0)
     const canvas = reopened.repository.snapshot().canvases[0]!
-    reopened.registry.register({ id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1, ports: [], parse: data => data })
+    reopened.registry.register({ id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1, capabilities: { sessions: true }, ports: [], parse: data => data })
     const second = { ...f.chat, id: 'chat-b' as CanvasNodeId }
     await reopened.repository.execute(request('add-second-chat', canvas.revision, { kind: 'add-node', node: second }))
     const create = { ...f.create, nodeId: second.id, operationId: 'thread-other-chat' as CanvasOperationId, expectedRevision: canvas.revision + 1 }
@@ -1116,21 +1139,21 @@ describe('Chat coordination records', () => {
     const db = new DatabaseSync(path)
     cleanup.push(async () => { db.close() })
     db.exec("CREATE TRIGGER reject_second_delivery BEFORE INSERT ON u_convax_deliveries WHEN json_extract(NEW.value, '$.index') = 1 BEGIN SELECT RAISE(ABORT, 'delivery fault'); END")
-    await expect(repository.coordination.projectDelivery(sessionId, 8, [{ path: '/project/result.txt' }, { path: '/project/other.txt' }])).rejects.toThrow()
+    await expect(repository.coordination.projectDelivery(sessionId, 8, [{ path: '/project/result.txt' }, { path: '/project/other.txt' }], createFileDeliveryOutput)).rejects.toThrow()
     expect(repository.snapshot()).toEqual(before)
     expect(domain.table('deliveries').size).toBe(0)
     expect(repository.coordination.bindings()[0]?.deliveryCursor).toBe(-1)
     db.exec('DROP TRIGGER reject_second_delivery')
-    await repository.coordination.projectDelivery(sessionId, 8, [{ path: '/project/result.txt' }, { path: '/project/other.txt' }])
+    await repository.coordination.projectDelivery(sessionId, 8, [{ path: '/project/result.txt' }, { path: '/project/other.txt' }], createFileDeliveryOutput)
     expect(repository.snapshot().canvases[0]?.connections).toHaveLength(2)
     expect(repository.coordination.bindings()[0]?.deliveryCursor).toBe(8)
     const canvas = repository.snapshot().canvases[0]!
     const output = canvas.nodes.find(value => value.typeId === 'convax.file')!
     await repository.execute(request('remove-output', canvas.revision, { kind: 'remove-nodes', nodeIds: [output.id] }))
-    await repository.coordination.projectDelivery(sessionId, 8, [{ path: '/project/result.txt' }, { path: '/project/other.txt' }])
+    await repository.coordination.projectDelivery(sessionId, 8, [{ path: '/project/result.txt' }, { path: '/project/other.txt' }], createFileDeliveryOutput)
     expect(repository.snapshot().canvases[0]?.nodes.some(value => value.id === output.id)).toBe(false)
     expect([...domain.table('deliveries').entries()].map(([, value]) => value.phase)).toContain('removed')
-    await repository.coordination.projectDelivery(sessionId, 12, [{ path: '/project/result.txt' }])
+    await repository.coordination.projectDelivery(sessionId, 12, [{ path: '/project/result.txt' }], createFileDeliveryOutput)
     expect(domain.table('deliveries').size).toBe(3)
     expect(repository.snapshot().canvases[0]?.nodes.filter(value => value.typeId === 'convax.file')).toHaveLength(2)
   })
@@ -1140,11 +1163,11 @@ describe('Chat coordination records', () => {
     const sessionId = 'fork-deliveries' as SessionId
     await repository.coordination.reserveThread(create, '/project')
     await repository.coordination.completeThread(create.operationId, sessionId, 20)
-    await repository.coordination.projectDelivery(sessionId, 4, [{ path: '/old/result.txt' }])
+    await repository.coordination.projectDelivery(sessionId, 4, [{ path: '/old/result.txt' }], createFileDeliveryOutput)
     expect(domain.table('deliveries').size).toBe(0)
     const canvas = repository.snapshot().canvases[0]!
     await repository.coordination.beginDeletion({ ...request('delete-with-output', canvas.revision, { kind: 'remove-nodes', nodeIds: [chat.id] }), confirmed: true })
-    await repository.coordination.projectDelivery(sessionId, 24, [{ path: '/new/result.txt' }])
+    await repository.coordination.projectDelivery(sessionId, 24, [{ path: '/new/result.txt' }], createFileDeliveryOutput)
     expect(repository.snapshot().canvases[0]?.nodes).toHaveLength(1)
     expect([...domain.table('deliveries').entries()][0]?.[1].phase).toBe('suppressed')
     const initial = { inheritedEventCount: 20, deliveries: [] }
@@ -1460,6 +1483,7 @@ describe('Chat Session coordination', () => {
     f.ctx.provide('sessionQuery', {} as never)
     f.ctx.provide('workspaceRegistry', {} as never)
     expect(f.ctx.get('sessionController')).toBeUndefined()
+    host.registerSessionOperations(new CanvasChatCoordinator(f.ctx, f.repository, testMaterializer(f.repository, async () => { throw new Error('No creation expected') })))
     expect(host.workspace().chats[0]?.issue).toBeNull()
     expect(host.workspace().chats[0]).not.toHaveProperty('issueCode')
     await f.repository.coordination.reserveThread(f.create, '/project')
@@ -1712,7 +1736,7 @@ describe('Host resource acquisition and release', () => {
     expect(await f.ctx.convax.mediaSource(path)).toMatchObject({ path, version: 'one' })
   })
 
-  it('removes model-step admission before closing its database', async () => {
+  it('removes node-plugin model-step admission before closing the core database', async () => {
     const f = await fixture()
     await f.ctx.plugin(SessionStore)
     await f.ctx.plugin(SessionProjectionRegistry)
@@ -1726,6 +1750,7 @@ describe('Host resource acquisition and release', () => {
       await close()
     })
     await applyHost(f.ctx, { databasePath: f.path, canvasDirectoryRoot: `${f.path}.workspaces`, previewBytes: 10, documentBytes: 1024, mediaChunkBytes: 1024 })
+    await applyNodes(f.ctx)
     expect(f.ctx.events._hooks['agent/pre-step']?.length ?? 0).toBe(baseline + 1)
     await f.ctx.fiber.dispose()
     expect(closeDatabase).toHaveBeenCalled()

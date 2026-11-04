@@ -8,13 +8,14 @@ import { describe, expect, it } from 'vitest'
 type ConfigFactory = (options: Pick<UserConfig, 'env'>) => UserConfig[]
 
 describe('Convax tab animation bundle', () => {
-  it('loads matching transition and settling rules for both canvas and thread tabs', async () => {
-    const configPath = new URL('../tsdown.config.ts', import.meta.url).href
+  it.each(['plugin-renderer', 'plugin-inernal-nodes-renderer'])('loads matching transition and settling rules in %s', async (directory) => {
+    const root = resolve(import.meta.dirname, '../..', directory)
+    const configPath = new URL(`file://${root}/tsdown.config.ts`).href
     const { default: configs } = await import(configPath) as { default: ConfigFactory }
     const config = configs({ env: {} }).find(config => config.platform === 'browser')
     if (config === undefined) throw new Error('Convax browser bundle configuration is missing')
     const builds = await build({
-      ...config, cwd: resolve(import.meta.dirname, '..'), config: false, tsconfig: false,
+      ...config, cwd: root, config: false, tsconfig: false,
       write: false, clean: false, exports: false, report: false, logLevel: 'silent',
     })
     try {
@@ -52,8 +53,8 @@ describe('Convax tab animation bundle', () => {
         ts.forEachChild(node, count)
       }
       count(source)
-      expect(uses.strip, 'Both tab strips apply the emitted strip class').toBe(2)
-      expect(uses.tab, 'Both tab strips apply the emitted tab class').toBe(2)
+      expect(uses.strip, 'The owner applies the emitted strip class').toBe(1)
+      expect(uses.tab, 'The owner applies the emitted tab class').toBe(1)
 
       const dom = new JSDOM()
       try {

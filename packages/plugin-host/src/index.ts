@@ -5,7 +5,6 @@ import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import configSchema from '@deepseek-ai/schemastery'
-import { z } from 'zod'
 import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-session-persistence'
@@ -19,26 +18,30 @@ import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typer
 import { CanvasRepository } from './repository.ts'
 import { CanvasNodeRegistry } from './registry.ts'
 import type { CanvasNodeDefinition } from './registry.ts'
+import type { CanvasSessionOperations, CanvasDeliveryOperations } from './node-operations.ts'
 import { CanvasMigrationCoordinator } from './migrations.ts'
 import { registerCanvasTools } from './tools.ts'
 import { registerGraphTools } from './graph-tools.ts'
 import { registerConvaxDevelopment } from './development.ts'
 import { CanvasDatabase } from './database.ts'
 import { CanvasWorkingDirectories } from './directories.ts'
-import { CanvasChatCoordinator } from './chats.ts'
-import { CanvasDeliveryCoordinator } from './deliveries.ts'
-import { registerCanvasAdmission } from './admission.ts'
 import { canvasCommitRequestSchema } from './schema.ts'
 import { readCanvasDocument } from './documents.ts'
 import { CanvasMediaResponses, readCanvasMediaSource } from './media.ts'
 import type {
-  CanvasCommandRequest, CanvasCommandResult, CanvasDirectory, CanvasId, CanvasNodeId, CanvasNodeTypeId,
+  CanvasCommandRequest, CanvasCommandResult, CanvasDirectory, CanvasId, CanvasNodeId,
   CanvasPreview, CanvasDocumentPreview, CanvasMediaSource, CanvasResource, CanvasWorkspace, CanvasThreadRequest, CanvasThreadResult,
   CanvasOpenSessionRequest, CanvasOpenSessionResult,
   CanvasCommitRequest,
 } from './types.ts'
 
 export type * from './types.ts'
+export type { CanvasSessionOperations, CanvasDeliveryOperations } from './node-operations.ts'
+export { CanvasRepository } from './repository.ts'
+export { CanvasCoordinationError } from './coordination-repository.ts'
+export type { CanvasThreadIntent, CanvasSessionReservation, CanvasDeliveryOutputFactory } from './coordination-repository.ts'
+export { canvasCommandRequestSchema, threadRequestSchema } from './schema.ts'
+export { sameCanvasRequest } from './request-equality.ts'
 export { layoutGrid } from './layout.ts'
 export type { CanvasGridLayout, CanvasLayoutNode } from './layout.ts'
 export { CanvasNodeRegistry } from './registry.ts'
@@ -54,7 +57,7 @@ declare module '@deepseek-ai/cordis' {
 /** Cordis plugin name. */
 export const name = 'convax-plugin-host'
 /** Generic capabilities required by the Host. */
-export const inject = [ 'fs', 'agents', 'sessions', 'sessionPersistence', 'sessionProjections', 'tools', 'remoteAccess']
+export const inject = ['fs', 'tools', 'remoteAccess']
 
 /** Deployment limits for one resource preview. */
 export interface Config {
@@ -84,9 +87,8 @@ export const Config: configSchema<Config> = configSchema.object({
 /** Coordination owned by the composing plugin rather than Remote callers. */
 interface HostIntegrations {
   directories?: CanvasWorkingDirectories
-  admission?: () => Promise<void>
-  chats?: CanvasChatCoordinator
-  deliveries?: CanvasDeliveryCoordinator
+  chats?: CanvasSessionOperations
+  deliveries?: CanvasDeliveryOperations
   migrations?: CanvasMigrationCoordinator
   media?: () => Promise<void>
 }
@@ -121,7 +123,7 @@ export class ConvaxHost extends TypertRemoteService {
   @Remote
   workspace(): CanvasWorkspace {
     const snapshot = this.repository.snapshot()
-    if (this.ctx.get('sessionQuery') === undefined || this.ctx.get('workspaceRegistry') === undefined) {
+    if (this.integrations.chats === undefined) {
       for (const chat of snapshot.chats) {
         if (chat.issue === null) {
           chat.issue = 'Chat creation and deletion are unavailable in this profile'
@@ -139,6 +141,37 @@ export class ConvaxHost extends TypertRemoteService {
    */
   registerNodeType(definition: CanvasNodeDefinition): () => Promise<void> {
     return this.repository.nodeTypes.register(definition)
+  }
+
+  /**
+   * Attach native Session operations until the contributing node plugin unloads.
+   * @param operations - One adapter owning native Session coordination, not Agent execution.
+   * @returns Idempotent disposer that removes entry points before draining coordination.
+   */
+  registerSessionOperations(operations: CanvasSessionOperations): () => Promise<void> {
+    if (this.integrations.chats !== undefined) throw new Error('Convax Session operations are already registered')
+    this.integrations.chats = operations
+    this.repository.invalidate()
+    let closing: Promise<void> | undefined
+    return () => {
+      if (this.integrations.chats === operations) { delete this.integrations.chats; this.repository.invalidate() }
+      return closing ??= operations.close()
+    }
+  }
+
+  /**
+   * Attach recorded delivery catch-up independently of the canvas interface.
+   * @param operations - Feature-owned observation and retry operations.
+   * @returns Idempotent disposer which drains observations without stopping Agents.
+   */
+  registerDeliveryOperations(operations: CanvasDeliveryOperations): () => Promise<void> {
+    if (this.integrations.deliveries !== undefined) throw new Error('Convax delivery operations are already registered')
+    this.integrations.deliveries = operations
+    let closing: Promise<void> | undefined
+    return () => {
+      if (this.integrations.deliveries === operations) delete this.integrations.deliveries
+      return closing ??= operations.close()
+    }
   }
 
   /**
@@ -207,9 +240,10 @@ export class ConvaxHost extends TypertRemoteService {
         if (op.op === 'node.add') types.set(op.id, op.typeId)
         if ((op.op === 'node.add' || op.op === 'node.set') && op.data !== undefined) {
           const type = types.get(op.id)
-          if ((type === 'convax.file' || type === 'convax.folder') && typeof op.data.path === 'string') {
+          const resourceKind = type === undefined ? undefined : this.repository.nodeTypes.get(type)?.capabilities?.resourceKind
+          if (resourceKind !== undefined && typeof op.data.path === 'string') {
             const resource = await this.describe(op.data.path, signal)
-            if (resource.kind !== (type === 'convax.file' ? 'file' : 'folder')) throw new RemoteError('gateway/bad-request', 'Resource kind does not match the node type', {})
+            if (resource.kind !== resourceKind) throw new RemoteError('gateway/bad-request', 'Resource kind does not match the node type', {})
           }
         }
         if (op.op === 'node.remove') types.delete(op.id)
@@ -538,7 +572,7 @@ export class ConvaxHost extends TypertRemoteService {
     this.closed = true
     this.lifetime.abort()
     const coordination = Promise.allSettled([
-      this.integrations.admission?.(), this.integrations.chats?.close(),
+      this.integrations.chats?.close(),
       this.integrations.deliveries?.close(), this.integrations.migrations?.close(),
       this.integrations.media?.(),
     ])
@@ -554,7 +588,7 @@ export class ConvaxHost extends TypertRemoteService {
 }
 
 /**
- * Open durable state and install built-in providers under the Host lifecycle.
+ * Open durable graph state and generic resource capabilities independently of node providers.
  * @param ctx - Composed Host context.
  * @param config - Validated plugin configuration.
  * @returns Once the repository and Remote service are ready.
@@ -567,9 +601,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const domain = await CanvasDatabase.open({ path: config.databasePath, legacyPath: config.legacyDatabasePath })
   for (const warning of domain.migrationWarnings) ctx.logger.warn(warning)
   const resources: { service?: ConvaxHost } = {}
-  let closeResources: () => Promise<void>
   try {
-    closeResources = ctx.effect(() => async () => {
+    ctx.effect(() => async () => {
       try { await resources.service?.close() } finally { await domain.close() }
     }, 'convax: Host resources')
   } catch (error) {
@@ -578,36 +611,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   }
   const reportObserverFailure = (error: unknown): void => { ctx.logger.error('Canvas observer failed after publication', error) }
   const registry = new CanvasNodeRegistry(reportObserverFailure)
-  const resourceData = z.looseObject({ path: z.string().min(1) })
-  for (const id of ['convax.file', 'convax.folder']) {
-    ctx.effect(() => registry.register({
-      id: id as CanvasNodeTypeId, dataVersion: 1,
-      description: id === 'convax.file' ? 'Reference to an existing file; file contents remain in the filesystem.' : 'Reference to an existing folder; directory entries are read on demand.',
-      dataSchema: { type: 'object', properties: { path: { type: 'string', minLength: 1, description: 'Absolute path to an existing resource.' } }, required: ['path'], additionalProperties: true },
-      ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }, { id: 'output', direction: 'output', valueKind: 'resource' }],
-      parse: data => ({ ...data, path: resourceData.parse(data).path }),
-    }))
-  }
-  const windowData = z.strictObject({ bindingId: z.uuid(), name: z.string().trim().min(1) })
-  ctx.effect(() => registry.register({
-    id: 'convax.window' as CanvasNodeTypeId, dataVersion: 1,
-    description: 'Selected application window. Live capture belongs to the current Desktop; graph data does not grant capture or input access.',
-    dataSchema: { type: 'object', properties: {
-      bindingId: { type: 'string', format: 'uuid', description: 'Selection identity; no native window or process handle.' },
-      name: { type: 'string', minLength: 1, description: 'Display name of the explicitly selected window.' },
-    }, required: ['bindingId', 'name'], additionalProperties: false },
-    ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }, { id: 'output', direction: 'output', valueKind: 'resource' }],
-    parse: data => windowData.parse(data),
-  }))
-  const chatData = z.object({ title: z.string().trim().min(1), defaultTitle: z.boolean().optional(), cwd: z.string().refine(isAbsolute, 'An absolute project directory is required') })
-    .transform(({ defaultTitle, ...value }) => ({ ...value, ...(defaultTitle === undefined ? {} : { defaultTitle }) }))
-  ctx.effect(() => registry.register({
-    id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1,
-    description: 'Chat container with a project directory and independently created DSH Session threads.',
-    dataSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1 }, defaultTitle: { type: 'boolean', description: 'True only for a system-generated untitled Chat; omit for explicit names.' }, cwd: { type: 'string', description: 'Absolute project directory.' } }, required: ['title', 'cwd'], additionalProperties: false },
-    ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }, { id: 'output', direction: 'output', valueKind: 'resource' }],
-    parse: data => chatData.parse(data),
-  }))
   const repository = new CanvasRepository(domain, registry, reportObserverFailure)
   const integrations: HostIntegrations = { directories: new CanvasWorkingDirectories(ctx, domain, repository, config.canvasDirectoryRoot) }
   const service = new ConvaxHost(ctx, repository, config, integrations)
@@ -632,25 +635,4 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   await migrations.start()
   registerCanvasTools(ctx, service)
   registerGraphTools(ctx, service)
-  ctx.effect(function* () {
-    yield closeResources
-    const removeAdmission = registerCanvasAdmission(ctx, repository)
-    let admissionClosing: Promise<void> | undefined
-    integrations.admission = () => admissionClosing ??= removeAdmission()
-    yield removeAdmission
-  }, 'convax: admission before resource close')
-  const deliveries = new CanvasDeliveryCoordinator(ctx, repository)
-  integrations.deliveries = deliveries
-  await deliveries.start()
-  ctx.inject(['workspaceRegistry', 'sessionQuery'], async (scope) => {
-    const coordinator = new CanvasChatCoordinator(scope, repository)
-    scope.effect(() => {
-      integrations.chats = coordinator
-      return async () => {
-        await coordinator.close()
-        if (integrations.chats === coordinator) delete integrations.chats
-      }
-    }, 'convax: Chat coordination')
-    await coordinator.recover()
-  })
 }

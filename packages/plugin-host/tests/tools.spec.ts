@@ -12,6 +12,7 @@ import { SessionId } from '@deepseek-ai/dsh-session'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import RemoteAccess from '@deepseek-ai/dsh-api-remote-access'
 import * as Convax from '../src/index.ts'
+import * as DefaultNodes from '../../plugin-inernal-nodes-host/src/index.ts'
 import type { CanvasCommand, CanvasId, CanvasNodeId, CanvasNodeTypeId, CanvasOperationId, CanvasResource } from '../src/types.ts'
 
 const canvasId = 'canvas-a' as CanvasId
@@ -35,6 +36,8 @@ async function fixture() {
   const fiber = ctx.plugin(Convax, { databasePath: join(root, 'convax-canvas.sqlite'), canvasDirectoryRoot: join(root, 'workspaces'), previewBytes: 1024, documentBytes: 1024, mediaChunkBytes: 1024 })
   await fiber
   await fiber.await()
+  const nodesFiber = ctx.plugin(DefaultNodes)
+  await nodesFiber
   const host = ctx.convax
   const driver = await mountAgentLoopTestHarness(ctx)
   const owner = await driver.create(SessionId('graph-owner'), {}, { cwd: root })
@@ -69,7 +72,7 @@ async function fixture() {
   const add = (nodeId = 'file-a', extra: object = {}) => invoke('convax_add_file', {
     nodeId, path, position: { x: 30, y: 40 }, operationId: `add-${nodeId}`, expectedRevision: revision(), ...extra,
   })
-  return { ctx, host, owner, outsider, fiber, root, path, revision, execute, invoke, add }
+  return { ctx, host, owner, outsider, fiber, nodesFiber, root, path, revision, execute, invoke, add }
 }
 
 describe('Convax graph tools', () => {
@@ -86,6 +89,20 @@ describe('Convax graph tools', () => {
     expect(types.value).toHaveProperty('nodeTypes.0.dataSchema.required', ['path'])
     expect(types.value).toHaveProperty('nodeTypes.0.dataSchema.properties.path.type', 'string')
     expect(types.value).not.toHaveProperty('canvases')
+  })
+
+  it('uses a third-party resource provider through the same public capability after default nodes are disabled', async () => {
+    const f = await fixture()
+    await f.nodesFiber.dispose()
+    const typeId = 'thirdparty.document' as CanvasNodeTypeId
+    cleanups.push(f.host.registerNodeType({ id: typeId, dataVersion: 2, capabilities: { resourceKind: 'file' },
+      ports: [], parse: data => data }))
+    const result = await f.add('custom-file')
+    expect(result.isError).toBe(false)
+    expect(result.value).toMatchObject({ ok: true })
+    expect(f.host.workspace().canvases[0]?.nodes.find(node => node.id === 'custom-file')).toMatchObject({ typeId, dataVersion: 2, data: { path: f.path } })
+    expect(f.host.repository.bindingOf(f.owner.id)).toMatchObject({ nodeId: chatId })
+    expect(f.ctx.agents.get(f.owner.id)).toBe(f.owner)
   })
 
   it('commits ordered plugin operations once and projects selected incident edges', async () => {
@@ -312,7 +329,7 @@ describe('Convax graph tools', () => {
     vi.spyOn(f.host, 'workspace').mockReturnValue({ ...before, nodeTypes: [] })
     const execute = vi.spyOn(f.host, 'execute')
     expect(await f.add('provider-missing')).toMatchObject({ isError: true, content: [{
-      type: 'text', text: 'Error: Node provider convax.file is unavailable. Enable its provider before adding a reference.',
+      type: 'text', text: 'Error: Node provider for file references is unavailable. Enable its provider before adding a reference.',
     }] })
     expect(execute).not.toHaveBeenCalled()
     expect(f.host.repository.snapshot().canvases).toEqual(before.canvases)

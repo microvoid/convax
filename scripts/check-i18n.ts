@@ -11,7 +11,7 @@ const examples = [
   'packages/plugin-renderer/examples/counter',
   'packages/plugin-host/templates/canvas-note',
 ] as const
-const metadataDirectories = ['packages/plugin-renderer', ...examples]
+const metadataDirectories = ['packages/plugin-renderer', 'packages/plugin-inernal-nodes-host', 'packages/plugin-inernal-nodes-renderer', ...examples]
 
 /** One actionable failure produced by the Convax locale gate. */
 export interface ConvaxI18nProblem {

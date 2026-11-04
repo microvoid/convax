@@ -28,6 +28,8 @@ These packages share the [Convax subsystem](../libs/dsh/docs/subsystems/convax.m
 |---|---|
 | [plugin-host](plugin-host/README.md) | Owned SQLite graphs, one thread recovery ledger, deletion coordination, explicit references, delivery recovery and typed Remote commands. |
 | [plugin-renderer](plugin-renderer/README.md) | Full-window canvases, embedded native conversations, and installable product composition. |
+| [plugin-inernal-nodes-host](plugin-inernal-nodes-host/README.md) | Default node definitions and DSH Session and delivery adapters, independently switchable from the canvas Host. |
+| [plugin-inernal-nodes-renderer](plugin-inernal-nodes-renderer/README.md) | File and folder previews, Chat cards, window mirrors and node creation through public renderer contributions. |
 
 <a id="related-documentation"></a>
 ## Related documentation

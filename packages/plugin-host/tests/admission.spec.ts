@@ -4,7 +4,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it } from 'vitest'
-import { registerCanvasAdmission } from '../src/admission.ts'
+import { registerCanvasAdmission } from '../../plugin-inernal-nodes-host/src/admission.ts'
 import type { CanvasChat, CanvasId, CanvasNodeId, CanvasSessionBinding } from '../src/types.ts'
 
 const canvasId = 'canvas' as CanvasId
@@ -28,8 +28,8 @@ async function fixture() {
   }
   const dispose = registerCanvasAdmission(ctx, repository)
   const message = createUserMessage({ content: [{ type: 'text', text: 'Summarize @/explicit/notes.txt' }], source: { kind: 'user' } })
-  const step = (agent: Agent = { session } as Agent) => ctx.waterfall('agent/pre-step', {
-    agent, messages: [message], turn: 1, step: 1, signal: new AbortController().signal,
+  const step = (agent: Agent = { session } as Agent, signal = new AbortController().signal) => ctx.waterfall('agent/pre-step', {
+    agent, messages: [message], turn: 1, step: 1, signal,
     modelSelection: { provider: 'test', model: 'test' },
   }, () => Promise.resolve({ kind: 'enter' as const, messages: [message] }))
   return { ctx, chat, session, message, step, dispose, unbind() { bound = false }, remove() { present = false } }
@@ -76,7 +76,7 @@ describe('Convax model-step admission', () => {
     expect(f.ctx.sessions.get(parentId)).toBeUndefined()
   })
 
-  it('awaits an admitted ancestry read before releasing the guard', async () => {
+  it('drains an ancestry read during plugin removal without rejecting the native Agent step', async () => {
     const f = await fixture()
     const entered = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
@@ -89,7 +89,36 @@ describe('Convax model-step admission', () => {
     await Promise.resolve(undefined)
     expect(closed).toBe(false)
     release.resolve(undefined)
-    expect(await checking).toEqual({ kind: 'reject' })
+    expect(await checking).toEqual({ kind: 'enter', messages: [f.message] })
     await closing
   })
+
+  it.each(['plugin removal', 'caller cancellation'] as const)('contains only plugin-owned cancellation during %s', async (reason) => {
+    const f = await fixture()
+    const entered = Promise.withResolvers<undefined>()
+    const lookup = Promise.withResolvers<never>()
+    const caller = new AbortController()
+    const child = f.ctx.sessions.create(SessionId('cancelled-lookup-child'), {
+      meta: { parentSession: SessionId('cold-ancestor'), origin: 'subagent' },
+    })
+    f.ctx.provide('sessionPersistence', { stat: async (_id: SessionId, options: { signal: AbortSignal }) => {
+      entered.resolve(undefined)
+      options.signal.addEventListener('abort', () => { lookup.reject(options.signal.reason) }, { once: true })
+      return lookup.promise
+    } } as never)
+    const checking = f.step({ session: child } as Agent, caller.signal)
+    if (reason === 'plugin removal') {
+      await entered.promise
+      const closing = f.dispose()
+      expect(await checking).toEqual({ kind: 'enter', messages: [f.message] })
+      await closing
+    } else {
+      const cancelled = expect(checking).rejects.toThrow('Caller cancelled')
+      await entered.promise
+      caller.abort(new Error('Caller cancelled'))
+      await cancelled
+      await f.dispose()
+    }
+  })
+
 })

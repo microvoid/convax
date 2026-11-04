@@ -18,6 +18,8 @@ export interface ProductPackagePolicy {
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
   '../../packages/plugin-host': { category: 'optional', reason: 'Durable canvas Host selected by the Convax product bundle.' },
   '../../packages/plugin-renderer': { category: 'optional', reason: 'Optional full-window canvas interface with independent Host lifecycle.' },
+  '../../packages/plugin-inernal-nodes-host': { category: 'optional', reason: 'Default Convax node providers, independently removable from the canvas Host.' },
+  '../../packages/plugin-inernal-nodes-renderer': { category: 'optional', reason: 'Default Convax node displays, independently removable from their providers.' },
   'packages/core/agent-tool-presentation': { category: 'optional', reason: 'Deprecated selector retained for existing executor configurations.' },
   'packages/browser-use/browser-use': { category: 'optional', reason: 'Service definition used by explicitly selected browser providers.' },
   'packages/computer-use/computer-use': { category: 'optional', reason: 'Service definition used by explicitly selected computer providers.' },

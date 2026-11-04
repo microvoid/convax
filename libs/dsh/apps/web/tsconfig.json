@@ -34,6 +34,7 @@
     "tests/convax-chat-settings.e2e.ts",
     "tests/convax-desktop-drop.e2e.ts",
     "tests/convax-plugin-development.e2e.ts",
+    "tests/convax-internal-nodes.e2e.ts",
     "tests/convax-theme.e2e.ts",
     "tests/creation-recommendations.e2e.ts",
     "tests/plugin-recommendations.e2e.ts",

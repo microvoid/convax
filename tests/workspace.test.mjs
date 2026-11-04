@@ -48,6 +48,26 @@ test('dependency installation has one root lockfile and no nested DSH workspace'
   ])
 })
 
+test('the default Convax composition mounts independently switchable node providers and displays', () => {
+  const packages = ['plugin-inernal-nodes-host', 'plugin-inernal-nodes-renderer']
+  for (const directory of packages) {
+    const nodePackage = readJson(`packages/${directory}/package.json`)
+    assert.equal(nodePackage.name, `@deepseek-ai/dsh-convax-${directory}`)
+    assert.equal(manifest.devDependencies[nodePackage.name], 'workspace:*')
+  }
+  const schema = yaml.DEFAULT_SCHEMA.extend([new yaml.Type('tag:yaml.org,2002:js', { kind: 'scalar' })])
+  const patch = yaml.load(readFileSync(join(root, 'packages/plugin-renderer/cordis.patch.yml'), 'utf8'), { schema })
+  const rows = patch.flatMap(operation => operation.insert ?? [])
+  for (const id of ['convax-host', 'convax-renderer', 'convax-inernal-nodes-host', 'convax-inernal-nodes-renderer']) {
+    assert.equal(rows.filter(row => row.id === id).length, 1, `${id} has one independently switchable row`)
+  }
+  const providers = readJson('packages/plugin-inernal-nodes-host/package.json')
+  const displays = readJson('packages/plugin-inernal-nodes-renderer/package.json')
+  assert.equal(providers.dsh?.client, undefined, 'Host lifetime does not implicitly activate displays')
+  assert.equal(displays.dsh.client.platform, 'web')
+  assert.equal(displays.dsh.bundle, undefined, 'Installing node displays does not activate the canvas product bundle')
+})
+
 test('Turbo root tasks delegate to registered DSH and Convax commands', () => {
   const turbo = readJson('turbo.json')
   for (const script of ['build', 'build:artifacts', 'build:check', 'typecheck', 'lint', 'test']) {
@@ -136,7 +156,7 @@ test('full lint enforces typed source and test rules in the flattened packages',
       'libs/dsh/tsconfig.host.json',
       'packages/plugin-renderer/tsconfig.json',
       'libs/dsh/tsconfig.client.json',
-      'libs/dsh/tsconfig.host.json',
+      'tests/tsconfig.json',
     ]
     for (let index = 0; index < files.length; index++) {
       const file = join(root, files[index]).replaceAll('\\', '/')

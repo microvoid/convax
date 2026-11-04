@@ -22,6 +22,6 @@ export function connectionDropPoint(event: MouseEvent | TouchEvent): CanvasPoint
  */
 export function isBlankConnectionTarget(root: HTMLElement, target: Element | null): boolean {
   return target !== null && root.contains(target)
-    && target.closest('.react-flow__node, .react-flow__edge, .react-flow__panel, button, input, textarea, select, [contenteditable], [role="menu"], [data-convax-chat]') === null
+    && target.closest('.react-flow__node, .react-flow__edge, .react-flow__panel, button, input, textarea, select, [contenteditable], [role="menu"], [data-convax-input-owner]') === null
     && target.closest('.react-flow') !== null
 }

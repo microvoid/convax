@@ -9,7 +9,7 @@ import type { WorkspaceProps } from './props.ts'
  * @returns A portaled menu with native Escape, outside-click and keyboard handling.
  */
 export function CanvasContextMenu({
-  point, targetCount, busy, history, replayHistory, t, close, addProject, addFiles, newChat,
+  point, targetCount, busy, history, replayHistory, t, close, creations,
   focus, remove, selectAll, fit, copy, paste, duplicate,
 }: {
   readonly point: CanvasPoint
@@ -19,9 +19,7 @@ export function CanvasContextMenu({
   readonly replayHistory: (direction: 'undo' | 'redo') => void
   readonly t: WorkspaceProps['t']
   readonly close: () => void
-  readonly addProject: () => void
-  readonly addFiles: () => void
-  readonly newChat: () => void
+  readonly creations: readonly { id: string; label: string; create: () => void }[]
   readonly focus: () => void
   readonly remove: () => void
   readonly selectAll: () => void
@@ -33,9 +31,7 @@ export function CanvasContextMenu({
   return <Menu open portal autoFocus anchor={<span data-convax-context-menu="" data-target-count={targetCount} aria-hidden="true" />}
     getAnchorRect={() => new DOMRect(point.x, point.y, 0, 0)} onClose={close}
     items={[...(targetCount === 0 ? [
-      { id: 'project', label: t('workspace.addProject'), disabled: busy },
-      { id: 'files', label: t('workspace.addFile'), disabled: busy },
-      { id: 'chat', label: t('chat.new'), disabled: busy },
+      ...creations.map(entry => ({ id: `create:${entry.id}`, label: entry.label, disabled: busy })),
       { type: 'separator', id: 'clipboard' },
       { id: 'paste', label: t('clipboard.paste'), disabled: busy },
       { type: 'separator', id: 'view' },
@@ -56,9 +52,7 @@ export function CanvasContextMenu({
     { id: 'redo', label: t('history.redo'), disabled: busy || history.pending || !history.canRedo },
     ]} onSelect={(id) => {
       close()
-      if (id === 'project') addProject()
-      else if (id === 'files') addFiles()
-      else if (id === 'chat') newChat()
+      if (id.startsWith('create:')) creations.find(entry => `create:${entry.id}` === id)?.create()
       else if (id === 'focus') focus()
       else if (id === 'remove') remove()
       else if (id === 'all') selectAll()

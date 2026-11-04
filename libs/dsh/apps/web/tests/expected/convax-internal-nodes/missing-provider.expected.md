@@ -1,0 +1,6 @@
+- group:
+  - article:
+    - text: convax.chat
+    - status: Node plugin unavailable. Enable a compatible plugin to restore this node.
+    - text: Data version 1
+    - button "Resize preview"

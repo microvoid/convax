@@ -1,3 +1,4 @@
+import { defaultNodeCreations, defaultNodePresentation } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 // @vitest-environment jsdom
 /** Keyboard edits go through Host commands while embedded editors keep native keys. */
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
@@ -64,7 +65,7 @@ async function fixture() {
     command, openResource: vi.fn(), openSource: vi.fn(), resolveFilePath: vi.fn(), addResources: vi.fn(),
     inputMode: 'mouse', setInputMode: vi.fn(),
   }
-  const view = render(<CanvasGraph {...props} />)
+  const view = render(<CanvasGraph {...props} creations={defaultNodeCreations(props.t)} rendererDefinitions={defaultNodePresentation} />)
   const wrappers = [...view.container.querySelectorAll<HTMLElement>('.react-flow__node')]
   await waitFor(() => { expect(wrappers.every(node => observers.some(observer => observer.targets.has(node)))).toBe(true) })
   act(() => { for (const node of wrappers) observers.find(observer => observer.targets.has(node))!.deliver(node) })
@@ -335,7 +336,7 @@ describe('Canvas context actions through the graph', () => {
     expect(b.view.queryByRole('menu')).toBeNull()
     expect(b.view.container.querySelectorAll('.react-flow__node.selected')).toHaveLength(2)
     const body = document.createElement('article')
-    body.dataset.convaxChat = 'chat'
+    body.dataset.convaxInputOwner = 'chat'
     b.node().append(body)
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 70 })
     fireEvent(body, event)

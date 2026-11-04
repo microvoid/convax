@@ -66,8 +66,7 @@ function threadOrder(left: CanvasTableValue<'bindings'>, right: CanvasTableValue
   return left.ordinal - right.ordinal || left.sessionId.localeCompare(right.sessionId)
 }
 
-function projectChat(index: ChatIndex, canvas: CanvasDocument, node: CanvasNode): CanvasChat | undefined {
-  if (node.typeId !== 'convax.chat') return undefined
+function projectChat(index: ChatIndex, canvas: CanvasDocument, node: CanvasNode): CanvasChat {
   const chat = details(index, canvas.id, node.id)
   const threads = chat.bindings.toSorted(threadOrder)
     .map(({ sessionId, parentSessionId, inheritedEventCount }) => ({ sessionId, parentSessionId, inheritedEventCount }))
@@ -87,12 +86,15 @@ function projectChat(index: ChatIndex, canvas: CanvasDocument, node: CanvasNode)
 /**
  * Index durable records for one read without retaining mutable graph state.
  * @param records - Records in their durable key order, which determines the first reported failure.
+ * @param isSessionNode - Provider capability and durable ownership test.
  * @returns A pure node reader; non-Chat nodes return undefined and Chat results have independent thread values.
  */
-export function createChatProjection(records: CanvasChatRecords): (canvas: CanvasDocument, node: CanvasNode) => CanvasChat | undefined {
+export function createChatProjection(
+  records: CanvasChatRecords, isSessionNode: (node: CanvasNode) => boolean,
+): (canvas: CanvasDocument, node: CanvasNode) => CanvasChat | undefined {
   const index: ChatIndex = new Map()
   const suppressed = indexThreadStates(index, records.threadOperations)
   indexDeletionStates(index, records.deletions)
   indexBindings(index, records.bindings, suppressed)
-  return (canvas, node) => projectChat(index, canvas, node)
+  return (canvas, node) => isSessionNode(node) ? projectChat(index, canvas, node) : undefined
 }

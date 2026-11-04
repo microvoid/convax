@@ -1,0 +1,6 @@
+- group:
+  - article:
+    - text: convax.chat
+    - status: Node display unavailable. Enable a compatible renderer to restore this view.
+    - text: Data version 1
+    - button "Resize preview"

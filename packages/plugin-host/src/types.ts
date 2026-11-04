@@ -185,8 +185,21 @@ export interface CanvasOpenSessionRequest {
 export type CanvasOpenSessionResult =
   | { ok: true; canvasId: CanvasId; nodeId: CanvasNodeId; sessionId: SessionId; workspace: CanvasWorkspace }
   | Extract<CanvasCommandResult, { ok: false }>
+/** Semantic behavior explicitly declared by a provider, independent of its type identity. */
+export type CanvasNodeCapabilities = {
+  /**
+   * Owns native DSH Sessions through an installed adapter. The parser supplies string title and absolute cwd fields;
+   * optional defaultTitle marks a generated name.
+   */
+  sessions?: true
+  /** Filesystem resource kind of the provider's string path payload; references remain subject to filesystem authorization. */
+  resourceKind?: 'file' | 'folder'
+}
+
 /** Client-safe node type metadata. */
 export interface CanvasNodeTypeInfo {
+  /** Optional capabilities consumed by generic graph and resource operations. */
+  capabilities?: CanvasNodeCapabilities
   /** Provider-qualified identity. */
   id: CanvasNodeTypeId
   /** Current payload version. */

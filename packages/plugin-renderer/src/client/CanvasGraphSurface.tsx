@@ -13,7 +13,7 @@ export function CanvasGraphSurface(props: CanvasGraphSurfaceProps) {
   const toolWidths = props.useStore(state => state.toolWidths)
   const chatPresentations: Record<string, CanvasChatPresentation> = {}
   for (const node of props.document.nodes) {
-    if (node.typeId !== 'convax.chat') continue
+    if (props.rendererDefinitions?.[node.typeId]?.presentation !== 'chat') continue
     const size = sizes?.[node.id]
     const widths = toolWidths?.[node.id]
     chatPresentations[node.id] = {

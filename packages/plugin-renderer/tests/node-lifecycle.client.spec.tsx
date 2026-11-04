@@ -10,7 +10,8 @@ import type { CanvasDocument, CanvasNodeIssue, CanvasNodeTypeId, CanvasNodeTypeI
 import type { ReactFlowProps } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { CanvasGraph } from '../src/client/CanvasGraph.tsx'
-import { ConvaxRenderer, NodePorts, ResourceNode } from '../src/client/node-renderers.tsx'
+import { ConvaxRenderer, NodePorts } from '../src/client/node-renderers.tsx'
+import { ResourceNode } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 import type { CanvasNodeRendererProps } from '../src/client/props.ts'
 import { NS, en, zh } from '../src/client/locales.ts'
 

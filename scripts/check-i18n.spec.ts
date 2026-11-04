@@ -22,7 +22,7 @@ function fixture(): string {
   const dictionary = { title: 'Example', count: '{count} items' }
   for (const locale of locales) write(root, `${client}/locales/${locale}.ts`, `export const ${locale} = ${JSON.stringify(dictionary)}\n`)
   write(root, `${client}/locales.ts`, `export const dictionaries = { ${locales.join(', ')} } as const\n`)
-  for (const directory of ['packages/plugin-renderer', ...examples]) {
+  for (const directory of ['packages/plugin-renderer', 'packages/plugin-inernal-nodes-host', 'packages/plugin-inernal-nodes-renderer', ...examples]) {
     for (const locale of locales) write(root, `${directory}/locale/${locale}.json`, JSON.stringify({ meta: { title: 'Example', description: 'Example plugin' } }))
   }
   for (const directory of examples) {
@@ -103,6 +103,15 @@ describe('Convax i18n CI gate', () => {
     const violations = checkConvaxI18n(root).filter(problem => problem.code === 'hardcoded-ui')
     expect(violations).toHaveLength(2)
     expect(violations.every(problem => problem.file === `${client}/Card.tsx`)).toBe(true)
+  })
+
+  it('checks the separately installed node plugins metadata', () => {
+    const root = fixture()
+    const directory = 'packages/plugin-inernal-nodes-renderer'
+    rmSync(resolve(root, `${directory}/locale/ja.json`))
+    expect(checkConvaxI18n(root)).toContainEqual(expect.objectContaining({
+      code: 'missing-locale', file: `${directory}/locale`, message: 'Missing ja dictionary.',
+    }))
   })
 
   it('rejects duplicate dictionary keys instead of silently accepting the last value', () => {

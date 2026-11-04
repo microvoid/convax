@@ -7,3 +7,7 @@
         legacyDatabasePath: !!js dshHomePath('storages', 'convax.sqlite')
     - id: convax-renderer
       name: '@deepseek-ai/dsh-convax-plugin-renderer'
+    - id: convax-inernal-nodes-host
+      name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-host'
+    - id: convax-inernal-nodes-renderer
+      name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer'

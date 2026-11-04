@@ -24,6 +24,7 @@ import type { CanvasInputMode } from './input-mode.ts'
 import type { ChatSize } from './chat-size.ts'
 import type { ResourceSize } from './resource-size.ts'
 import type { CanvasGraphProps } from './CanvasGraph.tsx'
+import type { IConvaxRenderer } from './node-renderers.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -68,6 +69,20 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     }
   }
   interface SlotFactoryMap {
+    /** Optional file node plugin preview, without opening a native DSH details page. */
+    'convax.resource.preview': { scope: 'root'; props: { path: string; gestureMode?: 'container' }; locale: 'convax' }
+    /** Optional native source picker supplied by the window node plugin. */
+    'convax.window.picker': {
+      scope: 'root'
+      props: {
+        rebind: boolean
+        list: () => Promise<readonly DesktopWindowSource[]>
+        select: (id: DesktopWindowSourceId) => Promise<boolean>
+        close: () => void
+      }
+      locale: 'convax'
+    }
+
     /** Session-owned controls anchored to the current thread's dropdown. */
     'convax.chat.settings': {
       scope: 'session'
@@ -235,6 +250,9 @@ export interface CanvasConnectionOrigin {
 
 /** Actions close over generated Remote services; components never receive ctx. */
 export interface WorkspaceInjected {
+  /** Reversible node plugin contributions; absent in isolated workspace fixtures. */
+  nodePlugins?: Pick<IConvaxRenderer, 'getSnapshot' | 'subscribe'>
+
   /** Framework-owned reads over this window's canvas activity. */
   hooks: { canvasActivity: ObservableSnapshot<readonly CanvasActivityItem[]> }
   /** Mark explicitly viewed activity as read without resolving pending interactions. */

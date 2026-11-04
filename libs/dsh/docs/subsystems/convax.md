@@ -38,6 +38,10 @@ Convax persists deletion targets and unfinished creation identities before settl
 
 ## Providers, migrations and agent tools
 
+The default [node Host](../../../../packages/plugin-inernal-nodes-host/README.md) and [node displays](../../../../packages/plugin-inernal-nodes-renderer/README.md) mount independently of the canvas kernel. `CanvasNodeTypeInfo.capabilities` declares resource kind or Session-container semantics. `CanvasSessionOperations` and `CanvasDeliveryOperations` attach native Session coordination and recorded delivery catch-up without owning Agent execution. Durable bindings keep Session lifecycle protection available when a provider is missing.
+
+`CanvasNodeRendererDefinition` declares default dimensions, drag handles, presentation and copy behavior. `registerCreation` contributes translated actions to the creation dock and menus. `registerWorkspaceActions` supplies optional feature actions. Their disposers remove the contributions while saved graph records remain. Default and third-party nodes use the same registrations. When a provider is unavailable and a node has no recorded Session ownership, copying the node preserves its payload fields as stored.
+
 Host providers register versioned parsers, named ports, pure adjacent migrations and optional cancellable reference preparation. Client renderers register independently; missing or incompatible registrations retain data, geometry and connections as placeholders. The Convax database imports a validated predecessor snapshot and merges matching Session reservations into its thread ledger, retaining predecessor data and reporting unmatched ids. Owned upgrades preserve recovery copies. Node upgrades atomically retain old and new payloads only while source revisions and provider registrations match. The [Host package](../../../../packages/plugin-host/README.md) owns failure and recovery details.
 
 The Host exposes selected reads and provider schemas through `convax_graph`, and ordered semantic edits through `convax_commit`. The [graph-tool reference](convax-graph-tools.md) defines operations, atomicity, history and compatibility adapters. Tools resolve the calling Session’s bound Chat canvas unless an explicit target is supplied; availability follows the Host lifecycle independently of the renderer.
@@ -73,6 +77,20 @@ Host Remote namespace for canvases, Chat operations and resource access.
  * @returns Effect disposer that cancels and drains this provider's asynchronous work.
  */
 registerNodeType(definition: CanvasNodeDefinition): () => Promise<void>
+
+/**
+ * Attach native Session operations until the contributing node plugin unloads.
+ * @param operations - One adapter owning native Session coordination, not Agent execution.
+ * @returns Idempotent disposer that removes entry points before draining coordination.
+ */
+registerSessionOperations(operations: CanvasSessionOperations): () => Promise<void>
+
+/**
+ * Attach recorded delivery catch-up independently of the canvas interface.
+ * @param operations - Feature-owned observation and retry operations.
+ * @returns Idempotent disposer which drains observations without stopping Agents.
+ */
+registerDeliveryOperations(operations: CanvasDeliveryOperations): () => Promise<void>
 
 /**
  * Retry incompatible nodes using the current provider without discarding original data.

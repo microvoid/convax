@@ -15,7 +15,7 @@ export type CanvasKeyboardAction =
   | { readonly kind: 'redo' }
   | { readonly kind: 'move'; readonly x: number; readonly y: number }
 
-const PROTECTED_CONTROL = 'input, textarea, select, button, a, [role="button"], [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"], [role="dialog"], [role="menu"], [data-convax-chat], [data-canvas-native-shortcuts], .xterm'
+const PROTECTED_CONTROL = 'input, textarea, select, button, a, [role="button"], [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"], [role="dialog"], [role="menu"], [data-convax-input-owner], [data-canvas-native-shortcuts], .xterm'
 
 /**
  * Resolve shortcuts only while this canvas owns keyboard focus.

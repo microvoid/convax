@@ -85,7 +85,9 @@ describe('Canvas working directories', () => {
   it('binds copied default Chats to their new canvas while retaining explicit folder directories', async () => {
     const f = await fixture()
     const typeId = 'convax.chat' as CanvasNodeTypeId
-    const unregister = f.repository.nodeTypes.register({ id: typeId, dataVersion: 1, ports: [], parse: data => data })
+    const unregister = f.repository.nodeTypes.register({
+      id: typeId, dataVersion: 1, capabilities: { sessions: true }, ports: [], parse: data => data,
+    })
     cleanups.push(unregister)
     await f.execute('source', { kind: 'create', title: 'Source' })
     const directory = await f.host.ensureCanvasDirectory('source' as CanvasId)

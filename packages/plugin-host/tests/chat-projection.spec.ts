@@ -25,6 +25,7 @@ function node(id: CanvasNodeId, data: CanvasData = {}, typeId = 'convax.chat'): 
 async function fixture() {
   const database = await CanvasDatabase.open({ path: ':memory:' })
   const registry = new CanvasNodeRegistry((error) => { throw error })
+  registry.register({ id: brandString<CanvasNodeTypeId>('convax.chat'), dataVersion: 1, capabilities: { sessions: true }, ports: [], parse: data => data })
   const repository = new CanvasRepository(database, registry, (error) => { throw error })
   cleanup.push(async () => { repository.close(); await database.close() })
   await database.transaction((tx) => {

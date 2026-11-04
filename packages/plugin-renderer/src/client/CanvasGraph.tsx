@@ -1,6 +1,5 @@
 /** Controlled graph presentation; Host commands own every durable edit. */
-import { AppWindow, FolderClosed, MessageCirclePlus, Plus } from 'lucide-react'
-import { FileIcon } from './FileIcon.tsx'
+import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background, NodeToolbar, Panel, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useStore as useFlowStore,
@@ -15,11 +14,12 @@ import type { CanvasChatPresentation, CanvasConnectionOrigin, CanvasNodeOwner, W
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { NodePlaceholder } from './node-renderers.tsx'
+import { NodePlaceholder, type CanvasNodeRendererDefinition } from './node-renderers.tsx'
+import type { CanvasCreationDefinition, CanvasCreationContext } from './contributions.ts'
 import css from './Workspace.module.css'
 import '@xyflow/react/dist/style.css'
 import type { CanvasInputMode } from './input-mode.ts'
-import { CHAT_CARD_WIDTH, RESOURCE_CARD_WIDTH } from './placement.ts'
+import { RESOURCE_CARD_WIDTH } from './placement.ts'
 import type { ResourceView } from './store.ts'
 import type { ResourceSize } from './resource-size.ts'
 import { CanvasEdge, type GraphEdge } from './CanvasEdge.tsx'
@@ -82,8 +82,8 @@ export interface DroppedResource {
   readonly path: string | null
 }
 
-function isChatTarget(target: EventTarget): boolean {
-  return target instanceof Element && target.closest('[data-convax-chat]') !== null
+function ownsNodeDrop(target: EventTarget): boolean {
+  return target instanceof Element && target.closest('[data-convax-input-owner]') !== null
 }
 
 function isResourceTransfer(transfer: DataTransfer): boolean {
@@ -108,6 +108,8 @@ export interface CanvasGraphProps {
   readonly chats: readonly CanvasChat[]
   readonly nodeTypes: readonly CanvasNodeTypeInfo[]
   readonly nodeIssues: readonly CanvasNodeIssue[]
+  readonly rendererDefinitions?: Readonly<Record<string, Pick<CanvasNodeRendererDefinition, 'defaultSize' | 'dragHandle' | 'presentation' | 'clipboardData'>>>
+  readonly creations?: readonly CanvasCreationDefinition[]
   readonly renderSlot: PropsRenderSlots<'convax.node'>['renderSlot']
   readonly createChat: (cwd?: string, folderId?: CanvasNodeId, position?: CanvasPoint, origin?: CanvasConnectionOrigin) => void
   readonly addProject: (position: CanvasPoint, origin?: CanvasConnectionOrigin) => void
@@ -137,28 +139,24 @@ export interface CanvasGraphProps {
   readonly addResources: (resources: readonly DroppedResource[], position: CanvasPoint, origin?: CanvasConnectionOrigin) => void
 }
 
-function CreationDock({ t, busy, addProject, addWindow, createChat, pickFiles }: Pick<CanvasGraphProps,
-  't' | 'busy' | 'addProject' | 'addWindow' | 'createChat'> & { readonly pickFiles: (position: CanvasPoint) => void }) {
+function CreationDock({ busy, creations, invoke }: {
+  readonly busy: boolean
+  readonly creations: readonly CanvasCreationDefinition[]
+  readonly invoke: (entry: CanvasCreationDefinition, position: CanvasPoint) => void
+}) {
   const width = useFlowStore(state => state.width)
   const height = useFlowStore(state => state.height)
   const transform = useFlowStore(state => state.transform)
-  const position = (cardWidth: number, cardHeight: number): CanvasPoint => ({
-    x: (width / 2 - transform[0]) / transform[2] - cardWidth / 2,
-    y: (Math.max(24, (height - 112 - cardHeight * transform[2]) / 2) - transform[1]) / transform[2],
-  })
-  return <Panel position="bottom-center" className={`${css.creationDock} nodrag nopan nowheel`}>
-    <Button size="sm" disabled={busy} onClick={() => { addProject(position(RESOURCE_CARD_WIDTH, 140)) }}>
-      <FolderClosed size={16} aria-hidden />{t('workspace.addProject')}
-    </Button>
-    <Button size="sm" disabled={busy} onClick={() => { pickFiles(position(RESOURCE_CARD_WIDTH, 140)) }}>
-      <FileIcon path="file" size={16} />{t('workspace.addFile')}
-    </Button>
-    {addWindow !== undefined && <Button size="sm" disabled={busy} onClick={() => { addWindow(position(480, 310)) }}>
-      <AppWindow size={16} aria-hidden />{t('window.add')}
-    </Button>}
-    <Button size="sm" disabled={busy} onClick={() => { createChat(undefined, undefined, position(CHAT_CARD_WIDTH, 680)) }}>
-      <MessageCirclePlus size={16} aria-hidden />{t('chat.new')}
-    </Button>
+  return creations.length === 0 ? null : <Panel position="bottom-center" className={`${css.creationDock} nodrag nopan nowheel`}>
+    {creations.map((entry) => {
+      const size = entry.defaultSize ?? { width: RESOURCE_CARD_WIDTH, height: 140 }
+      const position = { x: (width / 2 - transform[0]) / transform[2] - size.width / 2,
+        y: (Math.max(24, (height - 112 - size.height * transform[2]) / 2) - transform[1]) / transform[2] }
+      const Icon = entry.icon
+      return <Button key={entry.id} size="sm" disabled={busy} onClick={() => { invoke(entry, position) }}>
+        {Icon !== undefined && <Icon size={16} aria-hidden />}{typeof entry.label === 'string' ? entry.label : entry.label()}
+      </Button>
+    })}
   </Panel>
 }
 
@@ -172,7 +170,7 @@ export function CanvasGraph(props: CanvasGraphProps) {
 }
 
 function CanvasGraphContent({
-  document, chats, nodeTypes, nodeIssues, renderSlot, createChat, threadFocus, consumeThreadFocus,
+  document, chats, nodeTypes, nodeIssues, rendererDefinitions = {}, creations = [], renderSlot, createChat, threadFocus, consumeThreadFocus,
   t, busy, viewport, setViewport, inputMode, setInputMode, resourceViews, setResourceExpanded, setResourcePreviewSize,
   command, openResource, openSource, resolveFilePath, addResources, addProject, addWindow, captureConnectionTarget, reportClipboard,
   chatPresentations, applyChatPresentation, applyResourceView,
@@ -285,6 +283,7 @@ function CanvasGraphContent({
     const definition = nodeTypes.find(type => type.id === node.typeId)
     const measured = measurements.get(node.id)
     const resourceView = resourceViews[node.id]
+    const dragHandle = rendererDefinitions[node.typeId]?.dragHandle
     return {
       id: node.id,
       type: 'convaxNode',
@@ -296,8 +295,7 @@ function CanvasGraphContent({
       } : {}),
       // Controlled nodes retain measured dimensions so updates do not hide mounted editors.
       ...(measured === undefined ? {} : { measured }),
-      ...(node.typeId === 'convax.chat' ? { dragHandle: '[data-convax-chat-drag]' }
-        : node.typeId === 'convax.window' ? { dragHandle: '[data-convax-window-header]' } : {}),
+      ...(dragHandle === undefined ? {} : { dragHandle }),
       data: {
         node, definition, ports: retainedPorts(document, node.id, definition),
         issue: nodeIssues.find(issue => issue.canvasId === document.id && issue.nodeId === node.id),
@@ -319,7 +317,7 @@ function CanvasGraphContent({
         focusNode: () => { void flow?.fitView({ nodes: [{ id: node.id }], padding: 0.2 }) },
       },
     }
-  }), [document, nodeTypes, nodeIssues, drag, selection, measurements, t, command, openResource, openSource, chats,
+  }), [document, nodeTypes, nodeIssues, rendererDefinitions, drag, selection, measurements, t, command, openResource, openSource, chats,
     renderSlot, createChat, threadFocus, consumeThreadFocus, busy, flow, inputNodes,
     resourceViews, setResourceExpanded, setResourcePreviewSize, addWindow, activityHighlight])
   const revealPastedNodes = useCallback((): void => {
@@ -359,16 +357,17 @@ function CanvasGraphContent({
     revealActivityNode()
   }, [threadFocus, document.id, document.nodes, revealActivityNode])
   const geometry = nodes.map(node => ({ id: node.id, ...node.position,
-    width: node.measured?.width ?? (node.data.node.typeId === 'convax.chat' ? CHAT_CARD_WIDTH : RESOURCE_CARD_WIDTH),
-    height: node.measured?.height ?? (node.data.node.typeId === 'convax.chat' ? 680 : 140),
+    width: node.measured?.width ?? (rendererDefinitions[node.data.node.typeId]?.defaultSize?.width ?? RESOURCE_CARD_WIDTH),
+    height: node.measured?.height ?? (rendererDefinitions[node.data.node.typeId]?.defaultSize?.height ?? 140),
   }))
   const dimensions = Object.fromEntries(geometry.map(({ id, width, height }) => [id, { width, height }]))
   const views = Object.fromEntries(nodes.map((node): [string, CanvasClipboardView] => [node.id,
-    node.data.node.typeId === 'convax.chat' ? { kind: 'chat', presentation: chatPresentations[node.id] ?? { collapsed: false } }
-      : node.data.node.typeId === 'convax.file' || node.data.node.typeId === 'convax.folder'
+    rendererDefinitions[node.data.node.typeId]?.presentation === 'chat' ? { kind: 'chat', presentation: chatPresentations[node.id] ?? { collapsed: false } }
+      : rendererDefinitions[node.data.node.typeId]?.presentation === 'resource'
         ? { kind: 'resource', presentation: resourceViews[node.id] ?? { expanded: false } } : { kind: 'default' },
   ]))
   const clipboard = useCanvasClipboard({ document, dimensions, views,
+    copyData: node => rendererDefinitions[node.typeId]?.clipboardData?.(node) ?? structuredClone(node.data),
     obstacles: geometry, command, report: reportClipboard,
     select: (ids) => { setSelection(ids); setEdgeSelection([]); setHoveredEdge(null) },
     reveal: (ids) => { pendingReveal.current = ids; queueMicrotask(revealPastedNodes) },
@@ -389,6 +388,11 @@ function CanvasGraphContent({
       return flow.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
     },
   })
+  const invokeCreation = (entry: CanvasCreationDefinition, position: CanvasPoint, origin?: CanvasConnectionOrigin): void => {
+    const context: CanvasCreationContext = { position, ...(origin === undefined ? {} : { origin }), command,
+      addProject, addFiles: pickFiles, createChat, addWindow }
+    entry.create(context)
+  }
   const cut = useCallback((ids: readonly CanvasConnectionId[]): void => {
     if (busy || cutting.current) return
     const connectionIds = ids.filter(id => document.connections.some(connection => connection.id === id))
@@ -720,18 +724,18 @@ function CanvasGraphContent({
           cut([edge.id as CanvasConnectionId])
         }}
         onDragEnter={(event) => {
-          if (isChatTarget(event.target) || !isResourceTransfer(event.dataTransfer)) return
+          if (ownsNodeDrop(event.target) || !isResourceTransfer(event.dataTransfer)) return
           event.preventDefault()
           event.stopPropagation()
         }}
         onDragOver={(event) => {
-          if (isChatTarget(event.target) || !isResourceTransfer(event.dataTransfer)) return
+          if (ownsNodeDrop(event.target) || !isResourceTransfer(event.dataTransfer)) return
           event.preventDefault()
           event.stopPropagation()
           event.dataTransfer.dropEffect = busy || flow === null ? 'none' : 'copy'
         }}
         onDrop={(event) => {
-          if (isChatTarget(event.target) || !isResourceTransfer(event.dataTransfer)) return
+          if (ownsNodeDrop(event.target) || !isResourceTransfer(event.dataTransfer)) return
           event.preventDefault()
           event.stopPropagation()
           if (flow === null || busy) return
@@ -763,7 +767,7 @@ function CanvasGraphContent({
         </ViewportPortal>
         {connectionMenu !== null && <ConnectionCreationPreview origin={connectionMenu.origin} from={connectionMenu.from}
           to={connectionMenu.world} position={connectionMenu.position} />}
-        <CreationDock t={t} busy={busy} addProject={addProject} addWindow={addWindow} createChat={createChat} pickFiles={pickFiles} />
+        <CreationDock busy={busy} creations={creations} invoke={invokeCreation} />
         <NodeToolbar nodeId={selection} position={Position.Top} isVisible={selection.length > 1}>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => {
             void command({ kind: 'remove-nodes', nodeIds: selection as CanvasNodeId[] }).then((saved) => {
@@ -772,16 +776,14 @@ function CanvasGraphContent({
           }}>{t('selection.remove')}</Button>
         </NodeToolbar>
       </ReactFlow>
-      {connectionMenu !== null && <ConnectionCreationMenu point={connectionMenu.screen} busy={busy} t={t} close={closeConnectionMenu}
-        newChat={() => { createChat(undefined, undefined, connectionMenu.world, connectionMenu.origin) }}
-        addProject={() => { addProject(connectionMenu.world, connectionMenu.origin) }}
-        addFiles={() => { pickFiles(connectionMenu.world, connectionMenu.origin) }} />}
+      {connectionMenu !== null && <ConnectionCreationMenu point={connectionMenu.screen} busy={busy} close={closeConnectionMenu}
+        creations={creations.filter(entry => entry.connected !== false).map(entry => ({ id: entry.id, label: typeof entry.label === 'string' ? entry.label : entry.label(),
+          create: () => { invokeCreation(entry, connectionMenu.world, connectionMenu.origin) } }))} />}
       {contextMenu !== null && <CanvasContextMenu point={contextMenu.screen} targetCount={contextMenu.nodeIds.length}
         busy={busy || clipboard.pending} history={history} replayHistory={replayHistory} t={t}
         close={closeContextMenu}
-        addProject={() => { addProject(contextMenu.world) }}
-        addFiles={() => { pickFiles(contextMenu.world) }}
-        newChat={() => { createChat(undefined, undefined, contextMenu.world) }}
+        creations={creations.map(entry => ({ id: entry.id, label: typeof entry.label === 'string' ? entry.label : entry.label(),
+          create: () => { invokeCreation(entry, contextMenu.world) } }))}
         focus={() => { void flow?.fitView({ nodes: contextMenu.nodeIds.map(id => ({ id })), padding: 0.2 }) }}
         remove={() => { void command({ kind: 'remove-nodes', nodeIds: [...contextMenu.nodeIds] }).then((saved) => {
           if (saved) setSelection(current => current.filter(id => !contextMenu.nodeIds.includes(id as CanvasNodeId)))

@@ -33,15 +33,9 @@
         "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-ui-session",
-        "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-chat",
         "@deepseek-ai/dsh-client-ui-workspace",
-        "@deepseek-ai/dsh-client-ui-sidebar-right",
         "@deepseek-ai/dsh-client-shortcuts",
-        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview",
-        "@deepseek-ai/dsh-client-ui-schedule",
-        "@deepseek-ai/dsh-api-workspace-controller",
-        "@deepseek-ai/dsh-client-ui-input-trigger"
+        "@deepseek-ai/dsh-client-ui-schedule"
       ],
       "external": [
         "@deepseek-ai/dsh-api-gateway/client"
@@ -61,7 +55,6 @@
     "locale/*.json",
     "lib/index.js",
     "lib/client.js",
-    "lib/client.media-decode.js",
     "cordis.patch.yml",
     "lib/types/**/*.d.ts"
   ],
@@ -111,7 +104,9 @@
     "lucide-react": "1.64.0"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-convax-plugin-host": "workspace:*"
+    "@deepseek-ai/dsh-convax-plugin-host": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*"
   },
   "repository": {
     "type": "git",

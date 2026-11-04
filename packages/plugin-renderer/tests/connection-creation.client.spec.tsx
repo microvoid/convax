@@ -1,3 +1,4 @@
+import { defaultNodeCreations, defaultNodePresentation } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 // @vitest-environment jsdom
 /** Connection-end callbacks retain the temporary line and captured creation target until cancellation or selection. */
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
@@ -55,7 +56,7 @@ async function fixture() {
     command: vi.fn(async () => true), openResource: vi.fn(), openSource: vi.fn(), resolveFilePath: file => `/host/${file.name}`, addResources: vi.fn(),
     inputMode: 'mouse', setInputMode: vi.fn(),
   }
-  const view = render(<CanvasGraph {...props} />)
+  const view = render(<CanvasGraph {...props} creations={defaultNodeCreations(props.t)} rendererDefinitions={defaultNodePresentation} />)
   await waitFor(() => { expect(callbacks.current?.onConnectStart).toBeTypeOf('function') })
   const pane = view.container.querySelector<HTMLElement>('.react-flow__pane')!
   const start = (direction: 'input' | 'output' = 'output'): CanvasConnectionOrigin => {

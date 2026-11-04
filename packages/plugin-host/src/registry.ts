@@ -68,9 +68,11 @@ export class CanvasNodeRegistry {
     }
     const registered = { ...definition, ports: structuredClone(definition.ports),
       ...(definition.dataSchema === undefined ? {} : { dataSchema: structuredClone(definition.dataSchema) }),
+      ...(definition.capabilities === undefined ? {} : { capabilities: structuredClone(definition.capabilities) }),
       ...definition.migrations === undefined ? {} : { migrations: definition.migrations.map(step => ({ ...step })) } }
     for (const port of registered.ports) Object.freeze(port)
     Object.freeze(registered.ports)
+    if (registered.capabilities !== undefined) Object.freeze(registered.capabilities)
     for (const step of registered.migrations ?? []) Object.freeze(step)
     if (registered.migrations !== undefined) Object.freeze(registered.migrations)
     Object.freeze(registered)
@@ -134,10 +136,11 @@ export class CanvasNodeRegistry {
    * @returns Client-safe metadata without provider callbacks.
    */
   list(): CanvasNodeTypeInfo[] {
-    return [...this.definitions.values()].map(({ definition: { id, dataVersion, ports, description, dataSchema } }) => ({
+    return [...this.definitions.values()].map(({ definition: { id, dataVersion, ports, description, dataSchema, capabilities } }) => ({
       id, dataVersion, ports: structuredClone(ports),
       ...(description === undefined ? {} : { description }),
       ...(dataSchema === undefined ? {} : { dataSchema: structuredClone(dataSchema) }),
+      ...(capabilities === undefined ? {} : { capabilities: structuredClone(capabilities) }),
     }))
   }
 

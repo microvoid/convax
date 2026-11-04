@@ -22,7 +22,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-本 Bundle 的[配置补丁](cordis.patch.yml)挂载配套的 [Host](../plugin-host/README.zh.md)、画布渲染器和独立所有的 SQLite 仓储。它依赖已启用原生客户端服务的 Web 或 Desktop 配置。停用渲染器会移除工作区贡献并恢复原生工作区。
+本 Bundle 的[配置补丁](cordis.patch.yml)分别挂载[画布 Host](../plugin-host/README.zh.md)、画布 Renderer、[默认节点 Host](../plugin-inernal-nodes-host/README.zh.md)及[默认节点界面](../plugin-inernal-nodes-renderer/README.zh.md)。它依赖已启用原生客户端服务的 Web 或 Desktop 配置。停用画布 Renderer 后恢复原生工作区。仅停用节点界面时，画布、已保存节点和连线以占位保留，原生 DSH 任务继续运行。默认节点使用与第三方节点相同的公开扩展 API。
 
 从源码检出目录开发 Desktop 时，运行 `pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop:dev`；完成构建后，`pnpm --filter @deepseek-ai/dsh-convax-plugin-renderer run desktop` 复用已有产物。脚本在外层仓库存在 `.env` 时读取它，保留已有环境变量的值，再从 `libs/dsh` 运行 DSH 原有的 Desktop 命令。Convax 包装器将外层仓库 `.convax` 的绝对路径设为 `DSH_HOME`，将 `.convax/electron-user-data` 设为 `DSH_DESKTOP_USER_DATA_DIR`。所选 profile 保留已安装插件。这些启动路径来自启动环境，不通过项目 `.env` 发现。原生 [Desktop 开发默认目录](../../libs/dsh/apps/desktop/README.zh.md#develop)保持独立。
 

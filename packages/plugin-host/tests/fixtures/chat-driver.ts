@@ -30,7 +30,9 @@ try {
   assert(ctx.sessionController !== undefined && ctx.workspaceRegistry !== undefined)
   const hostRow = [...ctx.loader.entries()].find(entry => entry.options.id === 'convax-host')
   const rendererRow = [...ctx.loader.entries()].find(entry => entry.options.id === 'convax-renderer')
-  assert(hostRow?.fiber !== undefined && rendererRow?.fiber !== undefined)
+  const nodesHostRow = [...ctx.loader.entries()].find(entry => entry.options.id === 'convax-inernal-nodes-host')
+  assert(hostRow?.fiber !== undefined && rendererRow?.fiber !== undefined && nodesHostRow?.fiber !== undefined)
+  assert.deepEqual(host.workspace().nodeTypes.map(type => type.id).sort(), ['convax.chat', 'convax.file', 'convax.folder', 'convax.window'])
   await hostRow.fiber.await()
   const hostFiber = hostRow.fiber
   let sourceId: SessionId
@@ -60,10 +62,30 @@ try {
     await ctx.loader.await()
     assert.equal(hostRow.fiber, hostFiber, 'renderer disposal must retain the delivery owner')
     session.append('turn/start', { turn: 1 })
+    const liveAgent = resolved.agent
+    const beforeProviderRemoval = host.workspace().canvases
+    await nodesHostRow.update({ disabled: true })
+    await ctx.loader.await()
+    assert.equal(ctx.agents.get(sourceId), liveAgent, 'node plugin removal must preserve a native Agent already retained by DSH')
+    assert.deepEqual(host.workspace().canvases, beforeProviderRemoval, 'provider removal cannot alter durable graph records')
+    assert.deepEqual(host.workspace().nodeTypes, [], 'the canvas core must not retain privileged default providers')
+    assert.equal(host.repository.bindingOf(sourceId)?.nodeId, nodeId, 'durable ownership remains readable without providers')
+    assert.throws(() => host.createThread({ ...createRequest, operationId: 'disabled-provider-create' as CanvasOperationId }), /does not provide Chat Session coordination/)
+    const missingProvider = await host.execute({ canvasId, operationId: 'disabled-provider-node' as CanvasOperationId,
+      expectedRevision: currentRevision(), command: { kind: 'add-node', node: {
+        id: 'unavailable-node' as CanvasNodeId, typeId: 'convax.file' as CanvasNodeTypeId, dataVersion: 1,
+        revision: 0, position: { x: 20, y: 20 }, data: { path: join(process.cwd(), 'result.txt') },
+      } } })
+    assert(!missingProvider.ok && missingProvider.code === 'provider-unavailable')
     await writeFile(join(process.cwd(), 'result.txt'), 'Durable Chat delivery\n')
     session.append('deliverables/presented', { turn: 1, callId: 'chat-loader-present' as ToolCallId, files: [{ path: join(process.cwd(), 'result.txt'), description: 'Loader result' }] })
     session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
     await ctx.sessions.flush(session)
+    assert.equal(host.workspace().canvases[0]?.nodes.length, 1, 'deliveries remain in the native log while the node adapter is disabled')
+    await nodesHostRow.update({ disabled: false })
+    await ctx.loader.await()
+    await nodesHostRow.fiber?.await()
+    assert.equal(ctx.agents.get(sourceId), liveAgent, 'provider reactivation must reuse the existing native Agent')
     await host.retryOperations()
     const outputs = host.workspace().canvases[0]?.nodes.filter(node => node.typeId === 'convax.file')
     assert.equal(outputs?.length, 1, 'one presented file must produce one output node')
@@ -109,7 +131,7 @@ try {
     assert.equal((await ctx.sessionPersistence.list()).length, 2, 'deleting Chat retains its Session histories')
   }
   await writeFile(reportPath, JSON.stringify({ phase, sourceId, forkId, beforeDeletion,
-    rendererDisabled: rendererRow.disabled, hostRetained: hostRow.fiber === hostFiber,
+    nodeProviderLifecycle: true, rendererDisabled: rendererRow.disabled, hostRetained: hostRow.fiber === hostFiber,
     storedSessionCount: (await ctx.sessionPersistence.list()).length,
     archived: ctx.workspaceRegistry.archivedSessionIds,
     remainingChats: host.workspace().chats.length,

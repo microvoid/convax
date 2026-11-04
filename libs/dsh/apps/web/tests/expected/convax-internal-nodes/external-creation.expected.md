@@ -1,0 +1,3 @@
+- article:
+  - text: Third-party reference
+  - paragraph: Only the header moves this third-party card.

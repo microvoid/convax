@@ -869,6 +869,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Effect disposer that cancels and drains this provider\'s asynchronous work.',
       },
       {
+        signature: 'registerSessionOperations(operations: CanvasSessionOperations): () => Promise<void>',
+        description: 'Attach native Session operations until the contributing node plugin unloads.',
+        parameters: [{ name: 'operations', description: 'One adapter owning native Session coordination, not Agent execution.' }],
+        returns: 'Idempotent disposer that removes entry points before draining coordination.',
+      },
+      {
+        signature: 'registerDeliveryOperations(operations: CanvasDeliveryOperations): () => Promise<void>',
+        description: 'Attach recorded delivery catch-up independently of the canvas interface.',
+        parameters: [{ name: 'operations', description: 'Feature-owned observation and retry operations.' }],
+        returns: 'Idempotent disposer which drains observations without stopping Agents.',
+      },
+      {
         signature: '@Remote async retryMigrations(): Promise<void>',
         description: 'Retry incompatible nodes using the current provider without discarding original data.',
         parameters: [],

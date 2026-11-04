@@ -38,6 +38,10 @@ Convax 在等待任务结束前持久化删除目标及未完成创建身份。�
 
 ## 提供方、迁移与 agent 工具
 
+默认[节点 Host](../../../../packages/plugin-inernal-nodes-host/README.zh.md)及[节点界面](../../../../packages/plugin-inernal-nodes-renderer/README.zh.md)独立于画布底座挂载。`CanvasNodeTypeInfo.capabilities` 声明资源类型或 Session 容器语义。`CanvasSessionOperations` 和 `CanvasDeliveryOperations` 接入原生 Session 协调及已记录交付的回填，不拥有 Agent 执行。提供方缺失时，耐久绑定仍保留 Session 生命周期保护。
+
+`CanvasNodeRendererDefinition` 声明默认尺寸、拖拽区域、展示及复制行为。`registerCreation` 向创建工具栏和菜单贡献翻译后的操作，`registerWorkspaceActions` 提供可选功能操作。其释放函数移除贡献，保留已保存图记录。默认节点和第三方节点使用同一套注册。提供方缺失且节点没有已记录的 Session 归属时，复制节点会保留其已存 payload 字段。
+
 Host 提供方注册版本化解析器、命名端口、相邻版本纯迁移和可选的可取消引用准备。Client 渲染器独立注册；注册缺失或不兼容时，以占位保留数据、位置和连线。Convax 数据库导入经校验的前驱快照，将匹配 Session 预留合并到 thread 账本，保留前驱数据并报告未匹配 id。自有升级保留恢复副本。节点升级只在源修订号及提供方注册匹配时原子保留新旧数据。[Host 包](../../../../packages/plugin-host/README.zh.md)拥有失败与恢复细节。
 
 Host 通过 `convax_graph` 提供选择性读取和提供方 schema，通过 `convax_commit` 提供有序语义编辑。[图工具参考](convax-graph-tools.zh.md) 定义操作、原子性、历史及兼容适配器。工具默认使用调用 Session 所绑定的 Chat 画布，也可指定显式目标；可用性随 Host 生命周期变化，独立于 renderer。
@@ -73,6 +77,20 @@ Host Remote namespace for canvases, Chat operations and resource access.
  * @returns Effect disposer that cancels and drains this provider's asynchronous work.
  */
 registerNodeType(definition: CanvasNodeDefinition): () => Promise<void>
+
+/**
+ * Attach native Session operations until the contributing node plugin unloads.
+ * @param operations - One adapter owning native Session coordination, not Agent execution.
+ * @returns Idempotent disposer that removes entry points before draining coordination.
+ */
+registerSessionOperations(operations: CanvasSessionOperations): () => Promise<void>
+
+/**
+ * Attach recorded delivery catch-up independently of the canvas interface.
+ * @param operations - Feature-owned observation and retry operations.
+ * @returns Idempotent disposer which drains observations without stopping Agents.
+ */
+registerDeliveryOperations(operations: CanvasDeliveryOperations): () => Promise<void>
 
 /**
  * Retry incompatible nodes using the current provider without discarding original data.

@@ -55,6 +55,7 @@ export class CanvasRepository {
       },
       revision: (tx, id) => this.canvasRevision(tx, id),
       commit: (tx, request, restoreSessions) => { this.commit(tx, request, true, restoreSessions) },
+      isSessionNode: node => this.isSessionNode(node),
     })
     this.unsubscribeNodeTypes = nodeTypes.subscribe(() => { this.notify() })
   }
@@ -72,6 +73,25 @@ export class CanvasRepository {
     }))
     return { ...graph, nodeTypes: this.nodeTypes.list(), chats, nodeIssues: structuredClone(this.nodeIssues) }
   }
+
+  /**
+   * Identify Session ownership from provider semantics or retained durable bindings.
+   * Provider removal cannot erase a Session's lifecycle protection.
+   * @param node - Existing or history-restored node envelope.
+   * @returns Whether the node is a Session container or owns retained Session work.
+   */
+  isSessionNode(node: CanvasNode): boolean { return this.sessionNodePredicate()(node) }
+
+  private sessionNodePredicate(): (node: CanvasNode) => boolean {
+    const owners = new Set([
+      ...[...this.domain.table('bindings').entries()].map(([, value]) => value.nodeId),
+      ...[...this.domain.table('thread_operations').entries()].map(([, value]) => value.nodeId),
+    ])
+    return node => this.nodeTypes.get(node.typeId)?.capabilities?.sessions === true || owners.has(node.id)
+  }
+
+  /** Publish changed feature availability without changing graph revisions. */
+  invalidate(): void { this.notify() }
 
   /**
    * Publish derived provider compatibility without altering stored payloads.
@@ -142,7 +162,7 @@ export class CanvasRepository {
    */
   async openSession(
     request: CanvasOpenSessionRequest,
-    source: { cwd: string; title: string; parentSessionId: SessionId | null; inheritedEventCount: number; deliveryCursor: number },
+    source: { cwd: string; node: Pick<CanvasNode, 'typeId' | 'dataVersion' | 'data'>; parentSessionId: SessionId | null; inheritedEventCount: number; deliveryCursor: number },
     admit: () => void, signal: AbortSignal,
   ): Promise<CanvasSessionBinding> {
     const result = await this.domain.transaction((tx) => {
@@ -151,7 +171,7 @@ export class CanvasRepository {
       const bound = tx.table('bindings').get(request.sessionId)
       if (bound !== undefined) {
         const node = graph.canvases.find(canvas => canvas.id === bound.canvasId)?.nodes.find(value => value.id === bound.nodeId)
-        if (node?.typeId !== 'convax.chat') throw new CommandFailure('not-found', 'The Session belongs to a removed Chat')
+        if (node === undefined || !this.isSessionNode(node)) throw new CommandFailure('not-found', 'The Session belongs to a removed Chat')
         if (this.isDeleting(bound.canvasId, bound.nodeId)) throw new CommandFailure('deleting', 'The Session Chat is stopping and archiving')
         return { binding: bound, changed: false }
       }
@@ -166,8 +186,7 @@ export class CanvasRepository {
       this.commit(tx, {
         canvasId: request.canvasId, expectedRevision: request.expectedRevision, operationId,
         command: { kind: 'add-node', node: {
-          id: request.nodeId, typeId: brandString<CanvasNode['typeId']>('convax.chat'), dataVersion: 1, revision: 0,
-          position: request.position, data: { title: source.title, cwd: source.cwd },
+          id: request.nodeId, ...structuredClone(source.node), revision: 0, position: request.position,
         } },
       }, false)
       const binding = {
@@ -190,7 +209,7 @@ export class CanvasRepository {
   getChat(canvasId: CanvasId, nodeId: CanvasNodeId): CanvasChat | undefined {
     const canvas = this.domain.global.get().canvases.find(value => value.id === canvasId)
     const node = canvas?.nodes.find(value => value.id === nodeId)
-    return canvas === undefined || node === undefined || node.typeId !== 'convax.chat' ? undefined : this.chatProjection()(canvas, node)
+    return canvas === undefined || node === undefined ? undefined : this.chatProjection()(canvas, node)
   }
 
   private chatProjection(): ReturnType<typeof createChatProjection> {
@@ -198,7 +217,7 @@ export class CanvasRepository {
       bindings: [...this.domain.table('bindings').entries()].map(([, value]) => value),
       threadOperations: [...this.domain.table('thread_operations').entries()].map(([, value]) => value),
       deletions: [...this.domain.table('deletions').entries()].map(([, value]) => value),
-    })
+    }, this.sessionNodePredicate())
   }
 
   /**
@@ -276,6 +295,7 @@ export class CanvasRepository {
   > {
     try {
       return await this.domain.transaction((tx) => {
+        const isSessionNode = this.sessionNodePredicate()
         const receipt = tx.table('operations').get(request.operationId)
         if (receipt !== undefined) {
           if (!sameCanvasRequest(receipt.request, request)) throw new CommandFailure('invalid-command', 'Operation identity belongs to another request')
@@ -286,12 +306,14 @@ export class CanvasRepository {
           const graph = structuredClone(tx.global.get())
           this.applyBatch(tx, graph, request, false, true)
           const retained = new Set(graph.canvases.find(value => value.id === request.canvasId)?.nodes.map(node => node.id) ?? [])
-          return { ok: true as const, removed: (canvas?.nodes ?? []).filter(node => node.typeId === 'convax.chat' && !retained.has(node.id)).map(node => node.id), restored: [] }
+          return { ok: true as const,
+            removed: (canvas?.nodes ?? []).filter(node => isSessionNode(node) && !retained.has(node.id)).map(node => node.id), restored: [],
+          }
         }
         const plan = this.historyPlan(tx, canvas, request)
         return { ok: true as const,
-          removed: plan.removed.filter(id => canvas?.nodes.some(node => node.id === id && node.typeId === 'convax.chat')),
-          restored: plan.restored.filter(id => plan.canvas?.nodes.some(node => node.id === id && node.typeId === 'convax.chat')),
+          removed: plan.removed.filter(id => canvas?.nodes.some(node => node.id === id && isSessionNode(node))),
+          restored: plan.restored.filter(id => plan.canvas?.nodes.some(node => node.id === id && isSessionNode(node))),
         }
       }, signal === undefined ? undefined : { signal })
     } catch (error) {
@@ -341,6 +363,7 @@ export class CanvasRepository {
   }
 
   private commit(tx: CanvasTransaction, request: CanvasCommandRequest, settled: boolean, restoreSessions?: SessionId[]): boolean {
+    const isSessionNode = this.sessionNodePredicate()
     if (tx.table('thread_operations').get(request.operationId) !== undefined) {
       throw new CommandFailure('invalid-command', 'Operation identity belongs to a thread request')
     }
@@ -369,8 +392,8 @@ export class CanvasRepository {
         .some(([id, intent]) => id !== request.operationId && intent.canvasId === request.canvasId && intent.phase !== 'completed')) {
         throw new CommandFailure('conflict', 'Canvas lifecycle work is still settling')
       }
-      const touchesChat = (existing?.nodes.some(node => plan.removed.includes(node.id) && node.typeId === 'convax.chat') ?? false)
-        || (plan.canvas?.nodes.some(node => plan.restored.includes(node.id) && node.typeId === 'convax.chat') ?? false)
+      const touchesChat = (existing?.nodes.some(node => plan.removed.includes(node.id) && isSessionNode(node)) ?? false)
+        || (plan.canvas?.nodes.some(node => plan.restored.includes(node.id) && isSessionNode(node)) ?? false)
       if (!settled && touchesChat) throw new CommandFailure('invalid-command', 'Chat history requires Session coordination')
       const revision = this.canvasRevision(tx, request.canvasId) + 1
       const index = graph.canvases.findIndex(canvas => canvas.id === request.canvasId)
@@ -396,7 +419,7 @@ export class CanvasRepository {
       }
       if (!settled && existing.revision !== request.expectedRevision) throw new CommandFailure('conflict', 'Canvas changed; refresh and retry')
       if (request.command.kind === 'delete' || request.command.kind === 'purge') {
-        if (!settled && (request.command.kind === 'purge' || existing.nodes.some(node => node.typeId === 'convax.chat'))) {
+        if (!settled && (request.command.kind === 'purge' || existing.nodes.some(node => isSessionNode(node)))) {
           throw new CommandFailure('invalid-command', 'Canvas deletion requires Session coordination')
         }
         graph.canvases = graph.canvases.filter(c => c.id !== existing.id)
@@ -420,7 +443,7 @@ export class CanvasRepository {
           const id = brandString<CanvasNodeId>(randomUUID())
           ids.set(node.id, id)
           const copied = { ...structuredClone(node), id, revision: 1 }
-          if (copied.typeId === 'convax.chat' && sourceDirectory !== undefined
+          if (isSessionNode(node) && sourceDirectory !== undefined
             && copiedDirectory !== undefined && copied.data.cwd === sourceDirectory) {
             copied.data.cwd = copiedDirectory
           }
@@ -532,6 +555,7 @@ export class CanvasRepository {
     tx: CanvasTransaction, graph: { revision: number; canvases: CanvasDocument[] },
     request: CanvasCommandRequest, settled: boolean, planning = false,
   ): void {
+    const isSessionNode = this.sessionNodePredicate()
     if (request.command.kind !== 'batch') throw new CommandFailure('invalid-command', 'An ordered graph batch is required')
     const original = graph.canvases.find(canvas => canvas.id === request.canvasId)
     if (!settled && this.canvasRevision(tx, request.canvasId) !== request.expectedRevision) throw new CommandFailure('conflict', 'Canvas changed; refresh and retry')
@@ -564,7 +588,7 @@ export class CanvasRepository {
             this.mutate(canvas, { ...request, command: { kind: 'rename', title: op.title } }, settled)
             break
           case 'canvas.remove':
-            if (!settled && !planning && canvas.nodes.some(node => node.typeId === 'convax.chat' && !addedNodes.has(node.id))) {
+            if (!settled && !planning && canvas.nodes.some(node => isSessionNode(node) && !addedNodes.has(node.id))) {
               throw new CommandFailure('invalid-command', 'Chat deletion requires Session coordination')
             }
             graph.canvases = graph.canvases.filter(value => value.id !== canvas.id)
@@ -650,6 +674,7 @@ export class CanvasRepository {
   }
 
   private mutate(canvas: CanvasDocument, request: CanvasCommandRequest, settled: boolean): void {
+    const isSessionNode = this.sessionNodePredicate()
     const command = request.command
     switch (command.kind) {
       case 'set-archived':
@@ -705,7 +730,7 @@ export class CanvasRepository {
       }
       case 'remove-nodes': {
         const removed = new Set(command.nodeIds)
-        if (!settled && canvas.nodes.some(node => removed.has(node.id) && node.typeId === 'convax.chat')) {
+        if (!settled && canvas.nodes.some(node => removed.has(node.id) && isSessionNode(node))) {
           throw new CommandFailure('invalid-command', 'Chat deletion requires Session coordination')
         }
         canvas.nodes = canvas.nodes.filter(n => !removed.has(n.id))

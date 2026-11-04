@@ -27,7 +27,10 @@ function fixture(targetCount = 0, busy = false) {
     const [open, setOpen] = useState(true)
     return <><button>Outside</button>{open && <CanvasContextMenu point={{ x: window.innerWidth - 1, y: window.innerHeight - 1 }}
       targetCount={targetCount} busy={busy} history={{ canUndo: true, canRedo: false, pending: false }}
-      t={t} close={() => { setOpen(false) }} {...actions} />}</>
+      t={t} close={() => { setOpen(false) }} {...actions} creations={[
+        { id: 'project', label: 'Add project', create: actions.addProject }, { id: 'files', label: 'Add files', create: actions.addFiles },
+        { id: 'chat', label: 'New chat', create: actions.newChat },
+      ]} />}</>
   }
   const view = render(<Scenario />)
   return { view, actions }
@@ -48,9 +51,9 @@ describe('Canvas context targeting', () => {
 
   it('leaves editors and Chat content native while allowing the Chat drag header', () => {
     const article = document.createElement('article')
-    article.dataset.convaxChat = 'chat'
+    article.dataset.convaxInputOwner = 'chat'
     const header = document.createElement('header')
-    header.dataset.convaxChatDrag = ''
+    header.dataset.convaxNodeDrag = ''
     const content = document.createElement('div')
     const editor = document.createElement('div')
     editor.contentEditable = 'true'

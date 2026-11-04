@@ -18,6 +18,8 @@
     "../../tests/**/*.client.spec.ts",
     "../../packages/plugin-renderer/tests/**/*.client.spec.ts",
     "../../packages/plugin-renderer/tests/**/*.client.spec.tsx",
+    "../../packages/plugin-inernal-nodes-renderer/tests/**/*.client.spec.ts",
+    "../../packages/plugin-inernal-nodes-renderer/tests/**/*.client.spec.tsx",
     // The native/renderer keyboard fixture imports only these Cordis-free Desktop modules.
     "apps/desktop/tests/keyboard.spec.ts",
     "apps/desktop/src/keyboard.ts",
@@ -113,6 +115,7 @@
     { "path": "./packages/client/ui-shortcuts" },
     { "path": "./packages/client/ui-layout" },
     { "path": "../../packages/plugin-renderer" },
+    { "path": "../../packages/plugin-inernal-nodes-renderer" },
     { "path": "./packages/client/ui-sidebar" },
     { "path": "./packages/client/ui-brand-official" },
     { "path": "./packages/client/ui-approval" },

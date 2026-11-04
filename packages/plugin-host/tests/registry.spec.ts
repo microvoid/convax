@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { describe, expect, it, vi } from 'vitest'
 import { CanvasNodeRegistry } from '../src/registry.ts'
-import type { CanvasData, CanvasNodeTypeId } from '../src/types.ts'
+import type { CanvasData, CanvasNodeCapabilities, CanvasNodeTypeId } from '../src/types.ts'
 
 const id = brandString<CanvasNodeTypeId>('example.node')
 const definition = { id, dataVersion: 1, ports: [], parse: (data: CanvasData) => data }
@@ -24,6 +24,19 @@ describe('CanvasNodeRegistry', () => {
       expect(registry.revisionOf(id)).toBeGreaterThan(revision + 1)
       await remove()
     } finally { await ctx.fiber.dispose() }
+  })
+
+  it('publishes detached provider capabilities without assigning behavior from type identities', async () => {
+    const registry = new CanvasNodeRegistry((error) => { throw error })
+    const capabilities: CanvasNodeCapabilities = { sessions: true, resourceKind: 'folder' }
+    const remove = registry.register({ ...definition, capabilities })
+    delete capabilities.sessions
+    expect(registry.list()[0]?.capabilities).toEqual({ sessions: true, resourceKind: 'folder' })
+    const snapshot = registry.list()
+    if (snapshot[0]?.capabilities !== undefined) delete snapshot[0].capabilities.sessions
+    expect(registry.list()[0]?.capabilities?.sessions).toBe(true)
+    await remove()
+    expect(registry.list()).toEqual([])
   })
 
   it('aborts a removed registration synchronously and awaits its work on repeated disposal', async () => {

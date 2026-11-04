@@ -35,6 +35,12 @@
 
 依赖分类沿用 DSH 规则：Convax Renderer 的 `lucide-react` 仅供浏览器打包，声明位于该包的 `devDependencies`，根锁文件同步反映这一归属。这是依赖归类修正，没有为 Convax 增加规则豁免。
 
+## 内置节点插件归属
+
+Convax 画布底座与默认节点实现分别位于 `packages/plugin-host`、`packages/plugin-renderer` 和 `packages/plugin-inernal-nodes-host`、`packages/plugin-inernal-nodes-renderer`。产品 patch 独立挂载四行，保留原有 Host 与 Renderer 包身份。节点包复用公开注册、能力声明和界面贡献，不修改 DSH 的执行模式或 Computer Use 默认挂载。旧节点类型、payload、SQLite 与 Session 记录继续沿用。升级时保留新增包的 source alias、Host/Client 项目引用及构建发现；节点契约分别见[节点 Host](../packages/plugin-inernal-nodes-host/README.zh.md)和[节点 Renderer](../packages/plugin-inernal-nodes-renderer/README.zh.md)。
+
+DSH 脚本容器本身不是 workspace 成员。其中 Desktop、Web 与 website 的 pnpm 命令通过 `--dir` 指向实际成员目录。这样独立 DSH 与外层 Convax workspace 都从目标包执行，不依赖 pnpm 从脚本容器猜测工作区。
+
 ## 需要保留或逐项替代的 DSH 适配
 
 下表中的路径均相对于 `libs/dsh/`。它是升级复核清单，具体实现和对应测试以源码为准。上游升级后若提供等价能力，应迁移消费者并删除不再需要的本地适配。

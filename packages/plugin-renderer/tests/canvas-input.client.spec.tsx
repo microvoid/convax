@@ -1,3 +1,4 @@
+import { defaultNodeCreations, defaultNodePresentation } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 // @vitest-environment jsdom
 /** Canvas gestures through React Flow's real wheel handlers and viewport rendering. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -40,7 +41,7 @@ function renderFixture(mode: CanvasInputMode, overrides: Partial<CanvasGraphProp
     command: vi.fn(async () => true), openResource: vi.fn(), openSource: vi.fn(), resolveFilePath: vi.fn(), addResources: vi.fn(),
     inputMode: mode, setInputMode, ...overrides,
   }
-  const view = render(<CanvasGraph {...props} />)
+  const view = render(<CanvasGraph {...props} creations={defaultNodeCreations(props.t)} rendererDefinitions={defaultNodePresentation} />)
   const graph = view.container.querySelector<HTMLElement>('[data-convax-graph]')!
   const pane = view.container.querySelector<HTMLElement>('.react-flow__pane')!
   const viewport = view.container.querySelector<HTMLElement>('.react-flow__viewport')!
@@ -349,7 +350,7 @@ describe('Canvas input gestures', () => {
   it('switches modes without replacing the viewport or an embedded editor, and leaves its wheel events local', async () => {
     const b = await fixture('touchpad')
     const chat = document.createElement('article')
-    chat.dataset.convaxChat = 'chat'
+    chat.dataset.convaxInputOwner = 'chat'
     chat.className = 'nowheel'
     const editor = document.createElement('textarea')
     editor.value = 'Unsent thread draft'

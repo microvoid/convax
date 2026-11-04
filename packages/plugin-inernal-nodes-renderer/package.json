@@ -1,0 +1,120 @@
+{
+  "name": "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer",
+  "description": "Default file, folder, Chat and application-window nodes for Convax",
+  "version": "0.2.1-rc.3",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-convax-plugin-renderer",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-api-gateway",
+        "@deepseek-ai/dsh-client-resources",
+        "@deepseek-ai/dsh-client-ui-settings-general",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-shortcuts",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview",
+        "@deepseek-ai/dsh-client-ui-schedule",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-ui-input-trigger"
+      ],
+      "external": [
+        "@deepseek-ai/dsh-api-gateway/client",
+        "@deepseek-ai/dsh-convax-plugin-renderer/client"
+      ]
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/client.media-decode.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-convax-plugin-renderer": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-api-gateway": "workspace:*",
+    "@deepseek-ai/dsh-api-remotes": "workspace:*",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:*",
+    "@deepseek-ai/dsh-api-workspace-controller": "workspace:*",
+    "@deepseek-ai/dsh-client-locale": "workspace:*",
+    "@deepseek-ai/dsh-client-resources": "workspace:*",
+    "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
+    "@deepseek-ai/dsh-client-store": "workspace:*",
+    "@deepseek-ai/dsh-client-test-runtime": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-agent-preset": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-chat": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-layout": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-renderer": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-schedule": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-session": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-settings-general": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-workspace": "workspace:*",
+    "@deepseek-ai/dsh-file-reference": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
+    "@deepseek-ai/dsh-util-crypto": "workspace:*",
+    "@deepseek-ai/dsh-util-values": "workspace:*",
+    "@deepseek-ai/dsh-workspace": "workspace:*",
+    "@xyflow/react": "12.12.0",
+    "lexical": "^0.49.0",
+    "mediabunny": "1.62.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zod": "^4.4.3",
+    "@deepseek-ai/dsh-client-ui-input-trigger": "workspace:*",
+    "@deepseek-ai/dsh-util-desktop-capture": "workspace:*",
+    "lucide-react": "1.64.0",
+    "@deepseek-ai/dsh-convax-plugin-renderer": "workspace:*"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-convax-plugin-host": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/microvoid/convax.git",
+    "directory": "packages/plugin-inernal-nodes-renderer"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

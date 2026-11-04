@@ -13,7 +13,7 @@ vi.mock('@xyflow/react', async (importOriginal) => {
     const flow = original.useReactFlow()
     useEffect(() => { onInit?.(flow) }, [flow, onInit])
     return <div data-testid="pane" onDrop={onDrop} onDragOver={onDragOver} onDragEnter={onDragEnter}>
-      <article data-convax-chat="chat"><input aria-label="Chat input" /></article>
+      <article data-convax-input-owner="chat"><input aria-label="Chat input" /></article>
     </div>
   }
   return {

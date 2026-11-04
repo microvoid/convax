@@ -10,6 +10,7 @@ const driver = fileURLToPath(new URL('./fixtures/chat-driver.ts', import.meta.ur
 const configPath = fileURLToPath(new URL('./fixtures/chat-composition.patch.yml', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../libs/dsh/tsconfig.json', import.meta.url))
 interface Report {
+  nodeProviderLifecycle: boolean
   phase: string
   sourceId: string
   forkId: string
@@ -21,7 +22,7 @@ interface Report {
   remainingChats: number
 }
 
-it('creates, reopens, forks and archives Chat threads through the production Web Loader without repeating deliveries', {
+it('recovers default node providers through the production Web Loader while retaining native Agents, thread identity and deliveries', {
   timeout: LOADER_SMOKE_TEST_TIMEOUT_MS * 2, retry: 0,
 }, async () => {
   const cwd = await mkdtemp(join(tmpdir(), 'convax-chat-loader-'))
@@ -34,7 +35,7 @@ it('creates, reopens, forks and archives Chat threads through the production Web
       })
     }
     for (const report of reports) {
-      expect(report).toMatchObject({ rendererDisabled: true, hostRetained: true, storedSessionCount: 2 })
+      expect(report).toMatchObject({ nodeProviderLifecycle: true, rendererDisabled: true, hostRetained: true, storedSessionCount: 2 })
       expect(report.beforeDeletion.chats[0]?.threads).toHaveLength(2)
       expect(report.beforeDeletion.canvases[0]?.nodes.filter(node => node.typeId === 'convax.file')).toHaveLength(1)
       expect(report.beforeDeletion.canvases[0]?.connections.filter(edge => edge.purpose === 'delivery')).toHaveLength(1)

@@ -5,7 +5,7 @@ import { JobId } from '@deepseek-ai/dsh-jobs'
 import type { JobStatus } from '@deepseek-ai/dsh-jobs'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { archiveCanvasThread } from '../src/archive.ts'
+import { archiveCanvasThread } from '../../plugin-inernal-nodes-host/src/archive.ts'
 
 const contexts: Context[] = []
 afterEach(async () => { await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose())) })

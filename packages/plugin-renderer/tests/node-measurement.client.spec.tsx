@@ -1,3 +1,4 @@
+import { defaultNodeCreations, defaultNodePresentation } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 // @vitest-environment jsdom
 /** Measured canvas nodes stay visible while their controlled data refreshes. */
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
@@ -66,7 +67,7 @@ async function fixture() {
     command: vi.fn(async () => true), openResource: vi.fn(), openSource: vi.fn(), resolveFilePath: vi.fn(), addResources: vi.fn(),
     inputMode: 'mouse', setInputMode: vi.fn(),
   }
-  const view = render(<CanvasGraph {...props} />)
+  const view = render(<CanvasGraph {...props} creations={defaultNodeCreations(props.t)} rendererDefinitions={defaultNodePresentation} />)
   const node = view.container.querySelector<HTMLElement>(`[data-id="${NODE_ID}"]`)
   if (node === null) throw new Error('Expected the real React Flow node wrapper')
   await waitFor(() => { expect(observers.some(observer => observer.targets.has(node))).toBe(true) })
