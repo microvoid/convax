@@ -64,6 +64,19 @@ describe('Canvas clipboard protocol', () => {
 })
 
 describe('Copied graph placement', () => {
+  it.each([true, false, undefined, 'true'])('preserves only an explicit system-title marker through copy and paste (%s)', (defaultTitle) => {
+    const source = structuredClone(document)
+    source.nodes[1]!.data = { title: 'Untitled chat', cwd: '/project',
+      ...(defaultTitle === undefined ? {} : { defaultTitle }) }
+    const copied = copyCanvasSelection(source, [SECOND], dimensions, views)!
+    const parsed = parseCanvasClipboard(JSON.stringify(copied))!
+    let next = 0
+    const command = createClipboardSubgraph(parsed, { x: 800, y: 500 }, [], () => `new-${next++}`)
+    const expected = { title: 'Untitled chat', cwd: '/project', ...(defaultTitle === true ? { defaultTitle: true } : {}) }
+    expect(copied.nodes[0]?.data).toEqual(expected)
+    expect(command.nodes[0]?.data).toEqual(expected)
+  })
+
   it('maps new IDs and preserves relative coordinates while removing Chat bindings again at paste', () => {
     const copied = payload()
     const hostile = { ...copied, nodes: copied.nodes.map(node => node.id === SECOND ? { ...node, data: { ...node.data, sessionId: 'injected', draft: 'injected' } } : node) }

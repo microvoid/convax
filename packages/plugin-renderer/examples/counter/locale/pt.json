@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Exemplo de contador do Convax",
+    "description": "Aprenda a registrar nós, criá-los explicitamente e persistir alterações com um cartão de contador."
+  }
+}

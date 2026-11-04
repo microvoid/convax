@@ -10,6 +10,7 @@ import type { WorkspaceProps } from './props.ts'
 import css from './ActivityMenu.module.css'
 
 interface ActivityProps {
+  readonly locale?: string
   readonly items: readonly CanvasActivityItem[]
   readonly busy: boolean
   readonly t: WorkspaceProps['t']
@@ -31,17 +32,17 @@ export function ActivityMenu(props: ActivityProps) {
   return <>
     <Tooltip label={props.t('activity.title')} side="bottom" portal>
       <Button ref={anchor} size="sm" className={css.trigger} aria-haspopup="dialog" aria-expanded={open}
-        aria-label={props.t(unread === 0 ? 'activity.title' : 'activity.unreadLabel', { count: unread })}
+        aria-label={props.t(unread === 0 ? 'activity.title' : 'activity.unreadLabel', { count: new Intl.NumberFormat(props.locale ?? 'en').format(unread) })}
         onClick={() => { setOpen(value => !value) }}>
         <Bell size={14} aria-hidden /><span>{props.t('activity.title')}</span>
-        {unread > 0 && <span className={css.badge} aria-hidden>{unread > 99 ? '99+' : unread}</span>}
+        {unread > 0 && <span className={css.badge} aria-hidden>{unread > 99 ? '99+' : new Intl.NumberFormat(props.locale ?? 'en').format(unread)}</span>}
       </Button>
     </Tooltip>
     {open && <ActivityPanel {...props} anchorRef={anchor} unread={unread} close={() => { setOpen(false) }} />}
   </>
 }
 
-function ActivityPanel({ items, busy, t, onSelect, onReadAll, anchorRef, unread, close }: ActivityProps & {
+function ActivityPanel({ items, busy, t, locale = 'en', onSelect, onReadAll, anchorRef, unread, close }: ActivityProps & {
   readonly anchorRef: RefObject<HTMLButtonElement | null>
   readonly unread: number
   readonly close: () => void
@@ -95,8 +96,9 @@ function ActivityPanel({ items, busy, t, onSelect, onReadAll, anchorRef, unread,
                 </span>
                 <span className={css.metadata}>
                   <span className={css.canvas} title={item.canvasTitle}>{item.canvasTitle}</span>
-                  <time dateTime={new Date(item.occurredAt).toISOString()} title={new Date(item.occurredAt).toLocaleString()}>
-                    {t(`activity.time.${time.unit}`, { count: time.n })}
+                  <time data-convax-activity-time dateTime={new Date(item.occurredAt).toISOString()}
+                    title={new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(item.occurredAt)}>
+                    {t(`activity.time.${time.unit}`, { count: new Intl.NumberFormat(locale).format(time.n) })}
                   </time>
                 </span>
               </span>

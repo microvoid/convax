@@ -21,6 +21,16 @@ function accepted(result: ReturnType<typeof applyCanvasDelta>): CanvasDocument {
 }
 
 describe('canvas history deltas', () => {
+  it('guards system naming independently of literal text and replays metadata-only renames', () => {
+    const before = { ...document([]), titleFormat: { kind: 'default' as const } }
+    const after = document([])
+    const delta = buildCanvasDelta(before, after)
+    expect(delta.title).toBeUndefined()
+    expect(accepted(applyCanvasDelta(after, delta, 'undo', new Map()))).toEqual(before)
+    expect(accepted(applyCanvasDelta(before, delta, 'redo', new Map()))).toEqual(after)
+    expect(applyCanvasDelta({ ...after, titleFormat: { kind: 'literal', value: after.title } }, delta, 'undo', new Map()).ok).toBe(false)
+  })
+
   it('captures changed fields and original drawing positions without retaining mutable graph objects or revisions', () => {
     const a = node('a')
     const b = node('b')

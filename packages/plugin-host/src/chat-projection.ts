@@ -1,7 +1,7 @@
 /** Pure Chat views derived from one read of the graph's coordination records. */
 import type { CanvasTableValue } from './schema.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import type { CanvasChat, CanvasDocument, CanvasId, CanvasNode, CanvasNodeId } from './types.ts'
+import type { CanvasChat, CanvasChatIssueCode, CanvasDocument, CanvasId, CanvasNode, CanvasNodeId } from './types.ts'
 
 /** Detached durable records used during one repository read. */
 export interface CanvasChatRecords {
@@ -71,12 +71,16 @@ function projectChat(index: ChatIndex, canvas: CanvasDocument, node: CanvasNode)
   const chat = details(index, canvas.id, node.id)
   const threads = chat.bindings.toSorted(threadOrder)
     .map(({ sessionId, parentSessionId, inheritedEventCount }) => ({ sessionId, parentSessionId, inheritedEventCount }))
+  const issueCode: CanvasChatIssueCode | undefined = chat.threadError !== null ? 'thread-create'
+    : chat.deletionError !== null ? 'deletion' : chat.deliveryError !== null ? 'delivery' : undefined
   return {
     canvasId: canvas.id, nodeId: node.id,
     title: typeof node.data.title === 'string' ? node.data.title : canvas.title,
+    ...(node.data.defaultTitle === true ? { defaultTitle: true as const } : {}),
     cwd: typeof node.data.cwd === 'string' ? node.data.cwd : '',
     threads, deleting: chat.deleting,
     issue: chat.threadError ?? chat.deletionError ?? chat.deliveryError,
+    ...(issueCode === undefined ? {} : { issueCode }),
   }
 }
 

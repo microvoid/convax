@@ -22,7 +22,7 @@ import { hostPathForFile } from './desktop-paths.ts'
 import type { ResourceProvider } from '@deepseek-ai/dsh-client-resources/client'
 import { ConvaxWorkspace } from './Workspace.tsx'
 import { createCanvasViewStore, createChatViewStore } from './store.ts'
-import { NS, en, zh } from './locales.ts'
+import { NS, dictionaries } from './locales.ts'
 import { resourcePath } from './resources.ts'
 import type { ChatInjected, WorkspaceInjected } from './props.ts'
 import { ChatCard, ChatHeader, ChatSession, ChatThread, ChatTools, ChatViews } from './ChatCard.tsx'
@@ -115,7 +115,7 @@ export async function apply(ctx: Context): Promise<void> {
     scope.effect(() => async () => {
       await Promise.all([...streams].map(stream => stream.dispose()))
     }, 'convax: stream disposal')
-    scope.effect(() => scope.locale.register(NS, { zh, en }), 'convax: dictionaries')
+    scope.effect(() => scope.locale.register(NS, dictionaries), 'convax: dictionaries')
     const t = scope.locale.bind(NS)
     const windowSource: InputTriggerSource = {
       trigger: '@', name: WINDOW_REFERENCE_SOURCE,

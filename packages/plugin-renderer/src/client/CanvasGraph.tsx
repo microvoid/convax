@@ -804,7 +804,7 @@ function CanvasGraphContent({
           <Button size="sm" aria-label={t('canvas.zoom.out')} onClick={() => { void flow?.zoomOut() }}><span className={css.minus} /></Button>
         </Tooltip>
         <Tooltip label={t('canvas.zoom.reset')} portal>
-          <Button size="sm" aria-label={t('canvas.zoom.reset')} onClick={() => { void flow?.zoomTo(1) }}>{Math.round(zoom * 100)}%</Button>
+          <Button size="sm" aria-label={t('canvas.zoom.reset')} onClick={() => { void flow?.zoomTo(1) }}>{new Intl.NumberFormat(globalThis.document.documentElement.lang || 'en', { style: 'percent', maximumFractionDigits: 0 }).format(zoom)}</Button>
         </Tooltip>
         <Tooltip label={t('canvas.zoom.in')} portal>
           <Button size="sm" aria-label={t('canvas.zoom.in')} onClick={() => { void flow?.zoomIn() }}><Plus size={14} aria-hidden /></Button>

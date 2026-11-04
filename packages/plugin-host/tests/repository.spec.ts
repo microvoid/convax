@@ -88,6 +88,29 @@ function node(id: string): CanvasNode {
 }
 
 describe('CanvasRepository', () => {
+  it('persists explicit default naming and clears it on a same-text rename, including undo and reopen', async () => {
+    const { repository, close, open } = await fixture()
+    await repository.execute(request('default', 0, { kind: 'create', title: 'Untitled canvas', defaultTitle: true }))
+    expect(repository.snapshot().canvases[0]?.titleFormat).toEqual({ kind: 'default' })
+    await repository.execute(request('same-name', 1, { kind: 'rename', title: 'Untitled canvas' }))
+    expect(repository.snapshot().canvases[0]?.titleFormat).toBeUndefined()
+    await repository.execute(request('undo-name', 2, { kind: 'history', targetOperationId: brandString<CanvasOperationId>('same-name'), direction: 'undo' }))
+    expect(repository.snapshot().canvases[0]?.titleFormat).toEqual({ kind: 'default' })
+    await repository.execute(request('copy', 3, { kind: 'duplicate', newCanvasId: brandString<CanvasId>('copy'), title: 'Untitled canvas (copy)', localizedCopy: true }))
+    expect(repository.snapshot().canvases.find(canvas => canvas.id === 'copy')?.titleFormat).toEqual({ kind: 'copy', source: { kind: 'default' } })
+    await close()
+    const reopened = await open()
+    expect(reopened.repository.snapshot().canvases.find(canvas => canvas.id === 'copy')?.titleFormat).toEqual({ kind: 'copy', source: { kind: 'default' } })
+  })
+
+  it('preserves literal legacy titles and captures a literal source when making a localized copy', async () => {
+    const { repository } = await fixture()
+    await repository.execute(request('literal', 0, { kind: 'create', title: '未命名画布' }))
+    expect(repository.snapshot().canvases[0]?.titleFormat).toBeUndefined()
+    await repository.execute(request('copy-literal', 1, { kind: 'duplicate', newCanvasId: brandString<CanvasId>('copy-literal'), title: '未命名画布 (copy)', localizedCopy: true }))
+    expect(repository.snapshot().canvases.find(canvas => canvas.id === 'copy-literal')?.titleFormat).toEqual({ kind: 'copy', source: { kind: 'literal', value: '未命名画布' } })
+  })
+
   it('returns provider validation failures without committing or consuming the operation identity', async () => {
     const { repository, registry, unregisterType } = await fixture()
     await repository.execute(request('create', 0, { kind: 'create', title: 'Files' }))
@@ -1411,15 +1434,26 @@ describe('ConvaxHost resource ownership', () => {
 })
 
 describe('Chat Session coordination', () => {
+  it('retains an existing operation diagnostic and its category when profile coordination is unavailable', async () => {
+    const f = await chatFixture()
+    const host = new ConvaxHost(f.ctx, f.repository, { previewBytes: 10, documentBytes: 1024, mediaChunkBytes: 1024 })
+    cleanup.push(() => host.close())
+    await f.repository.coordination.reserveThread(f.create, '/project')
+    await f.repository.coordination.failThread(f.create.operationId, 'Retry the original operation')
+    expect(host.workspace().chats[0]).toMatchObject({ issue: 'Retry the original operation', issueCode: 'thread-create' })
+  })
+
   it('reports missing profile coordination consistently in workspace reads and watches', async () => {
     const f = await chatFixture()
     const host = new ConvaxHost(f.ctx, f.repository, { previewBytes: 10, documentBytes: 1024, mediaChunkBytes: 1024 })
     cleanup.push(() => host.close())
     const message = 'Chat creation and deletion are unavailable in this profile'
     expect(host.workspace().chats[0]?.issue).toBe(message)
+    expect(host.workspace().chats[0]?.issueCode).toBe('chat-unavailable')
     const abort = new AbortController()
     for await (const snapshot of host.watch(abort.signal)) {
       expect(snapshot.chats[0]?.issue).toBe(message)
+      expect(snapshot.chats[0]?.issueCode).toBe('chat-unavailable')
       break
     }
     abort.abort()
@@ -1427,9 +1461,11 @@ describe('Chat Session coordination', () => {
     f.ctx.provide('workspaceRegistry', {} as never)
     expect(f.ctx.get('sessionController')).toBeUndefined()
     expect(host.workspace().chats[0]?.issue).toBeNull()
+    expect(host.workspace().chats[0]).not.toHaveProperty('issueCode')
     await f.repository.coordination.reserveThread(f.create, '/project')
     await f.repository.coordination.failThread(f.create.operationId, 'Retry the original operation')
     expect(host.workspace().chats[0]?.issue).toBe('Retry the original operation')
+    expect(host.workspace().chats[0]?.issueCode).toBe('thread-create')
   })
 
   it('retries a lost creation acknowledgement with the same identity and does not resend a prompt', async () => {

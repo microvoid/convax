@@ -6,6 +6,7 @@ import { Button, Menu, MenuSurface, Tooltip, useAnchoredPosition, useDismissOnOu
 import type { CanvasChat, CanvasDocument, CanvasId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { WorkspaceProps } from './props.ts'
 import css from './CanvasManager.module.css'
+import { canvasDisplayTitle } from './localized-content.ts'
 
 /** Read-only canvas summaries and owner-controlled navigation and mutations. */
 export interface CanvasManagerProps {
@@ -37,7 +38,8 @@ export function CanvasManager(props: CanvasManagerProps) {
 }
 
 function CanvasManagerPanel(props: CanvasManagerProps) {
-  const { canvases, chats, activeId, busy, t, anchorRef, onOpenChange } = props
+  const { chats, activeId, busy, t, anchorRef, onOpenChange } = props
+  const canvases = props.canvases.map(canvas => ({ ...canvas, title: canvasDisplayTitle(canvas, t) }))
   const panel = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
   const [archived, setArchived] = useState(false)

@@ -58,16 +58,18 @@ export class CanvasMigrationCoordinator {
     this.dirty = true
     if (this.pending !== undefined) return this.pending
     const pending = Promise.resolve().then(async () => {
-      while (this.dirty && !this.lifetime.signal.aborted) {
-        this.dirty = false
-        await this.inspect()
+      try {
+        while (this.dirty && !this.lifetime.signal.aborted) {
+          this.dirty = false
+          await this.inspect()
+        }
+      } finally {
+        // Release the pump before its promise settles so a retry cannot join completed work.
+        this.pending = undefined
       }
     })
     this.pending = pending
-    void pending.then(() => { if (this.pending === pending) this.pending = undefined }, (error: unknown) => {
-      if (this.pending === pending) this.pending = undefined
-      this.reportFailure(error)
-    })
+    void pending.catch((error: unknown) => { this.reportFailure(error) })
     return pending
   }
 

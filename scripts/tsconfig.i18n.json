@@ -1,0 +1,10 @@
+{
+  "extends": "../libs/dsh/tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false,
+    "noEmit": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": ["./check-i18n.ts", "./check-i18n.spec.ts", "./vitest.i18n.config.ts"]
+}

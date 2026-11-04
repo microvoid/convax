@@ -123,7 +123,10 @@ export class ConvaxHost extends TypertRemoteService {
     const snapshot = this.repository.snapshot()
     if (this.ctx.get('sessionQuery') === undefined || this.ctx.get('workspaceRegistry') === undefined) {
       for (const chat of snapshot.chats) {
-        chat.issue ??= 'Chat creation and deletion are unavailable in this profile'
+        if (chat.issue === null) {
+          chat.issue = 'Chat creation and deletion are unavailable in this profile'
+          chat.issueCode = 'chat-unavailable'
+        }
       }
     }
     return snapshot
@@ -596,11 +599,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }, { id: 'output', direction: 'output', valueKind: 'resource' }],
     parse: data => windowData.parse(data),
   }))
-  const chatData = z.object({ title: z.string().trim().min(1), cwd: z.string().refine(isAbsolute, 'An absolute project directory is required') })
+  const chatData = z.object({ title: z.string().trim().min(1), defaultTitle: z.boolean().optional(), cwd: z.string().refine(isAbsolute, 'An absolute project directory is required') })
+    .transform(({ defaultTitle, ...value }) => ({ ...value, ...(defaultTitle === undefined ? {} : { defaultTitle }) }))
   ctx.effect(() => registry.register({
     id: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1,
     description: 'Chat container with a project directory and independently created DSH Session threads.',
-    dataSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1 }, cwd: { type: 'string', description: 'Absolute project directory.' } }, required: ['title', 'cwd'], additionalProperties: false },
+    dataSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1 }, defaultTitle: { type: 'boolean', description: 'True only for a system-generated untitled Chat; omit for explicit names.' }, cwd: { type: 'string', description: 'Absolute project directory.' } }, required: ['title', 'cwd'], additionalProperties: false },
     ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }, { id: 'output', direction: 'output', valueKind: 'resource' }],
     parse: data => chatData.parse(data),
   }))

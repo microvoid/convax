@@ -386,7 +386,8 @@ export class CanvasRepository {
       if (existing !== undefined || request.expectedRevision !== 0) throw new CommandFailure('conflict', 'Canvas already exists')
       const title = request.command.title.trim()
       if (title.length === 0) throw new CommandFailure('invalid-command', 'Canvas title is required')
-      graph.canvases.push({ id: request.canvasId, title, revision: 1, nodes: [], connections: [] })
+      graph.canvases.push({ id: request.canvasId, title, revision: 1, nodes: [], connections: [],
+        ...(request.command.defaultTitle === true ? { titleFormat: { kind: 'default' as const } } : {}) })
     } else {
       if (existing === undefined) throw new CommandFailure('not-found', 'Canvas no longer exists')
       if (!settled && ([...tx.table('deletions').entries()].some(([, deletion]) => deletion.canvasId === existing.id && deletion.phase === 'deleting')
@@ -432,6 +433,9 @@ export class CanvasRepository {
         }
         graph.canvases.push({
           id: newCanvasId, title: copyTitle, revision: 1,
+          ...(request.command.localizedCopy === true ? { titleFormat: {
+            kind: 'copy' as const, source: structuredClone(existing.titleFormat ?? { kind: 'literal' as const, value: existing.title }),
+          } } : {}),
           nodes,
           connections: existing.connections.map(edge => ({ ...edge, id: brandString<CanvasConnection['id']>(randomUUID()),
             source: copiedId(edge.source), target: copiedId(edge.target) })),
@@ -655,6 +659,7 @@ export class CanvasRepository {
         const title = command.title.trim()
         if (title.length === 0) throw new CommandFailure('invalid-command', 'Canvas title is required')
         canvas.title = title
+        delete canvas.titleFormat
         return
       }
       case 'add-node': {

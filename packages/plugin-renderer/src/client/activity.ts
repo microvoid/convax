@@ -11,6 +11,7 @@ export interface CanvasActivityItem {
   readonly canvasId: CanvasId
   readonly nodeId: CanvasNodeId
   readonly title: string
+  readonly defaultTitle?: true
   readonly canvasTitle: string
   readonly kind: 'attention' | 'completed'
   readonly occurredAt: number
@@ -22,9 +23,15 @@ interface ObservedStatus {
   readonly interactionKey: string | undefined
 }
 
+function literalTitle(item: CanvasActivityItem): CanvasActivityItem {
+  const { defaultTitle: _defaultTitle, ...rest } = item
+  return rest
+}
+
 function sameItem(left: CanvasActivityItem, right: CanvasActivityItem): boolean {
   return left.sessionId === right.sessionId && left.canvasId === right.canvasId && left.nodeId === right.nodeId
-    && left.title === right.title && left.canvasTitle === right.canvasTitle && left.kind === right.kind
+    && left.title === right.title && left.defaultTitle === right.defaultTitle
+    && left.canvasTitle === right.canvasTitle && left.kind === right.kind
     && left.occurredAt === right.occurredAt && left.unread === right.unread
 }
 
@@ -72,8 +79,12 @@ export class CanvasActivity {
         present.add(id)
         const summary = summaries[id]
         const metadata = { sessionId: id, canvasId: chat.canvasId, nodeId: chat.nodeId,
+          ...(!summary?.displayTitle && chat.defaultTitle === true ? { defaultTitle: true as const } : {}),
           title: summary?.displayTitle || chat.title, canvasTitle: canvas.title }
-        const prior = this.rows.get(id)
+        const recorded = this.rows.get(id)
+        // A Session title replaces the system-name marker, even when only metadata changes.
+        const prior = recorded === undefined ? undefined
+          : metadata.defaultTitle === true ? recorded : literalTitle(recorded)
         const status = statuses.get(id)
         if (status === undefined) {
           if (prior !== undefined) this.rows.set(id, { ...prior, ...metadata })

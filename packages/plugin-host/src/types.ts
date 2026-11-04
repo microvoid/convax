@@ -60,12 +60,19 @@ export interface CanvasConnection {
   /** Relationship semantics; creating a connection does not execute work. */
   purpose: 'input' | 'delivery'
 }
+/** System-generated title composition; literal user names are never translated. */
+export type CanvasTitleFormat =
+  | { kind: 'default' }
+  | { kind: 'literal'; value: string }
+  | { kind: 'copy'; source: CanvasTitleFormat }
 /** One complete committed canvas. */
 export interface CanvasDocument {
   /** Stable canvas identity. */
   id: CanvasId
   /** User-provided title. */
   title: string
+  /** Optional system naming recipe; absence preserves the literal saved title. */
+  titleFormat?: CanvasTitleFormat
   /** Organizational archive state; absence means active and never changes Session activity. */
   archived?: boolean
   /** Monotonic graph revision. */
@@ -96,7 +103,7 @@ export interface CanvasNodeIssue {
   nodeId: CanvasNodeId
   /** Pending migration or unavailable compatible interpretation. */
   kind: 'migrating' | 'incompatible'
-  /** Actionable diagnostic supplied by the Host. */
+  /** Technical diagnostic; clients localize the user-facing explanation from kind. */
   message: string
 }
 /** One Session owned by exactly one Chat; messages remain in DSH. */
@@ -108,6 +115,8 @@ export interface CanvasThread {
   /** Inherited prefix excluded from new delivery projection. */
   inheritedEventCount: number
 }
+/** Stable category used by clients to translate a Chat failure without parsing diagnostics. */
+export type CanvasChatIssueCode = 'thread-create' | 'deletion' | 'delivery' | 'chat-unavailable'
 /** Derived Chat state, retained independently of open canvas views. */
 export interface CanvasChat {
   /** Owning canvas. */
@@ -116,14 +125,18 @@ export interface CanvasChat {
   nodeId: CanvasNodeId
   /** User-facing Chat name. */
   title: string
+  /** Explicit system-name marker; absent for legacy and user-defined titles. */
+  defaultTitle?: true
   /** Default working directory for new threads. */
   cwd: string
   /** Sessions uniquely bound to this Chat. */
   threads: CanvasThread[]
   /** True while stop-and-archive coordination prevents new work. */
   deleting: boolean
-  /** Recoverable operation failure, or null when no intervention is needed. */
+  /** Technical diagnostic for a recoverable operation failure; null when no intervention is needed. */
   issue: string | null
+  /** Localizable failure category; absent in older snapshots or when issue is null. */
+  issueCode?: CanvasChatIssueCode
 }
 /** Unique Session ownership, readable without a node provider. */
 export interface CanvasSessionBinding extends CanvasThread {
@@ -196,11 +209,11 @@ export interface CanvasPort {
 }
 /** One atomic graph command. */
 export type CanvasCommand =
-  | { kind: 'create'; title: string }
+  | { kind: 'create'; title: string; defaultTitle?: boolean | undefined }
   | { kind: 'rename'; title: string }
   | { kind: 'delete' }
   | { kind: 'set-archived'; archived: boolean }
-  | { kind: 'duplicate'; newCanvasId: CanvasId; title: string }
+  | { kind: 'duplicate'; newCanvasId: CanvasId; title: string; localizedCopy?: boolean | undefined }
   | { kind: 'purge' }
   | {
     kind: 'add-node'

@@ -45,6 +45,17 @@ function pending(sessionId: SessionId, key: string): SessionStatus {
 function statuses(...items: Array<readonly [SessionId, SessionStatus]>): SessionStatusSnapshot { return new Map(items) }
 
 describe('Convax activity', () => {
+  it('drops the system-name marker when the Session obtains its own title', () => {
+    const owner = new CanvasActivity()
+    const board = workspace([{ ...chat(first), defaultTitle: true }])
+    const source = statuses([first, status({ completionUnread: true })])
+    owner.observe(board, source, {})
+    expect(owner.getSnapshot()[0]?.defaultTitle).toBe(true)
+    owner.observe(board, source, { [first]: summary(first, 100) })
+    expect(owner.getSnapshot()[0]?.defaultTitle).toBeUndefined()
+    expect(owner.getSnapshot()[0]?.title).toBe('Session first-session')
+  })
+
   it('orders attention before recent completions and deduplicates Session occurrences across canvases', () => {
     const owner = new CanvasActivity()
     const board = workspace([chat(first), chat(second), chat(third), chat(first, 'other-board' as CanvasId)])

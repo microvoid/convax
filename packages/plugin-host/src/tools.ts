@@ -21,6 +21,7 @@ const CANVAS = {
     id: { type: 'string', required: true }, title: { type: 'string', required: true },
     revision: { type: 'integer', required: true },
     archived: { type: 'boolean' },
+    titleFormat: { type: 'json' },
     nodes: {
       type: 'array', required: true,
       items: {

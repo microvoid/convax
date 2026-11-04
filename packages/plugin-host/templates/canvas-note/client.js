@@ -30,6 +30,48 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register('local.convax-note', {
           en: { title: 'Note', text: 'Note text', save: 'Save', remove: 'Remove', failed: 'The note was not saved. Try again.' },
           zh: { title: '笔记', text: '笔记内容', save: '保存', remove: '移除', failed: '笔记未保存，请重试。' },
+          ja: {
+            "title": "メモ",
+            "text": "メモの内容",
+            "save": "保存",
+            "remove": "削除",
+            "failed": "メモを保存できませんでした。再試行してください。"
+          },
+          es: {
+            "title": "Nota",
+            "text": "Texto de la nota",
+            "save": "Guardar",
+            "remove": "Eliminar",
+            "failed": "No se guardó la nota. Vuelve a intentarlo."
+          },
+          fr: {
+            "title": "Note",
+            "text": "Texte de la note",
+            "save": "Enregistrer",
+            "remove": "Supprimer",
+            "failed": "La note n’a pas été enregistrée. Réessayez."
+          },
+          de: {
+            "title": "Notiz",
+            "text": "Notiztext",
+            "save": "Speichern",
+            "remove": "Entfernen",
+            "failed": "Die Notiz wurde nicht gespeichert. Versuchen Sie es erneut."
+          },
+          ru: {
+            "title": "Заметка",
+            "text": "Текст заметки",
+            "save": "Сохранить",
+            "remove": "Удалить",
+            "failed": "Заметка не сохранена. Повторите попытку."
+          },
+          pt: {
+            "title": "Nota",
+            "text": "Texto da nota",
+            "save": "Salvar",
+            "remove": "Remover",
+            "failed": "A nota não foi salva. Tente novamente."
+          },
         }))
         const t = ctx.locale.bind('local.convax-note')
         ctx.inject(['convaxRenderer'], scope => scope.convaxRenderer.registerNodeRenderer('local.note', {

@@ -14,6 +14,7 @@ import { ChatResizeHandle } from './ChatResizeHandle.tsx'
 import type { ChatSize } from './chat-size.ts'
 import { useToolsCardHeight } from './use-tools-card-height.ts'
 import { CardToolbar } from './CardToolbar.tsx'
+import { DiagnosticDetails } from './DiagnosticDetails.tsx'
 import { ThreadTabs } from './ThreadTabs.tsx'
 import { orderedChatThreads } from './thread-order.ts'
 
@@ -212,7 +213,7 @@ export function ChatCard(props: ChatProps) {
       ...(size === undefined ? {} : { '--dsh-convax-chat-view-height': `${size.height}px` }) } as CSSProperties}
     onPointerDownCapture={() => { if (selected !== undefined) props.focusSession(selected) }}
     onFocusCapture={() => { if (selected !== undefined) props.focusSession(selected) }}>
-    <CardToolbar nodeId={chat.nodeId} name={chat.title} t={t} actions={[
+    <CardToolbar nodeId={chat.nodeId} name={chat.defaultTitle === true ? t('chat.untitled') : chat.title} t={t} actions={[
       { id: 'zoom', label: t('chat.focus'), onClick: props.focusNode },
       { id: 'remove', label: t('chat.delete'), disabled: busy || chat.deleting, onClick: props.remove },
     ]} />
@@ -267,7 +268,10 @@ export function ChatCard(props: ChatProps) {
         </div>
       </header>
       <div className={css.chatDetails} hidden={collapsed}>
-        {(chat.issue !== null || chat.deleting) && <p className={css.notice} role="status">{chat.issue ?? t('chat.deleting')}</p>}
+        {(chat.issue !== null || chat.deleting) && <p className={css.notice} role="status">{t(chat.issue === null ? 'chat.deleting'
+          : chat.issueCode === 'thread-create' ? 'chat.createFailed' : chat.issueCode === 'deletion' ? 'chat.deletePending'
+            : chat.issueCode === 'delivery' ? 'chat.deliveryFailed' : chat.issueCode === 'chat-unavailable' ? 'chat.unavailable' : 'operation.failed')}</p>}
+        {chat.issue !== null && <DiagnosticDetails diagnostic={chat.issue} t={t} />}
         {unconfirmed && <div className={`${css.notice} nodrag nopan`} role={attempt.operationId === failedOperation ? 'alert' : 'status'}>
           {t('chat.unconfirmed')}
           <Button size="sm" disabled={chat.deleting} onClick={() => { void submit(attempt) }}>{t('workspace.retry')}</Button>

@@ -291,7 +291,7 @@ export class CanvasDatabase {
   private async upgrade(path: string, legacyPath: string | undefined): Promise<void> {
     const version = this.db.prepare("SELECT version FROM units WHERE name='convax'").get()?.['version']
     if (version === CANVAS_SCHEMA_VERSION) { this.readMigrationWarnings(); return }
-    if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5 && version !== 6) throw new CanvasDatabaseError('version-mismatch', `Unsupported Convax repository version: ${String(version)}`)
+    if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5 && version !== 6 && version !== 7) throw new CanvasDatabaseError('version-mismatch', `Unsupported Convax repository version: ${String(version)}`)
     const sessions = version < 3 ? (await readLegacy(legacyPath, false)).sessions : []
     if (path !== ':memory:') {
       await mkdir(`${path}.upgrades`, { recursive: true, mode: 0o700 })
@@ -308,7 +308,7 @@ export class CanvasDatabase {
           this.db.exec(`CREATE TABLE u_convax_${name}(key TEXT PRIMARY KEY,value TEXT NOT NULL) STRICT`)
         }
       }
-      this.db.exec('CREATE TABLE u_convax_directories(key TEXT PRIMARY KEY,value TEXT NOT NULL) STRICT')
+      if (version < 7) this.db.exec('CREATE TABLE u_convax_directories(key TEXT PRIMARY KEY,value TEXT NOT NULL) STRICT')
       this.db.prepare("UPDATE units SET version=? WHERE name='convax'").run(CANVAS_SCHEMA_VERSION)
       this.validate()
       this.db.exec('COMMIT')
@@ -374,7 +374,7 @@ async function readLegacy(path: string | undefined, includeGraph: boolean): Prom
     if (!includeGraph) return { sessions }
     const version = db.prepare("SELECT version FROM units WHERE name='convax'").get()?.['version']
     if (version === undefined) return { sessions }
-    if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5 && version !== 6 && version !== CANVAS_SCHEMA_VERSION) throw new CanvasDatabaseError('version-mismatch', `Unsupported legacy Convax repository version: ${String(version)}`)
+    if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5 && version !== 6 && version !== 7 && version !== CANVAS_SCHEMA_VERSION) throw new CanvasDatabaseError('version-mismatch', `Unsupported legacy Convax repository version: ${String(version)}`)
     const global = db.prepare("SELECT value FROM unit_globals WHERE unit='convax'").get()?.['value']
     if (typeof global !== 'string') throw new CanvasDatabaseError('invalid-record', 'Legacy Convax graph is absent')
     graphSchema.parse(JSON.parse(global))

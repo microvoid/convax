@@ -14,6 +14,7 @@ import { nextResourcePosition, RESOURCE_CARD_GAP, RESOURCE_CARD_WIDTH } from './
 import { ResourcePreview } from './ResourcePreview.tsx'
 import css from './Workspace.module.css'
 import { CanvasTabs } from './CanvasTabs.tsx'
+import { canvasDisplayTitle } from './localized-content.ts'
 import { CanvasManager } from './CanvasManager.tsx'
 import { recordsCanvasHistory, removedResourceViews, restoredResourceViews } from './canvas-history.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -243,12 +244,12 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
   }
   const create = async (): Promise<void> => {
     const id = randomUUID() as CanvasId
-    if (await run({ id, revision: 0 }, { kind: 'create', title: t('canvas.untitled') })) actions.open(id)
+    if (await run({ id, revision: 0 }, { kind: 'create', title: t('canvas.untitled'), defaultTitle: true })) actions.open(id)
   }
   const rename = (id: CanvasId): void => {
     const canvas = canvases.find(item => item.id === id)
     if (canvas === undefined) return
-    setTitle(canvas.title)
+    setTitle(canvasDisplayTitle(canvas, t))
     setRenaming(id)
   }
   const archive = async (id: CanvasId, archived: boolean): Promise<void> => {
@@ -264,7 +265,8 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
     const canvas = canvases.find(item => item.id === id)
     if (canvas === undefined) return
     const newCanvasId = randomUUID() as CanvasId
-    if (await run(canvas, { kind: 'duplicate', newCanvasId, title: t('canvas.copyName', { name: canvas.title }) })) {
+    if (await run(canvas, { kind: 'duplicate', newCanvasId,
+      title: t('canvas.copyName', { name: canvasDisplayTitle(canvas, t) }), localizedCopy: true })) {
       const viewport = latestView.current.viewports[id]
       if (viewport !== undefined) actions.setViewport(newCanvasId, viewport)
       actions.open(newCanvasId)
@@ -418,7 +420,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
       const added = await run(active, {
         kind: 'add-node', node: {
           id: nodeId, typeId: 'convax.chat' as CanvasNodeTypeId, dataVersion: 1,
-          data: { title: t('chat.untitled'), cwd }, position: position ?? nextResourcePosition(active.nodes), revision: 0,
+          data: { title: t('chat.untitled'), defaultTitle: true, cwd }, position: position ?? nextResourcePosition(active.nodes), revision: 0,
         },
         ...(connections.length === 0 ? {} : { initialConnections: connections }),
       }, (document) => { committed = document }, target)
@@ -544,21 +546,24 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
       <nav className={css.tabbar} aria-label={t('canvas.all')} data-workspace-titlebar="integrated" data-window-drag="">
         <span className={css.brand}>{t('workspace.title')}</span>
         <div className={css.tabStrip}>
-          <CanvasTabs tabs={tabs} activeId={active?.id} t={t}
+          <CanvasTabs tabs={tabs.map(canvas => ({ ...canvas, title: canvasDisplayTitle(canvas, t) }))} activeId={active?.id} t={t}
             open={(id) => { actions.open(id); setMenu(null) }} close={actions.close} move={actions.moveTab}
             rename={rename} />
           <Tooltip label={t('canvas.new')} side="bottom" portal>
             <Button size="sm" className={css.chromeButton} disabled={busy} aria-label={t('canvas.new')} onClick={() => { void create() }}><Plus size={14} aria-hidden /></Button>
           </Tooltip>
         </div>
-        <ActivityMenu items={activity} busy={busy} t={t}
-          onReadAll={() => { props.markActivityRead(activity.filter(item => item.unread).map(item => item.sessionId)) }}
-          onSelect={async (item) => {
-            const opened = await revealThread(item.canvasId, item.nodeId, item.sessionId)
-            if (opened) props.markActivityRead([item.sessionId])
-            else setToast({ id: Date.now(), key: 'activity.unavailable' })
-            return opened
-          }} />
+        <ActivityMenu items={activity.map(item => ({ ...item,
+          title: item.defaultTitle === true ? t('chat.untitled') : item.title,
+          canvasTitle: canvasDisplayTitle(canvases.find(canvas => canvas.id === item.canvasId) ?? { title: item.canvasTitle }, t),
+        }))} busy={busy} t={t} locale={document.documentElement.lang || 'en'}
+        onReadAll={() => { props.markActivityRead(activity.filter(item => item.unread).map(item => item.sessionId)) }}
+        onSelect={async (item) => {
+          const opened = await revealThread(item.canvasId, item.nodeId, item.sessionId)
+          if (opened) props.markActivityRead([item.sessionId])
+          else setToast({ id: Date.now(), key: 'activity.unavailable' })
+          return opened
+        }} />
         <Tooltip label={t('automation.title')} side="bottom" portal>
           <Button size="sm" className={css.automationButton} aria-label={t('automation.open')}
             onClick={() => { setAutomationOpen(true) }}><Clock3 size={14} aria-hidden /><span>{t('automation.open')}</span></Button>
@@ -611,7 +616,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
           if (id !== undefined) void archive(id, false)
         } }]} />}
       <Modal open={purge !== null} onClose={() => { if (!busy) setPurge(null) }}
-        title={t('canvas.purgeTitle', { name: purge?.title ?? '' })} closeLabel={t('canvas.cancel')}
+        title={t('canvas.purgeTitle', { name: canvasDisplayTitle(workspace?.canvases.find(canvas => canvas.id === purge?.request.canvasId) ?? { title: purge?.title ?? '' }, t) })} closeLabel={t('canvas.cancel')}
         footer={<>
           <Button variant="outline" disabled={busy} onClick={() => { setPurge(null) }}>{t('canvas.cancel')}</Button>
           <Button variant="primary" className={css.dangerButton} disabled={busy} onClick={() => {

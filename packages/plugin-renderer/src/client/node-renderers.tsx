@@ -13,6 +13,7 @@ import { RESOURCE_CARD_WIDTH } from './placement.ts'
 import { ResourceDirectory } from './ResourceDirectory.tsx'
 import { ResourcePreview } from './ResourcePreview.tsx'
 import { CardToolbar } from './CardToolbar.tsx'
+import { DiagnosticDetails } from './DiagnosticDetails.tsx'
 import { CardResizeHandle } from './CardResizeHandle.tsx'
 import { resourceAddress } from './resources.ts'
 import { mediaKind } from './media-kind.ts'
@@ -100,7 +101,7 @@ export function NodePlaceholder(props: NodePlaceholderProps) {
       <span className={css.nodeTitle}>{node.typeId}</span>
     </div>
     <p className={css.nodeStatus} role="status">{t(`node.${reason}`)}</p>
-    {detail !== undefined && <p className={css.nodeStatus}>{detail}</p>}
+    {detail !== undefined && <DiagnosticDetails diagnostic={detail} t={t} />}
     <div className={css.nodePath}>{t('node.version', { version: node.dataVersion })}</div>
     <CardResizeHandle container={card} content={card} size={size} collapsed={false} resize={resizeResource}
       preview={setPreview} commit={props.setResourcePreviewSize}

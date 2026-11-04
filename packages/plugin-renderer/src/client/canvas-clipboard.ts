@@ -109,7 +109,7 @@ const clipboardSchema: z.ZodType<CanvasClipboardPayload> = z.object({
 })
 
 /**
- * Retain provider data while limiting Chat copies to their title and working directory.
+ * Retain provider data while limiting Chat copies to their name and working directory.
  * @param node - Committed graph node to copy.
  * @returns Independent JSON fields without Chat bindings, drafts or thread history.
  */
@@ -117,6 +117,7 @@ export function clipboardNodeData(node: CanvasNode): CanvasData {
   if (node.typeId !== 'convax.chat') return structuredClone(node.data)
   const data: CanvasData = {}
   if (typeof node.data.title === 'string') data.title = node.data.title
+  if (node.data.defaultTitle === true) data.defaultTitle = true
   if (typeof node.data.cwd === 'string') data.cwd = node.data.cwd
   return data
 }

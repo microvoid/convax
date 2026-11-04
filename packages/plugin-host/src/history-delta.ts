@@ -1,6 +1,6 @@
 /** Field-level graph history preserves edits outside the original operation. */
 import { isDeepStrictEqual } from 'node:util'
-import type { CanvasConnection, CanvasData, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPoint } from './types.ts'
+import type { CanvasConnection, CanvasData, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPoint, CanvasTitleFormat } from './types.ts'
 
 /** Values inspected and replaced by one reversible edit. */
 export interface CanvasFieldChange<T> {
@@ -35,6 +35,7 @@ export interface CanvasConnectionDelta {
 /** Durable effects of one graph operation, excluding revisions and conversation state. */
 export interface CanvasDelta {
   title?: CanvasFieldChange<string>
+  titleFormat?: CanvasFieldChange<CanvasTitleFormat | null>
   nodes: CanvasNodeDelta[]
   connections: CanvasConnectionDelta[]
 }
@@ -53,6 +54,9 @@ function nodeContent(node: CanvasNode): Omit<CanvasNode, 'revision'> {
 export function buildCanvasDelta(before: CanvasDocument, after: CanvasDocument): CanvasDelta {
   const delta: CanvasDelta = { nodes: [], connections: [] }
   if (before.title !== after.title) delta.title = { before: before.title, after: after.title }
+  if (!isDeepStrictEqual(before.titleFormat, after.titleFormat)) {
+    delta.titleFormat = { before: structuredClone(before.titleFormat ?? null), after: structuredClone(after.titleFormat ?? null) }
+  }
   const previous = new Map(before.nodes.map(node => [node.id, node]))
   const next = new Map(after.nodes.map(node => [node.id, node]))
   before.nodes.forEach((node, index) => {
@@ -100,6 +104,9 @@ export function applyCanvasDelta(
   const removingNodes = new Set(delta.nodes.flatMap(change => change.kind === removingKind ? [change.node.id] : []))
   const removingEdges = new Set(delta.connections.filter(change => change.kind === removingKind).map(change => change.connection.id))
   if (delta.title !== undefined && current.title !== delta.title[from]) return { ok: false, message: 'Canvas title changed after this edit' }
+  if (delta.titleFormat !== undefined && !isDeepStrictEqual(current.titleFormat ?? null, delta.titleFormat[from])) {
+    return { ok: false, message: 'Canvas naming changed after this edit' }
+  }
   for (const change of delta.nodes) {
     if (change.kind === 'updated') {
       const node = current.nodes.find(node => node.id === change.nodeId)
@@ -131,6 +138,11 @@ export function applyCanvasDelta(
 
   const canvas = structuredClone(current)
   if (delta.title !== undefined) canvas.title = delta.title[to]
+  if (delta.titleFormat !== undefined) {
+    const format = delta.titleFormat[to]
+    if (format === null) delete canvas.titleFormat
+    else canvas.titleFormat = structuredClone(format)
+  }
   canvas.connections = canvas.connections.filter(edge => !removingEdges.has(edge.id))
   canvas.nodes = canvas.nodes.filter(node => !removingNodes.has(node.id))
   const updates = new Map(delta.nodes.flatMap(change => change.kind === 'updated' ? [[change.nodeId, change] as const] : []))

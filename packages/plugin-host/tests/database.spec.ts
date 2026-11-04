@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CanvasDatabase } from '../src/database.ts'
 import { canvasTables } from '../src/schema.ts'
-import type { CanvasOperationId } from '../src/types.ts'
+import type { CanvasId, CanvasOperationId } from '../src/types.ts'
 
 const historyTables = ['history', 'node_revisions', 'retired_connections', 'restorations'] as const
 
@@ -165,7 +165,7 @@ describe('Convax-owned database', () => {
     expect(reopened.migrationWarnings).toEqual(upgraded.migrationWarnings)
   })
 
-  it.each([4, 5, 6])('upgrades version %i without rewriting graphs or history and preserves the complete previous database', async (version) => {
+  it.each([4, 5, 6, 7])('upgrades version %i without rewriting graphs or history and preserves the complete previous database', async (version) => {
     const f = await fixture()
     const owned = await f.open()
     await owned.close()
@@ -175,14 +175,16 @@ describe('Convax-owned database', () => {
       applied: true, restoreSessions: [] }
     try {
       previous.prepare("UPDATE units SET version=? WHERE name='convax'").run(version)
-      previous.exec('DROP TABLE u_convax_directories')
+      if (version < 7) previous.exec('DROP TABLE u_convax_directories')
+      else previous.prepare('INSERT INTO u_convax_directories VALUES(?,?)').run('saved-canvas', JSON.stringify({ path: '/saved/project' }))
       previous.prepare("UPDATE unit_globals SET value=? WHERE unit='convax'").run(JSON.stringify(graph))
       previous.prepare('INSERT INTO u_convax_history VALUES(?,?)').run('rename', JSON.stringify(history))
     } finally { previous.close() }
     const upgraded = await f.open()
     expect(upgraded.global.get()).toEqual(graph)
     expect(upgraded.table('history').get('rename' as CanvasOperationId)).toEqual(history)
-    expect(upgraded.table('directories').size).toBe(0)
+    expect(upgraded.table('directories').size).toBe(version < 7 ? 0 : 1)
+    if (version === 7) expect(upgraded.table('directories').get('saved-canvas' as CanvasId)).toEqual({ path: '/saved/project' })
     const copies = await readdir(`${f.path}.upgrades`)
     expect(copies).toHaveLength(1)
     const saved = new DatabaseSync(join(`${f.path}.upgrades`, copies[0]!, 'database.sqlite'), { readOnly: true })
@@ -193,7 +195,7 @@ describe('Convax-owned database', () => {
     } finally { saved.close() }
     await upgraded.close()
     const current = new DatabaseSync(f.path, { readOnly: true })
-    try { expect(current.prepare("SELECT version FROM units WHERE name='convax'").get()?.['version']).toBe(7) } finally { current.close() }
+    try { expect(current.prepare("SELECT version FROM units WHERE name='convax'").get()?.['version']).toBe(8) } finally { current.close() }
     expect((await f.open()).global.get()).toEqual(graph)
     expect(await readdir(`${f.path}.upgrades`)).toEqual(copies)
   })

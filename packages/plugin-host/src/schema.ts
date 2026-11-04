@@ -7,7 +7,7 @@ import type {
   CanvasConnection, CanvasData, CanvasDocument, CanvasId, CanvasNode,
   CanvasNodeId, CanvasNodeTypeId, CanvasConnectionId, CanvasOperationId, CanvasDeliveryId,
   CanvasCommandRequest, CanvasThreadRequest, CanvasMigrationId,
-  CanvasGraphOperation, CanvasCommitRequest,
+  CanvasGraphOperation, CanvasCommitRequest, CanvasTitleFormat,
 } from './types.ts'
 
 const point = z.object({ x: z.number(), y: z.number() })
@@ -15,6 +15,11 @@ const sessionId = z.string().min(1).transform(value => value as SessionId)
 const canvasId = z.string().min(1).transform(value => value as CanvasId)
 const nodeId = z.string().min(1).transform(value => value as CanvasNodeId)
 const data: z.ZodType<CanvasData> = z.record(z.string(), z.json())
+const titleFormat: z.ZodType<CanvasTitleFormat> = z.lazy(() => z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('default') }),
+  z.object({ kind: z.literal('literal'), value: z.string() }),
+  z.object({ kind: z.literal('copy'), source: titleFormat }),
+]))
 const node: z.ZodType<CanvasNode> = z.object({
   id: z.string().min(1).transform(v => v as CanvasNodeId),
   typeId: z.string().min(1).transform(v => v as CanvasNodeTypeId),
@@ -30,8 +35,10 @@ const connection = z.object({
 const canvas: z.ZodType<CanvasDocument> = z.object({
   id: z.string().min(1).transform(v => v as CanvasId), title: z.string().trim().min(1),
   archived: z.boolean().optional(),
+  titleFormat: titleFormat.optional(),
   revision: z.number().int().nonnegative(), nodes: z.array(node), connections: z.array(connection),
-}).transform(({ archived, ...document }) => ({ ...document, ...(archived === undefined ? {} : { archived }) }))
+}).transform(({ archived, titleFormat, ...document }) => ({ ...document,
+  ...(archived === undefined ? {} : { archived }), ...(titleFormat === undefined ? {} : { titleFormat }) }))
 
 /** Wire and durable validation of sequential graph operations. */
 export const canvasGraphOperationSchema: z.ZodType<CanvasGraphOperation> = z.discriminatedUnion('op', [
@@ -61,11 +68,11 @@ export const canvasCommandRequestSchema: z.ZodType<CanvasCommandRequest> = z.obj
   canvasId, operationId: z.string().min(1).transform(value => value as CanvasOperationId),
   expectedRevision: z.number().int().nonnegative(), confirmed: z.boolean().optional(),
   command: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('create'), title: z.string() }),
+    z.object({ kind: z.literal('create'), title: z.string(), defaultTitle: z.boolean().optional() }),
     z.object({ kind: z.literal('rename'), title: z.string() }),
     z.object({ kind: z.literal('delete') }),
     z.object({ kind: z.literal('set-archived'), archived: z.boolean() }),
-    z.object({ kind: z.literal('duplicate'), newCanvasId: canvasId, title: z.string() }),
+    z.object({ kind: z.literal('duplicate'), newCanvasId: canvasId, title: z.string(), localizedCopy: z.boolean().optional() }),
     z.object({ kind: z.literal('purge') }),
     z.object({ kind: z.literal('add-node'), node, initialConnections: z.array(connection).optional() }),
     z.object({ kind: z.literal('add-subgraph'), nodes: z.array(node), connections: z.array(connection) }),
@@ -180,10 +187,12 @@ const nodeChange = z.discriminatedUnion('kind', [
 
 /** Field-level effects captured from Host commits rather than supplied by clients. */
 export const canvasDeltaSchema: z.ZodType<CanvasDelta> = z.object({
+  titleFormat: z.object({ before: titleFormat.nullable(), after: titleFormat.nullable() }).optional(),
   title: z.object({ before: z.string(), after: z.string() }).optional(), nodes: z.array(nodeChange),
   connections: z.array(z.object({ kind: z.enum(['added', 'removed']), connection, index: z.number().int().nonnegative() })),
 }).transform(value => ({
   nodes: value.nodes, connections: value.connections, ...(value.title === undefined ? {} : { title: value.title }),
+  ...(value.titleFormat === undefined ? {} : { titleFormat: value.titleFormat }),
 }))
 
 /** Reversible graph effects and the archive changes made by the last removal. */
@@ -248,4 +257,4 @@ export interface CanvasTableKeys {
 export type CanvasTableValue<N extends keyof typeof canvasTables> = z.infer<(typeof canvasTables)[N]>
 
 /** Current Convax repository schema, independent of DSH storage formats. */
-export const CANVAS_SCHEMA_VERSION = 7
+export const CANVAS_SCHEMA_VERSION = 8

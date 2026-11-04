@@ -71,7 +71,8 @@ describe('Chat projections', () => {
   it('uses ordinal and Session identity order, excludes suppressed threads, and isolates canvases and non-Chat nodes', async () => {
     const { repository } = await fixture()
     expect(repository.getChat(canvasId, chatId)).toEqual({
-      canvasId, nodeId: chatId, title: 'Primary chat', cwd: '/synthetic/project', deleting: true, issue: 'Thread failure',
+      canvasId, nodeId: chatId, title: 'Primary chat', cwd: '/synthetic/project', deleting: true,
+      issue: 'Thread failure', issueCode: 'thread-create',
       threads: [
         { sessionId: SessionId('session-z'), parentSessionId: null, inheritedEventCount: 1 },
         { sessionId: SessionId('session-a'), parentSessionId: null, inheritedEventCount: 2 },
@@ -79,7 +80,8 @@ describe('Chat projections', () => {
       ],
     })
     expect(repository.getChat(canvasId, fallbackChatId)).toMatchObject({ title: 'Fallback title', cwd: '', issue: null, threads: [] })
-    expect(repository.getChat(otherCanvasId, otherChatId)).toMatchObject({ title: '', cwd: '', issue: 'Other canvas error' })
+    expect(repository.getChat(canvasId, fallbackChatId)).not.toHaveProperty('issueCode')
+    expect(repository.getChat(otherCanvasId, otherChatId)).toMatchObject({ title: '', cwd: '', issue: 'Other canvas error', issueCode: 'delivery' })
     expect(repository.getChat(canvasId, otherChatId)).toBeUndefined()
     expect(repository.getChat(otherCanvasId, chatId)).toBeUndefined()
     expect(repository.getChat(canvasId, fileId)).toBeUndefined()
@@ -90,19 +92,23 @@ describe('Chat projections', () => {
     const { database, repository } = await fixture()
     const pending = database.table('thread_operations').get(pendingId)!
     expect(repository.getChat(canvasId, chatId)?.issue).toBe('Thread failure')
+    expect(repository.getChat(canvasId, chatId)?.issueCode).toBe('thread-create')
     await database.table('thread_operations').put(pendingId, { ...pending, error: '' })
     expect(repository.getChat(canvasId, chatId)?.issue).toBe('')
+    expect(repository.getChat(canvasId, chatId)?.issueCode).toBe('thread-create')
     await database.table('thread_operations').put(pendingId, { ...pending, error: null })
     expect(repository.getChat(canvasId, chatId)?.issue).toBe('Archive failure')
+    expect(repository.getChat(canvasId, chatId)?.issueCode).toBe('deletion')
     const deletion = database.table('deletions').get(deletionId)!
     await database.table('deletions').put(deletionId, { ...deletion, phase: 'completed' })
-    expect(repository.getChat(canvasId, chatId)).toMatchObject({ deleting: false, issue: 'First key error' })
+    expect(repository.getChat(canvasId, chatId)).toMatchObject({ deleting: false, issue: 'First key error', issueCode: 'delivery' })
     const first = database.table('bindings').get(SessionId('session-a'))!
     await database.table('bindings').put(first.sessionId, { ...first, deliveryError: null })
     expect(repository.getChat(canvasId, chatId)?.issue).toBe('Later key error')
     const last = database.table('bindings').get(SessionId('session-z'))!
     await database.table('bindings').put(last.sessionId, { ...last, deliveryError: null })
     expect(repository.getChat(canvasId, chatId)?.issue).toBeNull()
+    expect(repository.getChat(canvasId, chatId)).not.toHaveProperty('issueCode')
   })
 
   it('keeps a successfully bound Session visible after its creation operation completes', async () => {
