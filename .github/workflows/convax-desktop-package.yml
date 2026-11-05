@@ -41,6 +41,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build and smoke test the unsigned installer
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: pnpm --dir libs/dsh/apps/desktop run package:mac:arm64:unsigned
       - name: Verify and stage the installer
         run: |
