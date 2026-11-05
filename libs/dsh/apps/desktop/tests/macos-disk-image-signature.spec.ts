@@ -52,7 +52,10 @@ it('rejects a corrupt unnotarized DMG before inspecting its identity', () => {
 it('still requires a stapled ticket and Gatekeeper acceptance for release DMGs', () => {
   toolResult()
   verifyMacOSDiskImage('/fixture/release.dmg', { signingIdentity, teamId })
-  expect(vi.mocked(spawnSync).mock.calls.map(call => call[0])).toEqual([
-    '/usr/bin/codesign', '/usr/bin/codesign', '/usr/bin/xcrun', '/usr/sbin/spctl',
+  expect(vi.mocked(spawnSync).mock.calls.map(call => call.slice(0, 2))).toEqual([
+    ['/usr/bin/codesign', ['--verify', '--strict', '--verbose=2', '/fixture/release.dmg']],
+    ['/usr/bin/codesign', ['--display', '--verbose=4', '/fixture/release.dmg']],
+    ['/usr/bin/xcrun', ['stapler', 'validate', '/fixture/release.dmg']],
+    ['/usr/sbin/spctl', ['--assess', '--type', 'open', '--context', 'context:primary-signature', '--verbose=4', '/fixture/release.dmg']],
   ])
 })

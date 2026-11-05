@@ -1,7 +1,7 @@
 /** Build one release target with matching Electron and dsh architecture. */
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
 import {
@@ -44,6 +44,7 @@ const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
   'DOWNLOAD_PROD_COS_SECRET_ID',
   'DOWNLOAD_PROD_COS_SECRET_KEY',
 ])
+const MACOS_SIGNING_SETTING = /^(?:CSC_|DSH_DESKTOP_MACOS_(?:SIGNING_|TEAM_ID$))/u
 
 /** `--build-version` value that numbers a build after the ones already taken. */
 const AUTOMATIC_BUILD_VERSION = 'auto'
@@ -343,8 +344,8 @@ async function main(): Promise<void> {
   const invocation = parseDesktopPackageInvocation(process.argv.slice(2))
   const { target } = invocation
   const convax = isConvaxDesktopProduct(process.env)
-  if (convax && (target.platform !== 'darwin' || !invocation.unsigned)) {
-    throw new Error('desktop package: Convax currently supports unsigned macOS builds')
+  if (convax && (target.platform !== 'darwin' || invocation.skipNotarization)) {
+    throw new Error('desktop package: Convax requires macOS and notarization for signed builds')
   }
   if (invocation.skipNotarization) {
     process.stdout.write('desktop package: skipping notarization and stapling; internal debugging only, not qualified for distribution or update publishing\n')
@@ -388,7 +389,7 @@ async function main(): Promise<void> {
       recordPackagingEvent(run.directory, { type: 'macos-settings', packConcurrency: settings.packConcurrency, zipCompressionLevel: settings.zipCompressionLevel,
         downloadProxyConfigured: settings.downloadProxy !== undefined,
         notarizationProxyConfigured: settings.notarizationProxy !== undefined })
-      await packagingStep(run.directory, 'macos-package', () => invocation.unsigned
+      await packagingStep(run.directory, 'macos-package', () => invocation.unsigned || convax
         ? packageTarget(invocation, environment, run)
         : withMacOSSigningKeychain(environment, signingEnvironment => packageTarget(invocation, signingEnvironment, run)), secrets)
     } else {
@@ -426,6 +427,9 @@ export async function packageTarget(
   run: ReturnType<typeof createPackagingRun> | undefined,
 ): Promise<void> {
   const { target } = invocation
+  const convax = isConvaxDesktopProduct(environment)
+  const signedConvax = convax && !invocation.unsigned
+  const localPackages = convax || invocation.unsigned
   const execute = (args: readonly string[], env: NodeJS.ProcessEnv, cwd: string = APP_ROOT) => runPnpm(args, env, cwd, run)
   const journal = target.platform === 'darwin' ? process.env.DSH_DESKTOP_PACKAGING_RUN_DIR : undefined
   const proxyEvent = (status: string) => { if (journal) recordPackagingEvent(journal, { type: 'notarization-proxy', status }) }
@@ -434,13 +438,24 @@ export async function packageTarget(
   const packArguments = ['--concurrency', String(packConcurrency)]
   const buildPaths = desktopTargetBuildPaths(target.name, environment)
   const releaseRecordPath = join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
-  if (!invocation.prepareOnly && !invocation.unsigned && !invocation.skipNotarization) {
+  if (!convax && !invocation.prepareOnly && !invocation.unsigned && !invocation.skipNotarization) {
     rmSync(releaseRecordPath, { force: true })
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
   const artifactsRoot = desktopArtifactOutput(buildPaths, invocation).directory
   const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(
     desktopElectronBuilderEnvironment(environment, invocation.unsigned)))
+  const convaxNotarization: NodeJS.ProcessEnv = {}
+  if (signedConvax) {
+    for (const [name, value] of Object.entries(buildEnv)) {
+      if (name.startsWith('APPLE_')) {
+        convaxNotarization[name] = value
+        delete buildEnv[name]
+      } else if (MACOS_SIGNING_SETTING.test(name)) {
+        delete buildEnv[name]
+      }
+    }
+  }
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     DSH_DESKTOP_MACOS_SKIP_NOTARIZATION: invocation.skipNotarization ? '1' : '0',
@@ -484,7 +499,7 @@ export async function packageTarget(
         { cwd: APP_ROOT, env: electronBuilderEnv, timeoutMs: 60_000 })
     })
   }
-  await execute(invocation.unsigned ? ['run', 'build', '--profile', 'local'] : ['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
+  await execute(localPackages ? ['run', 'build', '--profile', 'local'] : ['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
   let preparationFailure: { error: unknown } | undefined
   const executePreparation = async (args: readonly string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<void> => {
     if (preparationFailure !== undefined) throw preparationFailure.error
@@ -493,7 +508,7 @@ export async function packageTarget(
   }
   const pack = async (): Promise<void> => {
     await executePreparation([
-      ...(invocation.unsigned
+      ...(localPackages
         ? ['exec', 'tsx', 'apps/desktop/scripts/pack-local-packages.ts']
         : ['run', 'release:pack', '--family', 'dsh']),
       '--out', buildPaths.packedDsh, ...packArguments,
@@ -528,6 +543,36 @@ export async function packageTarget(
   }
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
   await execute(['run', 'prepare:packages'], targetEnv)
+  if (signedConvax) {
+    // Keep the unlocked signing keychain out of compilation, tarball packing, and primary-runtime preparation.
+    await withMacOSSigningKeychain(environment, async (signingEnvironment) => {
+      const signing = Object.fromEntries(Object.entries(signingEnvironment).filter(([name]) => MACOS_SIGNING_SETTING.test(name)))
+      await execute(['run', 'prepare:dsh'], { ...downloadEnv, ...signing })
+      if (invocation.prepareOnly) return
+      const builder = { ...electronBuilderEnv, ...signing }
+      await execute(desktopElectronBuilderArguments(target, true), builder)
+      await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
+      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', `${CONVAX_DESKTOP_PRODUCT.name}.app`)
+      const notaryEnv = { ...builder, ...convaxNotarization }
+      await withMacOSNotarizationProxy(mac?.notarizationProxy, async () => {
+        if (invocation.directory) {
+          await notarizeMacOS({ appPath, ...resolveMacOSNotarizationEnvironment(notaryEnv) })
+          return
+        }
+        const output = mkdtempSync(join(buildPaths.root, 'convax-notarization-'))
+        try {
+          await execute(desktopElectronBuilderArguments(target, false, { format: 'dmg', appPath, output }), notaryEnv)
+          const version = resolveDesktopBuildVersion(environment, packageVersion(join(APP_ROOT, 'package.json'), 'desktop package'))
+          const filename = `${CONVAX_DESKTOP_PRODUCT.artifactPrefix}-${version}-mac-${target.arch}.dmg`
+          renameSync(join(output, filename), join(artifactsRoot, filename))
+        } finally {
+          rmSync(output, { recursive: true, force: true })
+        }
+      }, undefined, undefined, proxyEvent)
+    })
+    if (journal && !invocation.prepareOnly) recordPackagingEvent(journal, { type: 'artifacts', directory: artifactsRoot })
+    return
+  }
   await execute(['run', 'prepare:dsh', ...(signPrimaryRuntime ? ['--defer-runtime-smoke'] : [])], downloadEnv)
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime', '--dsh'], electronBuilderEnv)
   if (invocation.prepareOnly) return
@@ -567,7 +612,7 @@ export async function packageTarget(
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts',
       ...(invocation.unsigned ? ['--unsigned'] : []), ...(invocation.skipNotarization ? ['--skip-notarization'] : [])], targetEnv)
   }
-  if (!invocation.directory && !invocation.unsigned && !invocation.skipNotarization) {
+  if (!convax && !invocation.directory && !invocation.unsigned && !invocation.skipNotarization) {
     writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
   }
   if (journal) recordPackagingEvent(journal, { type: 'artifacts', directory: artifactsRoot })

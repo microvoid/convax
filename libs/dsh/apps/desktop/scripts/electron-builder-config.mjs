@@ -60,9 +60,6 @@ export function createElectronBuilderConfig(
   }
   const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
   const convax = isConvaxDesktopProduct(env)
-  if (convax && (resolvedPlatform !== 'darwin' || !unsigned)) {
-    throw new Error('desktop package: Convax currently supports unsigned macOS builds')
-  }
   const appId = convax ? CONVAX_DESKTOP_PRODUCT.appId : resolveDesktopAppId(env)
   const productName = convax ? CONVAX_DESKTOP_PRODUCT.name : 'DeepSeek Harness'
   const artifactPrefix = convax ? CONVAX_DESKTOP_PRODUCT.artifactPrefix : 'deepseek-harness'
@@ -74,12 +71,15 @@ export function createElectronBuilderConfig(
     throw new Error('desktop package: DSH_DESKTOP_MACOS_SKIP_NOTARIZATION must be 0 or 1')
   }
   if (skipNotarization && (unsigned || resolvedPlatform !== 'darwin')) throw new Error('Skipping notarization requires a signed macOS build')
+  if (convax && (resolvedPlatform !== 'darwin' || skipNotarization)) {
+    throw new Error('desktop package: Convax requires macOS and notarization for signed builds')
+  }
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = resolvedPlatform === 'win32'
-  const policy = packagesMacOS && unsigned ? undefined : resolveDesktopPolicyEnvironment(env)
+  const policy = convax || (packagesMacOS && unsigned) ? undefined : resolveDesktopPolicyEnvironment(env)
   if (resolvedPlatform === 'win32') installWindowsDirectoryInstaller()
   const macOSSigning = packagesMacOS && !unsigned ? resolveMacOSSigningEnvironment(env) : undefined
-  if (packagesMacOS && !unsigned && !skipNotarization) resolveMacOSNotarizationEnvironment(env)
+  if (packagesMacOS && !unsigned && !skipNotarization && !convax) resolveMacOSNotarizationEnvironment(env)
   const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch), env)
   const output = desktopArtifactOutput(buildPaths, { unsigned, skipNotarization })
   let primaryRuntimeDestination
@@ -106,7 +106,7 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const update = unsigned || convax ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   // electron-builder merges extraMetadata into the packaged manifest, so a build version here reaches
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
@@ -187,8 +187,9 @@ export function createElectronBuilderConfig(
       entitlementsInherit: fileURLToPath(new URL('./macos-entitlements.plist', import.meta.url)),
       // Prepared runtime files retain their signatures; PAK resources are sealed by their enclosing bundle.
       signIgnore: ['/Contents/Resources/app\\.asar\\.unpacked/dsh(?:/|$)', '/Contents/Resources/runtime/primary-runtime(?:/|$)', '\\.pak$'],
-      notarize: !unsigned && !skipNotarization,
-      target: unsigned ? ['dmg'] : ['dmg', 'zip'],
+      // Convax notarizes the final signed disk image in artifactBuildCompleted.
+      notarize: !unsigned && !skipNotarization && !convax,
+      target: unsigned || convax ? ['dmg'] : ['dmg', 'zip'],
     },
     dmg: {
       format: 'ULMO',

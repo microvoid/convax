@@ -1,15 +1,20 @@
-import { writeFileSync } from 'node:fs'
+import { renameSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { afterEach, expect, it, vi } from 'vitest'
 import { packageTarget, parseDesktopPackageInvocation } from '../scripts/package-target.ts'
 import { withMacOSNotarizationProxy } from '../scripts/macos-notarization-proxy.ts'
+import { withMacOSSigningKeychain } from '../scripts/macos-signing-keychain.mjs'
 import { packageMacOSArtifacts } from '../scripts/package-macos.ts'
 import { withWindowsSigningStage } from '../scripts/windows-signing-stage.mjs'
 import { prepareWindowsSignatureCacheDirectory } from '../scripts/windows-signature-cache-directory.mjs'
 
 vi.mock('../scripts/macos-notarization-proxy.ts', () => ({
   withMacOSNotarizationProxy: vi.fn(async (_proxy: string | undefined, action: () => Promise<void>) => action()),
+}))
+vi.mock('../scripts/macos-signing-keychain.mjs', () => ({
+  withMacOSSigningKeychain: vi.fn(async (env: NodeJS.ProcessEnv, action: (environment: NodeJS.ProcessEnv) => Promise<void>) =>
+    action({ ...env, CSC_KEYCHAIN: 'temporary.keychain' })),
 }))
 vi.mock('../scripts/notarize-macos.mjs', () => ({ notarizeMacOS: vi.fn(async () => {}) }))
 vi.mock('../scripts/package-macos.ts', () => ({ packageMacOSArtifacts: vi.fn(async () => {}) }))
@@ -25,7 +30,7 @@ vi.mock('../scripts/windows-signature-cache-directory.mjs', () => ({
 // Keep the real orchestration and manifest reads; this suite owns no release directories or subprocesses.
 vi.mock('node:fs', async importOriginal => ({
   ...await importOriginal<typeof import('node:fs')>(),
-  rmSync: vi.fn(), mkdirSync: vi.fn(), writeFileSync: vi.fn(), renameSync: vi.fn(),
+  rmSync: vi.fn(), mkdirSync: vi.fn(), mkdtempSync: vi.fn(() => 'fixture-dmg'), writeFileSync: vi.fn(), renameSync: vi.fn(),
 }))
 
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
@@ -257,6 +262,53 @@ it('checks the assembled macOS runtime before notarizing and recording the relea
   await packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), environment, run)
   expect(packageMacOSArtifacts).toHaveBeenCalledOnce()
   expect(writeFileSync).toHaveBeenCalledOnce()
+})
+
+const convaxSigningEnvironment = {
+  DSH_DESKTOP_PRODUCT: 'convax', DSH_DESKTOP_APP_ID: 'io.microvoid.convax',
+  DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)', DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+  APPLE_API_KEY: 'fixture.p8', APPLE_API_KEY_ID: 'KEYID', APPLE_API_ISSUER: 'issuer',
+}
+
+it('smokes the signed Convax app before notarizing and promoting the DMG alone', async () => {
+  const { run, stages } = supervisor()
+  vi.mocked(withMacOSSigningKeychain).mockImplementationOnce(async (env, sign) => {
+    expect(stages).toContain('run build --profile local')
+    expect(stages).toContain('run prepare:runtime')
+    expect(stages.at(-1)).toBe('run prepare:packages')
+    await sign({ ...env, CSC_KEYCHAIN: 'temporary.keychain' })
+  })
+  await packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), convaxSigningEnvironment, run)
+  expect(stages).toContain('run build --profile local')
+  expect(stages).toContainEqual(expect.stringMatching(/^exec tsx apps\/desktop\/scripts\/pack-local-packages\.ts /u))
+  expect(stages.slice(-3)).toEqual([
+    'exec electron-builder --config electron-builder.config.mjs --mac --arm64 --publish never --dir',
+    'exec tsx scripts/smoke-packaged-runtime.ts',
+    expect.stringMatching(/^exec electron-builder --config electron-builder\.config\.mjs --mac dmg .*Convax\.app/u),
+  ])
+  for (const [stage, , , { env }] of run.run.mock.calls.slice(0, -1)) {
+    expect(env, stage).not.toHaveProperty('APPLE_API_KEY')
+    const signs = stage === 'run prepare:dsh' || stage.startsWith('exec electron-builder')
+    expect(env.CSC_KEYCHAIN, stage).toBe(signs ? 'temporary.keychain' : undefined)
+  }
+  expect(run.run.mock.calls.at(-1)?.[3].env).toMatchObject({
+    APPLE_API_KEY: 'fixture.p8', CSC_KEYCHAIN: 'temporary.keychain', DSH_DESKTOP_UNSIGNED: '0',
+  })
+  expect(withMacOSNotarizationProxy).toHaveBeenCalledOnce()
+  expect(packageMacOSArtifacts).not.toHaveBeenCalled()
+  expect(writeFileSync).not.toHaveBeenCalled()
+  expect(renameSync).toHaveBeenCalledExactlyOnceWith(
+    expect.stringMatching(/^fixture-dmg[/\\]convax-.+-mac-arm64\.dmg$/u),
+    expect.stringMatching(/[/\\]artifacts[/\\]convax-.+-mac-arm64\.dmg$/u),
+  )
+})
+
+it('does not promote a signed Convax artifact when DMG notarization fails', async () => {
+  const { run } = supervisor('exec electron-builder --config electron-builder.config.mjs --mac dmg')
+  await expect(packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), convaxSigningEnvironment, run))
+    .rejects.toThrow('stage refused')
+  expect(renameSync).not.toHaveBeenCalled()
+  expect(writeFileSync).not.toHaveBeenCalled()
 })
 
 it.each([

@@ -134,9 +134,25 @@ describe('desktop macOS release signature', () => {
     expect(config.extraResources[1]).toEqual({ from: config.mac.icon, to: 'icon.png' })
     await expect(validateConfiguration(config, { isEnabled: false })).resolves.toBeUndefined()
     expect(() => createElectronBuilderConfig({ ...env, DSH_DESKTOP_UNSIGNED: '0' }, 'darwin', 'arm64'))
-      .toThrow('Convax currently supports unsigned macOS builds')
+      .toThrow('DSH_DESKTOP_MACOS_SIGNING_IDENTITY')
     expect(() => createElectronBuilderConfig({ ...env, DSH_DESKTOP_TARGET_PLATFORM: 'win32' }, 'win32', 'x64'))
-      .toThrow('Convax currently supports unsigned macOS builds')
+      .toThrow('Convax requires macOS and notarization')
+  })
+
+  it('requires Developer ID for the signed Convax DMG and omits upstream update policy', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const env = { ...RELEASE_ENVIRONMENT, DSH_DESKTOP_PRODUCT: 'convax' }
+    const config = createElectronBuilderConfig(env, 'darwin', 'arm64')
+    expect(config).toMatchObject({
+      appId: 'io.microvoid.convax', artifactName: 'convax-${version}-${os}-${arch}.${ext}',
+      mac: { forceCodeSigning: true, identity: RELEASE_ENVIRONMENT.DSH_DESKTOP_MACOS_SIGNING_IDENTITY, target: ['dmg'] },
+      dmg: { sign: true },
+      publish: null,
+    })
+    expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
+    await expect(validateConfiguration(config, { isEnabled: false })).resolves.toBeUndefined()
+    expect(() => createElectronBuilderConfig({ ...env, DSH_DESKTOP_MACOS_SKIP_NOTARIZATION: '1' }, 'darwin', 'arm64'))
+      .toThrow('Convax requires macOS and notarization')
   })
 
   it('seals PAK resources with their enclosing bundle while signing executable code', async () => {

@@ -51,7 +51,21 @@ DSH_DESKTOP_PRODUCT=convax pnpm --dir libs/dsh/apps/desktop run package:mac:arm6
 
 产物位于 `libs/dsh/apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/`。Convax 的应用标识为 `io.microvoid.convax`，图标源文件与官网共用。首次启动从包内加载 Convax bundle，直接进入画布。默认数据目录为 Electron 的 `userData/data`，可通过 `DSH_HOME` 覆盖。
 
-在 GitHub Actions 中打开 [Convax Desktop Package](../.github/workflows/convax-desktop-package.yml)，选择 **Run workflow**。任务使用 Apple Silicon runner，打包后校验 DMG，并在该次运行的 **Artifacts** 中提供 DMG 和 SHA-256 校验文件。产物保留 14 天，适用于本地测试。
+在 GitHub Actions 中打开 [Convax Desktop Package](../.github/workflows/convax-desktop-package.yml)，选择 **Run workflow**。默认的 `unsigned` 模式用于本地测试。`signed` 模式仅接受从 `main` 触发的任务，使用 Developer ID Application 签名，提交 Apple 公证并附加公证票据。两种模式都使用 Apple Silicon runner，并在该次运行的 **Artifacts** 中提供 DMG 和 SHA-256 校验文件，保留 14 天。
+
+签名凭据配置在仓库的 `convax-macos-release` 环境中。团队的证书与公证密钥分别在 Apple Developer 和 App Store Connect 管理。[创建 Developer ID 证书](https://developer.apple.com/help/account/certificates/create-developer-id-certificates) · [创建 App Store Connect API 密钥](https://developer.apple.com/documentation/AppStoreConnectAPI/creating-api-keys-for-app-store-connect-api)
+
+| 环境 Secret | 值 |
+| --- | --- |
+| `MAC_CSC_LINK` | 包含 Developer ID Application 证书和私钥的 `.p12`，以 Base64 编码 |
+| `MAC_CSC_KEY_PASSWORD` | 导出 `.p12` 时设置的密码 |
+| `MACOS_SIGNING_IDENTITY` | 证书名称，形如 `Name (TEAMID)`，省略 `Developer ID Application:` 前缀 |
+| `MACOS_TEAM_ID` | 证书所属的 Apple Developer Team ID |
+| `APPLE_API_KEY` | App Store Connect 团队 API 密钥 `.p8`，以 Base64 编码 |
+| `APPLE_API_KEY_ID` | 团队 API 密钥的 Key ID |
+| `APPLE_API_ISSUER` | App Store Connect 团队 API 的 Issuer ID |
+
+Actions Artifacts 属于单次运行。面向用户的安装包在通过签名、公证和干净环境安装验收后，发布到与应用版本对应的 GitHub Release，附上同一次运行生成的 DMG 和校验文件。创建 Release 时将标签指向该次运行的提交，应用版本带预发布后缀时在 Release 中标记为预发布。
 
 升级 DSH 时保留安装包依赖闭包中的 Convax Renderer bundle、根 workspace 与锁文件发现，以及 [Desktop 首启](dsh/apps/desktop/src/main.ts)和 [Profile 初始化](dsh/apps/desktop/src/project-manager.ts)的产品配置。Convax 的 [Desktop Host](dsh/apps/desktop-host/src/index.ts)从包内运行时清单解析默认 bundle 和客户端插件。验收时从 DMG 安装应用，在空用户数据目录下确认画布可见，再创建画布和 Chat 并重启检查数据。
 

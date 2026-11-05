@@ -174,7 +174,8 @@ export function verifyMacOSNotarizedApplication(appPath, expected) {
 export function verifyMacOSDiskImage(diskImagePath, expected) {
   verifyMacOSDiskImageSignature(diskImagePath, expected)
   runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', diskImagePath], 'stapler validate')
-  runAppleCommand('/usr/sbin/spctl', ['--assess', '--type', 'install', '--verbose=4', diskImagePath], 'spctl')
+  runAppleCommand('/usr/sbin/spctl',
+    ['--assess', '--type', 'open', '--context', 'context:primary-signature', '--verbose=4', diskImagePath], 'spctl')
 }
 
 /**

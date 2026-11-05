@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -23,6 +23,53 @@ async function withDirectory(action: (directory: string) => Promise<void>): Prom
 }
 
 describe('Desktop local packaging configuration', () => {
+  it.runIf(process.platform !== 'win32')('loads signed Convax from a private file without an update origin', async () => {
+    await withDirectory(async (directory) => {
+      const config = join(directory, 'convax.env')
+      const certificate = join(directory, 'developer.p12')
+      const key = join(directory, 'AuthKey.p8')
+      await Promise.all([
+        writeFile(certificate, 'test certificate', { mode: 0o600 }),
+        writeFile(key, 'test key', { mode: 0o600 }),
+        writeFile(config, `DSH_DESKTOP_MACOS_SIGNING_IDENTITY='${MAC_IDENTITY.DSH_DESKTOP_MACOS_SIGNING_IDENTITY}'
+DSH_DESKTOP_MACOS_TEAM_ID=${MAC_IDENTITY.DSH_DESKTOP_MACOS_TEAM_ID}
+CSC_LINK=developer.p12
+CSC_KEY_PASSWORD=''
+APPLE_API_KEY=AuthKey.p8
+APPLE_API_KEY_ID=KEYID
+APPLE_API_ISSUER=issuer
+`, { mode: 0o600 }),
+      ])
+      const input = {
+        ...RELEASE, DSH_DESKTOP_PRODUCT: 'convax', DSH_DESKTOP_CONVAX_SIGNING_CONFIG: config,
+        APPLE_API_KEY: 'ignored.p8', CSC_KEY_PASSWORD: 'ignored',
+      }
+      const selected = loadDesktopPackageEnvironment('darwin', input)
+      expect(selected).toEqual({
+        ...MAC_IDENTITY, DSH_DESKTOP_PRODUCT: 'convax', DSH_DESKTOP_APP_ID: 'io.microvoid.convax',
+        CSC_LINK: certificate, CSC_KEY_PASSWORD: '', APPLE_API_KEY: key, APPLE_API_KEY_ID: 'KEYID', APPLE_API_ISSUER: 'issuer',
+      })
+      expect(() => { validateDesktopPackageEnvironment(selected, MACOS) }).not.toThrow()
+      expect(() => { validateDesktopPackageEnvironment(selected, MACOS, { skipNotarization: true }) })
+        .toThrow('Convax requires macOS and notarization')
+      await chmod(config, 0o644)
+      expect(() => loadDesktopPackageEnvironment('darwin', input)).toThrow('private regular file')
+      await chmod(config, 0o600)
+      const link = join(directory, 'linked.env')
+      await symlink(config, link)
+      expect(() => loadDesktopPackageEnvironment('darwin', { ...input, DSH_DESKTOP_CONVAX_SIGNING_CONFIG: link }))
+        .toThrow('private regular file')
+      await writeFile(config, 'DOWNLOAD_PROD_ORIGIN=https://updates.example.com\n')
+      expect(() => loadDesktopPackageEnvironment('darwin', input)).toThrow('unsupported setting DOWNLOAD_PROD_ORIGIN')
+    })
+  })
+
+  it('fails signed Convax preflight when the private file is absent despite ambient credentials', () => {
+    expect(() => loadDesktopPackageEnvironment('darwin', {
+      DSH_DESKTOP_PRODUCT: 'convax', ...MAC_IDENTITY, APPLE_API_KEY: 'ambient.p8',
+    })).toThrow('DSH_DESKTOP_CONVAX_SIGNING_CONFIG must be an absolute file path')
+  })
+
   it('loads file-owned compression and defaults to fast Windows archive compression', async () => {
     expect(resolveWindowsPackageSettings({}).compressionLevel).toBe(3)
     await withDirectory(async (directory) => {

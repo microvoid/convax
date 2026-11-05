@@ -2,6 +2,13 @@ name: Convax Desktop Package
 
 on:
   workflow_dispatch:
+    inputs:
+      signing:
+        description: macOS package signing mode
+        type: choice
+        options: [unsigned, signed]
+        default: unsigned
+        required: true
 
 permissions:
   contents: read
@@ -17,37 +24,51 @@ env:
 
 jobs:
   macos-arm64:
-    name: Apple Silicon macOS DMG
+    name: Apple Silicon macOS DMG (unsigned)
+    if: inputs.signing == 'unsigned'
     runs-on: macos-15
     timeout-minutes: 90
-    defaults:
+    defaults: &bash-default
       run:
         shell: bash
+    env:
+      PACKAGE_MODE: unsigned
     steps:
-      - uses: actions/checkout@v7.0.1
+      - &checkout
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v5.0.0
-      - uses: actions/setup-node@v7.0.0
+      - &setup-pnpm
+        uses: pnpm/action-setup@v5.0.0
+      - &setup-node
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Verify runner architecture
+      - &verify-runner
+        name: Verify runner architecture
         run: |
           test "$(uname -m)" = arm64
           node -e 'if (process.platform !== "darwin" || process.arch !== "arm64") process.exit(1)'
           df -h "$GITHUB_WORKSPACE"
-      - name: Install dependencies
+      - &install
+        name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build and smoke test the unsigned installer
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: pnpm --dir libs/dsh/apps/desktop run package:mac:arm64:unsigned
-      - name: Verify and stage the installer
+      - &stage-installer
+        name: Verify and stage the installer
         run: |
           shopt -s nullglob
-          installers=(libs/dsh/apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/convax-*-mac-arm64-unsigned.dmg)
+          target_dir=libs/dsh/apps/desktop/.desktop-build/targets/mac-arm64
+          case "$PACKAGE_MODE" in
+            unsigned) installers=("$target_dir"/unsigned-artifacts/convax-*-mac-arm64-unsigned.dmg) ;;
+            signed) installers=("$target_dir"/artifacts/convax-*-mac-arm64.dmg) ;;
+            *) exit 1 ;;
+          esac
           if [[ ${#installers[@]} -ne 1 ]]; then
             echo "Expected exactly one Convax macOS arm64 installer, found ${#installers[@]}" >&2
             exit 1
@@ -55,24 +76,129 @@ jobs:
           artifact_dir="$RUNNER_TEMP/convax-desktop-artifact"
           mkdir -p "$artifact_dir"
           hdiutil verify "${installers[0]}"
+          if [[ "$PACKAGE_MODE" == signed ]]; then
+            codesign --verify --strict "${installers[0]}"
+            xcrun stapler validate "${installers[0]}"
+            spctl --assess --type open --context context:primary-signature --verbose=2 "${installers[0]}"
+          fi
           cp "${installers[0]}" "$artifact_dir/"
           cd "$artifact_dir"
           filename="$(basename "${installers[0]}")"
           shasum -a 256 "$filename" > "$filename.sha256"
-      - name: Upload installer and checksum
+      - &upload-installer
+        name: Upload installer and checksum
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: convax-macos-arm64-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          name: convax-macos-arm64-${{ env.PACKAGE_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/convax-desktop-artifact/
           compression-level: 0
           if-no-files-found: error
           retention-days: 14
-      - name: Upload packaging diagnostics
+      - &upload-logs
+        name: Upload packaging diagnostics
         if: failure()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: convax-macos-arm64-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          name: convax-macos-arm64-${{ env.PACKAGE_MODE }}-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: libs/dsh/apps/desktop/.desktop-build/packaging-runs/
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
+
+  macos-arm64-signed:
+    name: Apple Silicon macOS DMG (signed and notarized)
+    if: inputs.signing == 'signed' && github.ref == 'refs/heads/main'
+    environment: convax-macos-release
+    runs-on: macos-15
+    timeout-minutes: 120
+    defaults: *bash-default
+    env:
+      PACKAGE_MODE: signed
+    steps:
+      - name: Require signing credentials
+        env: &signing-env
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          missing=()
+          for name in MAC_CSC_LINK MAC_CSC_KEY_PASSWORD MACOS_SIGNING_IDENTITY MACOS_TEAM_ID \
+            APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
+            if [[ -z "${!name}" ]]; then missing+=("$name"); fi
+          done
+          if [[ ${#missing[@]} -ne 0 ]]; then
+            printf 'Missing signing secret %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+      - *checkout
+      - *setup-pnpm
+      - *setup-node
+      - *verify-runner
+      - *install
+      - name: Sign, notarize, and smoke test the installer
+        env: *signing-env
+        run: |
+          signing_dir="$(umask 077; mktemp -d "$RUNNER_TEMP/convax-macos-signing.XXXXXX")"
+          trap 'rm -rf "$signing_dir"' EXIT
+          node --input-type=module - "$signing_dir" <<'NODE'
+          import { writeFileSync } from 'node:fs'
+          import { join } from 'node:path'
+          import { parseEnv } from 'node:util'
+
+          const directory = process.argv[2]
+          const required = (name) => {
+            const value = process.env[name]
+            if (!value?.trim()) throw new Error(`Missing signing secret ${name}`)
+            return value
+          }
+          const materialize = (name, filename) => {
+            const encoded = required(name).replace(/\s/gu, '')
+            const bytes = Buffer.from(encoded, 'base64')
+            if (!bytes.length || bytes.toString('base64') !== encoded) {
+              throw new Error(`Signing secret ${name} must contain base64 data`)
+            }
+            const path = join(directory, filename)
+            writeFileSync(path, bytes, { mode: 0o600 })
+            return path
+          }
+          const settings = {
+            DSH_DESKTOP_MACOS_SIGNING_IDENTITY: required('MACOS_SIGNING_IDENTITY'),
+            DSH_DESKTOP_MACOS_TEAM_ID: required('MACOS_TEAM_ID'),
+            CSC_LINK: materialize('MAC_CSC_LINK', 'certificate.p12'),
+            CSC_KEY_PASSWORD: required('MAC_CSC_KEY_PASSWORD'),
+            APPLE_API_KEY: materialize('APPLE_API_KEY', 'notary.p8'),
+            APPLE_API_KEY_ID: required('APPLE_API_KEY_ID'),
+            APPLE_API_ISSUER: required('APPLE_API_ISSUER'),
+          }
+          const lines = Object.entries(settings).map(([name, value]) => {
+            if (/[\r\n\0]/u.test(value)) throw new Error(`Invalid multiline setting ${name}`)
+            const line = ["'", '"', String.fromCharCode(96), '']
+              .map(quote => `${name}=${quote}${value}${quote}`)
+              .find(candidate => parseEnv(candidate)[name] === value)
+            if (!line) throw new Error(`Could not write signing setting ${name}`)
+            return line
+          })
+          writeFileSync(join(directory, 'signing.env'), lines.join('\n') + '\n', { mode: 0o600 })
+          NODE
+          unset MAC_CSC_LINK MAC_CSC_KEY_PASSWORD MACOS_SIGNING_IDENTITY MACOS_TEAM_ID
+          unset APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER
+          export DSH_DESKTOP_CONVAX_SIGNING_CONFIG="$signing_dir/signing.env"
+          export NODE_OPTIONS=--max-old-space-size=4096
+          pnpm --dir libs/dsh/apps/desktop run package:mac:arm64
+      - *stage-installer
+      - *upload-installer
+      - *upload-logs
+
+  reject-signed-ref:
+    name: Reject signed packaging outside main
+    if: inputs.signing == 'signed' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - run: |
+          echo "Signed packaging must be dispatched from main." >&2
+          exit 1

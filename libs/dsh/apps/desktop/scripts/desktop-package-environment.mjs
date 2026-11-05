@@ -1,6 +1,6 @@
 /** Select local test defaults or platform release settings without changing the caller's environment. */
 
-import { accessSync, constants, readFileSync, statSync } from 'node:fs'
+import { accessSync, closeSync, constants, fstatSync, openSync, readFileSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseEnv } from 'node:util'
@@ -21,6 +21,12 @@ const WINDOWS_SETTING = /^DSH_DESKTOP_WINDOWS_(?:CER_FILE|SIGNTOOL|KEY_CONTAINER
 const MACOS_SETTING = /^(?:DSH_DESKTOP_MACOS_(?:SIGNING_IDENTITY|TEAM_ID|SIGNATURE_CACHE_DIR|PACK_CONCURRENCY|ZIP_COMPRESSION_LEVEL|DOWNLOAD_PROXY|NOTARIZATION_PROXY)|APPLE_(?:API_KEY|API_KEY_ID|API_ISSUER|ID|APP_SPECIFIC_PASSWORD|TEAM_ID|KEYCHAIN|KEYCHAIN_PROFILE)|CSC_(?:LINK|KEY_PASSWORD))$/u
 const AMBIENT_RELEASE_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|MANDATORY_UPDATE_.*|WINDOWS_.*|MACOS_.*)|APPLE_.*|(?:WIN_)?CSC_.*|DOWNLOAD_(?:TEST|PROD)_.*)$/iu
 const FILE_SETTINGS = ['DSH_DESKTOP_WINDOWS_CER_FILE', 'DSH_DESKTOP_WINDOWS_SIGNTOOL', 'APPLE_API_KEY', 'APPLE_KEYCHAIN', 'CSC_LINK']
+const CONVAX_SIGNING_CONFIG = 'DSH_DESKTOP_CONVAX_SIGNING_CONFIG'
+
+function inheritedBuildEnvironment(environment) {
+  return Object.fromEntries(Object.entries(environment)
+    .filter(([name]) => name !== CONVAX_SIGNING_CONFIG && !AMBIENT_RELEASE_SETTING.test(name)))
+}
 
 /**
  * Select local macOS test defaults without reading dotenv files or inheriting release settings.
@@ -29,14 +35,14 @@ const FILE_SETTINGS = ['DSH_DESKTOP_WINDOWS_CER_FILE', 'DSH_DESKTOP_WINDOWS_SIGN
  */
 export function localMacOSPackageEnvironment(environment = process.env) {
   return {
-    ...Object.fromEntries(Object.entries(environment).filter(([name]) => !AMBIENT_RELEASE_SETTING.test(name))),
+    ...inheritedBuildEnvironment(environment),
     DSH_DESKTOP_APP_ID: isConvaxDesktopProduct(environment) ? CONVAX_DESKTOP_PRODUCT.appId : 'com.deepseek.harness',
     DSH_DESKTOP_UNSIGNED: '1',
   }
 }
 
 /**
- * Read a machine preset when selected, otherwise the target's required dotenv; no ambient release fallback.
+ * Read Convax's private signing file or the selected Harness platform settings without ambient release fallback.
  * PACKAGE_MACOS_ZIP_COMPRESSION_LEVEL overrides the Mac file setting with 3 or 7; an empty value is invalid.
  * Any defined Mac ZIP override rejects Windows, including an empty value; nonempty Windows overrides reject macOS.
  * PACKAGE_TEST_RELEASE_ID overrides the test preset only; blank retains its configured ID.
@@ -48,6 +54,17 @@ export function localMacOSPackageEnvironment(environment = process.env) {
  * @returns {NodeJS.ProcessEnv} Isolated environment with file-owned release settings.
  */
 export function loadDesktopPackageEnvironment(platform, environment = process.env, appRoot = APP_ROOT, options = {}) {
+  if (isConvaxDesktopProduct(environment)) {
+    if (platform !== 'darwin') throw new Error('desktop package: Convax currently supports macOS builds')
+    if (options.unsigned) return localMacOSPackageEnvironment(environment)
+    const path = environment[CONVAX_SIGNING_CONFIG]
+    if (!path || !isAbsolute(path)) throw new Error(`desktop package: ${CONVAX_SIGNING_CONFIG} must be an absolute file path`)
+    return {
+      ...inheritedBuildEnvironment(environment),
+      ...readSettings(path, name => MACOS_SETTING.test(name), true),
+      DSH_DESKTOP_APP_ID: CONVAX_DESKTOP_PRODUCT.appId,
+    }
+  }
   const compression = environment.PACKAGE_WINDOWS_COMPRESSION_LEVEL
   if (compression !== undefined && compression !== '') {
     if (platform !== 'win32' || !['3', '7'].includes(compression)) {
@@ -95,7 +112,7 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
     settings.DOWNLOAD_TEST_RELEASE_ID = releaseId
   }
   return {
-    ...Object.fromEntries(Object.entries(environment).filter(([name]) => !AMBIENT_RELEASE_SETTING.test(name))),
+    ...inheritedBuildEnvironment(environment),
     ...settings,
     ...(environment.DSH_DESKTOP_UPDATE_CHANNEL === undefined ? {} : { DSH_DESKTOP_UPDATE_CHANNEL: environment.DSH_DESKTOP_UPDATE_CHANNEL }),
     ...(preset === undefined ? {} : { DSH_PACKAGING_PRESET: preset }),
@@ -106,14 +123,27 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
  * Read an explicitly selected dotenv without exposing credential-bearing parser errors.
  * @param {string} path Selected file; relative file settings resolve beside it.
  * @param {(name: string) => boolean} accepts Whether this file may declare a setting.
+ * @param {boolean} privateFile Require a regular file readable only by its owner.
  * @returns {NodeJS.ProcessEnv} Validated file settings.
  */
-function readSettings(path, accepts) {
+function readSettings(path, accepts, privateFile = false) {
   let contents
   try {
-    contents = readFileSync(path, 'utf8')
+    if (privateFile) {
+      const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+      try {
+        const file = fstatSync(descriptor)
+        if (!file.isFile() || (file.mode & 0o077) !== 0) throw new Error('not a private regular file')
+        contents = readFileSync(descriptor, 'utf8')
+      } finally {
+        closeSync(descriptor)
+      }
+    } else {
+      contents = readFileSync(path, 'utf8')
+    }
   }
   catch {
+    if (privateFile) throw new Error(`desktop package: ${CONVAX_SIGNING_CONFIG} must identify a readable private regular file (0600)`)
     throw new Error(`desktop package: cannot read ${path}; copy ${path}.example and fill in the local settings`)
   }
   let settings
@@ -155,13 +185,17 @@ function requireReadableFile(environment, name) {
  */
 export function validateDesktopPackageEnvironment(environment, target, options = {}) {
   resolveDesktopTargetBuildPaths(environment, target.platform, target.arch)
+  const convax = isConvaxDesktopProduct(environment)
+  if (convax && (target.platform !== 'darwin' || options.skipNotarization)) {
+    throw new Error('desktop package: Convax requires macOS and notarization for signed builds')
+  }
   resolveDesktopAppId(environment)
   resolveNpmRegistry(environment)
-  if (target.platform !== 'darwin' || !options.unsigned) resolveDesktopPolicyEnvironment(environment)
+  if (!convax && (target.platform !== 'darwin' || !options.unsigned)) resolveDesktopPolicyEnvironment(environment)
   if (target.platform === 'darwin') resolveMacOSPackageSettings(environment)
   else resolveWindowsPackageSettings(environment)
   if (options.unsigned) return
-  if (!options.prepareOnly) resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
+  if (!convax && !options.prepareOnly) resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   if (target.platform === 'win32') {
     if (!options.prepareOnly) createWindowsTokenSigner({
       certificateFile: environment.DSH_DESKTOP_WINDOWS_CER_FILE,
