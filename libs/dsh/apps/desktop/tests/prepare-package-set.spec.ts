@@ -52,6 +52,23 @@ describe('desktop package-set selection', () => {
     ])
   })
 
+  it('includes the selected product and its plugin dependencies in addition to the core Desktop packages', () => {
+    const renderer = '@deepseek-ai/dsh-convax-plugin-renderer'
+    const plugins = ['host', 'inernal-nodes-host', 'inernal-nodes-renderer'].map(name => `@deepseek-ai/dsh-convax-plugin-${name}`)
+    const available = new Map<string, PackedDesktopPackage>([
+      ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
+      ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host')],
+      [renderer, packed(renderer, { dependencies: Object.fromEntries(plugins.map(name => [name, '1.0.0'])) })],
+      ...plugins.map((name): [string, PackedDesktopPackage] => [name, packed(name)]),
+    ])
+    const target = { platform: 'darwin', arch: 'arm64' } as const
+    expect(selectDesktopPackageClosure(available, target)).toHaveLength(2)
+    expect(selectDesktopPackageClosure(available, target, [renderer]).map(entry => entry.manifest.name))
+      .toEqual(expect.arrayContaining([renderer, ...plugins]))
+    available.delete(renderer)
+    expect(() => selectDesktopPackageClosure(available, target, [renderer])).toThrow(`packed inputs omit ${renderer}`)
+  })
+
   it.each([
     '@deepseek-ai/dsh-base', '@deepseek-ai/cordis', '@deepseek-ai/node-addon-system',
   ])('rejects required prepared package %s absent from the packed release inputs', (dependency) => {

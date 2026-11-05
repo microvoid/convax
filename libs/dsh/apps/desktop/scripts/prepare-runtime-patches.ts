@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import yaml from 'js-yaml'
 import { valid } from 'semver'
+import { pnpmWorkspaceRoot } from '../../../scripts/pnpm-invocation.ts'
 import { DESKTOP_RUNTIME_DEPENDENCY_OVERRIDES, DESKTOP_RUNTIME_PATCHES, type DesktopRuntimePatch } from './runtime-patch-policy.ts'
 
 /** Expected patch bytes and package version for one independent installation. */
@@ -37,7 +38,7 @@ function patchHash(bytes: Buffer): string {
  * Stage selected patches and explicit overrides before Desktop resolves its temporary lockfile.
  * Every root patch must be classified; shared bytes must match the root lockfile's pnpm 11 hash.
  * @param projectRoot Disposable project containing pnpm-workspace.yaml, outside the repository root itself.
- * @param repositoryRoot Source repository; its files remain read-only.
+ * @param repositoryRoot Source checkout inside the pnpm workspace. Runtime-only paths are relative to this directory.
  * @param policy Desktop patch decisions, including optional runtime-only files relative to the repository.
  * @param overrides Explicit Desktop dependency constraints; patch versions never generate overrides.
  * @returns Expected patch identities and hashes for lockfile and staged-file verification.
@@ -47,11 +48,12 @@ export function prepareRuntimePatches(
   policy: Readonly<Record<string, DesktopRuntimePatch>> = DESKTOP_RUNTIME_PATCHES,
   overrides: Readonly<Record<string, string>> = DESKTOP_RUNTIME_DEPENDENCY_OVERRIDES,
 ): PreparedRuntimePatches {
-  if (resolve(projectRoot) === resolve(repositoryRoot)) throw new Error('desktop patches: destination must not be the source workspace')
-  const source = yaml.load(readFileSync(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')) as {
+  const workspaceRoot = pnpmWorkspaceRoot(repositoryRoot)
+  if (resolve(projectRoot) === workspaceRoot) throw new Error('desktop patches: destination must not be the source workspace')
+  const source = yaml.load(readFileSync(join(workspaceRoot, 'pnpm-workspace.yaml'), 'utf8')) as {
     patchedDependencies: Record<string, string>
   }
-  const sourceLock = yaml.load(readFileSync(join(repositoryRoot, 'pnpm-lock.yaml'), 'utf8')) as {
+  const sourceLock = yaml.load(readFileSync(join(workspaceRoot, 'pnpm-lock.yaml'), 'utf8')) as {
     patchedDependencies: Record<string, string>
   }
   for (const spec of Object.keys(source.patchedDependencies)) {
@@ -65,11 +67,12 @@ export function prepareRuntimePatches(
     }
     if (rule.scope === 'workspace-only') continue
     const sourcePath = rule.scope === 'shared' ? source.patchedDependencies[spec]! : rule.path
-    const localPath = relative(resolve(repositoryRoot), resolve(repositoryRoot, sourcePath))
+    const sourceRoot = rule.scope === 'shared' ? workspaceRoot : resolve(repositoryRoot)
+    const localPath = relative(sourceRoot, resolve(sourceRoot, sourcePath))
     if (isAbsolute(sourcePath) || localPath.startsWith('..') || isAbsolute(localPath)) {
       throw new Error(`desktop patches: patch must be inside the repository: ${sourcePath}`)
     }
-    const bytes = readFileSync(join(repositoryRoot, sourcePath))
+    const bytes = readFileSync(join(sourceRoot, sourcePath))
     const hash = patchHash(bytes)
     if (rule.scope === 'shared' && sourceLock.patchedDependencies[spec] !== hash) {
       throw new Error(`desktop patches: shared patch hash differs from the root lockfile: ${spec}`)

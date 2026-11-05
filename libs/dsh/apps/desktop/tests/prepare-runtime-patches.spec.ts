@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { afterEach, expect, it } from 'vitest'
 import yaml from 'js-yaml'
 import { pnpmCommand } from '../../../scripts/release/process.ts'
+import { pnpmWorkspaceRoot } from '../../../scripts/pnpm-invocation.ts'
 import { prepareRuntimePatches, verifyRuntimePatches } from '../scripts/prepare-runtime-patches.ts'
 import type { DesktopRuntimePatch } from '../scripts/runtime-patch-policy.ts'
 
@@ -40,7 +41,8 @@ function fixture(): { root: string; source: string; project: string } {
 it('classifies the current workspace and shares only runtime patch bytes', () => {
   const { project } = fixture()
   const repository = resolve(import.meta.dirname, '../../..')
-  const before = readFileSync(join(repository, 'pnpm-lock.yaml'))
+  const lockfile = join(pnpmWorkspaceRoot(repository), 'pnpm-lock.yaml')
+  const before = readFileSync(lockfile)
   const plan = prepareRuntimePatches(project, repository)
   expect(plan.patches.map(entry => entry.spec)).toEqual(['@earendil-works/pi-ai@1.3.0', 'node-pty@1.2.0-beta.15'])
   expect(plan.workspaceOnly).toHaveLength(8)
@@ -49,7 +51,7 @@ it('classifies the current workspace and shares only runtime patch bytes', () =>
   const settings = yaml.load(readFileSync(join(project, 'pnpm-workspace.yaml'), 'utf8')) as { overrides: Record<string, string> }
   expect(settings.overrides['@earendil-works/pi-ai']).toBeUndefined()
   expect(settings.overrides['@earendil-works/pi-ai@^1.3.0']).toBe('1.3.0')
-  expect(readFileSync(join(repository, 'pnpm-lock.yaml'))).toEqual(before)
+  expect(readFileSync(lockfile)).toEqual(before)
   writeFileSync(join(project, 'pnpm-lock.yaml'), yaml.dump({
     patchedDependencies: Object.fromEntries(plan.patches.map(entry => [entry.spec, entry.hash])),
     packages: {

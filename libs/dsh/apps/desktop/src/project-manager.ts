@@ -29,7 +29,13 @@ const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
 const WEB_PROFILE = PROFILE_TEMPLATES.web as ProfileTemplate
+const CONVAX_BUNDLES = [...WEB_PROFILE.bundles, '@deepseek-ai/dsh-convax-plugin-renderer']
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\n'
+
+function desktopBundles(convax: boolean): readonly string[] {
+  return convax ? CONVAX_BUNDLES : WEB_PROFILE.bundles
+}
+
 function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, undefined, 2)}\n`, { mode: 0o600 })
 }
@@ -61,10 +67,12 @@ export class DesktopProjectManager {
   /**
    * @param paths - Electron-owned package state and reserved desktop profile paths.
    * @param runtime - location of the bundled application runtime.
+   * @param convax - whether the installed product includes the Convax canvas bundle.
    */
   constructor(
     readonly paths: DesktopPaths,
     readonly runtime: { readonly dsh: string },
+    private readonly convax = false,
   ) {}
 
   /**
@@ -73,7 +81,7 @@ export class DesktopProjectManager {
    * @returns Backup path after the locked profile write, or undefined if the patch was absent.
    */
   async disableAllPlugins(): Promise<string | undefined> {
-    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, WEB_PROFILE.bundles))
+    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, desktopBundles(this.convax)))
   }
 
   /**
@@ -84,7 +92,7 @@ export class DesktopProjectManager {
       // Validation only: an unreadable or mismatched runtime descriptor stops preparation before the Host starts.
       readDesktopRuntime(this.runtime.dsh)
       migrateProfileSettings(this.paths.profile)
-      createPluginProfile(this.paths.profile)
+      createPluginProfile(this.paths.profile, this.convax)
       removeLinkProjections(this.paths.profile)
     })
   }
@@ -169,7 +177,11 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
   writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })
 }
 
-/** Create the first external plugin profile without running a package manager. */
-export function createPluginProfile(projectDir: string): void {
-  initProfile(projectDir, WEB_PROFILE.bundles)
+/**
+ * Create the first external plugin profile without running a package manager.
+ * @param projectDir - external plugin profile directory.
+ * @param convax - whether this product ships the Convax canvas bundle.
+ */
+export function createPluginProfile(projectDir: string, convax = false): void {
+  initProfile(projectDir, desktopBundles(convax))
 }

@@ -8,6 +8,7 @@ import {
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
 } from '../scripts/desktop-release-environment.mjs'
+import { localMacOSPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from '../scripts/notarize-macos-disk-images.mjs'
 import {
   assertMacOSRuntimeSignatureDetails,
@@ -111,6 +112,31 @@ describe('desktop macOS release signature', () => {
     }
     await expect(validateConfiguration({ dmg: { format: 'invalid' } }, { isEnabled: false }))
       .rejects.toThrow('configuration.dmg.format')
+  })
+
+  it('packages the unsigned Convax preview with its own native identity and icon', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const env = localMacOSPackageEnvironment({
+      ...RELEASE_ENVIRONMENT, DSH_DESKTOP_PRODUCT: 'convax',
+    })
+    const config = createElectronBuilderConfig(env, 'darwin', 'arm64')
+    expect(env.DSH_DESKTOP_APP_ID).toBe('io.microvoid.convax')
+    expect(config).toMatchObject({
+      appId: 'io.microvoid.convax',
+      productName: 'Convax',
+      protocols: [{ name: 'Convax', schemes: ['convax'] }],
+      extraMetadata: { dshDesktopAppId: 'io.microvoid.convax', dshDesktopProduct: 'convax', productName: 'Convax' },
+      artifactName: 'convax-${version}-${os}-${arch}-unsigned.${ext}',
+      publish: null,
+    })
+    expect(portablePath(config.mac.icon)).toMatch(/\/resources\/icon-convax-macos\.png$/u)
+    expect(readFileSync(config.mac.icon).subarray(16, 24)).toEqual(Buffer.from([0, 0, 4, 0, 0, 0, 4, 0]))
+    expect(config.extraResources[1]).toEqual({ from: config.mac.icon, to: 'icon.png' })
+    await expect(validateConfiguration(config, { isEnabled: false })).resolves.toBeUndefined()
+    expect(() => createElectronBuilderConfig({ ...env, DSH_DESKTOP_UNSIGNED: '0' }, 'darwin', 'arm64'))
+      .toThrow('Convax currently supports unsigned macOS builds')
+    expect(() => createElectronBuilderConfig({ ...env, DSH_DESKTOP_TARGET_PLATFORM: 'win32' }, 'win32', 'x64'))
+      .toThrow('Convax currently supports unsigned macOS builds')
   })
 
   it('seals PAK resources with their enclosing bundle while signing executable code', async () => {

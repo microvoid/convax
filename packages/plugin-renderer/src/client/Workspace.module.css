@@ -29,7 +29,7 @@
   padding-inline-start: var(--dsh-frame-leading-clearance);
 }
 
-.brand { flex: none; font-size: 16px; font-weight: 500; }
+.brand { display: flex; align-items: center; flex: none; gap: 6px; font-size: 16px; font-weight: 500; }
 .tabStrip { display: flex; align-items: center; flex: 1; gap: 2px; min-width: 0; }
 .tabs { display: flex; min-width: 0; gap: 2px; padding-block: 4px; margin-block: -4px; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }

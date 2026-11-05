@@ -43,6 +43,25 @@ afterEach(() => {
 })
 
 describe('desktop external plugin profile', () => {
+  it('seeds the Convax bundle for a new install and preserves profile choices on later launches', async () => {
+    const { manager } = setup()
+    const convax = new DesktopProjectManager(manager.paths, manager.runtime, true)
+    const manifestPath = join(convax.paths.profile, 'package.json')
+    const bundle = '@deepseek-ai/dsh-convax-plugin-renderer'
+    await convax.applyRelease()
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }
+    expect(manifest.dsh.profile.bundles.at(-1)).toBe(bundle)
+    await convax.disableAllPlugins()
+    expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toEqual(manifest)
+
+    manifest.dsh.profile.bundles.pop()
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+    await convax.applyRelease()
+    expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toEqual(manifest)
+  })
+
   it('preserves installed packages, profile state, and the lockfile when preparing a launch', async () => {
     const { manager } = setup()
     await manager.applyRelease()

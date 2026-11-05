@@ -41,6 +41,20 @@ Convax 画布底座与默认节点实现分别位于 `packages/plugin-host`、`p
 
 DSH 脚本容器本身不是 workspace 成员。其中 Desktop、Web 与 website 的 pnpm 命令通过 `--dir` 指向实际成员目录。这样独立 DSH 与外层 Convax workspace 都从目标包执行，不依赖 pnpm 从脚本容器猜测工作区。
 
+## Convax macOS 安装包
+
+在 Apple Silicon Mac 上安装根工作区依赖后，从仓库根目录执行以下命令生成本地测试用 DMG。
+
+```sh
+DSH_DESKTOP_PRODUCT=convax pnpm --dir libs/dsh/apps/desktop run package:mac:arm64:unsigned
+```
+
+产物位于 `libs/dsh/apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/`。Convax 的应用标识为 `io.microvoid.convax`，图标源文件与官网共用。首次启动从包内加载 Convax bundle，直接进入画布。默认数据目录为 Electron 的 `userData/data`，可通过 `DSH_HOME` 覆盖。
+
+在 GitHub Actions 中打开 [Convax Desktop Package](../.github/workflows/convax-desktop-package.yml)，选择 **Run workflow**。任务使用 Apple Silicon runner，打包后校验 DMG，并在该次运行的 **Artifacts** 中提供 DMG 和 SHA-256 校验文件。产物保留 14 天，适用于本地测试。
+
+升级 DSH 时保留安装包依赖闭包中的 Convax Renderer bundle、根 workspace 与锁文件发现，以及 [Desktop 首启](dsh/apps/desktop/src/main.ts)和 [Profile 初始化](dsh/apps/desktop/src/project-manager.ts)的产品配置。Convax 的 [Desktop Host](dsh/apps/desktop-host/src/index.ts)从包内运行时清单解析默认 bundle 和客户端插件。验收时从 DMG 安装应用，在空用户数据目录下确认画布可见，再创建画布和 Chat 并重启检查数据。
+
 ## 需要保留或逐项替代的 DSH 适配
 
 下表中的路径均相对于 `libs/dsh/`。它是升级复核清单，具体实现和对应测试以源码为准。上游升级后若提供等价能力，应迁移消费者并删除不再需要的本地适配。

@@ -1,6 +1,7 @@
 /** Locate pnpm's shared dependency directory for source Desktop launches and qualifications. */
 import { existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join } from 'node:path'
+import { pnpmWorkspaceRoot } from '../../../scripts/pnpm-invocation.ts'
 
 /**
  * Resolve installed development dependencies at the nearest enclosing pnpm workspace.
@@ -9,12 +10,7 @@ import { dirname, join, resolve } from 'node:path'
  * @throws When no workspace exists above start or its dependencies have not been installed.
  */
 export function developmentDependencyDirectory(start: string = import.meta.dirname): string {
-  let directory = resolve(start)
-  while (!existsSync(join(directory, 'pnpm-workspace.yaml'))) {
-    const parent = dirname(directory)
-    if (parent === directory) throw new Error(`Desktop development: no pnpm workspace above ${start}`)
-    directory = parent
-  }
+  const directory = pnpmWorkspaceRoot(start)
   const dependencies = join(directory, 'node_modules/.pnpm/node_modules')
   if (!existsSync(dependencies)) throw new Error(`Desktop development: run pnpm install in ${directory}`)
   return dependencies

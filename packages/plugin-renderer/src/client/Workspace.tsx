@@ -12,6 +12,7 @@ import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { DroppedResource } from './CanvasGraph.tsx'
 import { nextResourcePosition, RESOURCE_CARD_GAP, RESOURCE_CARD_WIDTH } from './placement.ts'
 import css from './Workspace.module.css'
+import convaxMark from './assets/convax-mark.svg'
 import { CanvasTabs } from './CanvasTabs.tsx'
 import { canvasDisplayTitle } from './localized-content.ts'
 import { CanvasManager } from './CanvasManager.tsx'
@@ -540,7 +541,10 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
       })}
       {/* Electron applies drag rectangles in DOM order, including clipped canvas controls. */}
       <nav className={css.tabbar} aria-label={t('canvas.all')} data-workspace-titlebar="integrated" data-window-drag="">
-        <span className={css.brand}>{t('workspace.title')}</span>
+        <span className={css.brand}>
+          <img src={convaxMark} width={20} height={20} alt="" />
+          {t('workspace.title')}
+        </span>
         <div className={css.tabStrip}>
           <CanvasTabs tabs={tabs.map(canvas => ({ ...canvas, title: canvasDisplayTitle(canvas, t) }))} activeId={active?.id} t={t}
             open={(id) => { actions.open(id); setMenu(null) }} close={actions.close} move={actions.moveTab}

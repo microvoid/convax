@@ -11,6 +11,7 @@ import { readPrimaryRuntime, workspaceDependencyPaths } from '../../../packages/
 import { DesktopHostProcess } from '../src/host-process.ts'
 import { createPluginProfile } from '../src/project-manager.ts'
 import type { DesktopRuntimeDescriptor } from '../src/runtime-tree.ts'
+import { isConvaxDesktopProduct } from './desktop-product.mjs'
 
 /**
  * Check CLI package operations, Host startup, its frontend, external plugins and real Office-to-PDF conversion.
@@ -26,6 +27,7 @@ export async function smokeDesktopRuntime(
 ): Promise<void> {
   const home = mkdtempSync(join(tmpdir(), 'dsh-desktop-smoke-'))
   const profile = join(home, 'profiles', 'desktop')
+  const convax = isConvaxDesktopProduct(environment)
   const hostEnvironment = {
     ...Object.fromEntries(Object.entries(environment).filter(([name]) => !/^(?:npm|pnpm|corepack)_/iu.test(name))),
     DSH_HOME: home, HOME: home, USERPROFILE: home,
@@ -40,7 +42,7 @@ export async function smokeDesktopRuntime(
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     writeFileSync(join(home, 'npmrc'), '')
-    createPluginProfile(profile)
+    createPluginProfile(profile, convax)
     const pluginName = 'desktop-runtime-smoke-plugin'
     const plugin = join(home, pluginName)
     mkdirSync(plugin, { recursive: true })
@@ -152,8 +154,13 @@ export function apply(ctx) {
     const login = await fetch(ready.url, { redirect: 'manual' })
     const cookie = login.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
     const response = await fetch(new URL('/', ready.url), { headers: { cookie } })
-    if (response.status !== 200 || !(await response.text()).includes('<html')) {
+    const html = await response.text()
+    if (response.status !== 200 || !html.includes('<html')) {
       throw new Error('desktop runtime: packaged frontend smoke failed')
+    }
+    if (convax && !['@deepseek-ai/dsh-convax-plugin-renderer', '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer']
+      .every(id => html.includes(`"id":${JSON.stringify(id)}`))) {
+      throw new Error('desktop runtime: packaged Convax renderer is missing from the boot graph')
     }
     const pluginResponse = await fetch(new URL('/desktop-smoke', ready.url), { headers: { cookie } })
     if (await pluginResponse.text() !== 'plugin route ready') throw new Error('desktop runtime: plugin HTTP route failed')

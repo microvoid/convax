@@ -1,0 +1,76 @@
+name: Convax Desktop Package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: convax-desktop-package-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DSH_DESKTOP_PRODUCT: convax
+  DSH_TELEMETRY_DISABLED: '1'
+  DSH_GATE_CONCURRENCY: '1'
+
+jobs:
+  macos-arm64:
+    name: Apple Silicon macOS DMG
+    runs-on: macos-15
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Verify runner architecture
+        run: |
+          test "$(uname -m)" = arm64
+          node -e 'if (process.platform !== "darwin" || process.arch !== "arm64") process.exit(1)'
+          df -h "$GITHUB_WORKSPACE"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build and smoke test the unsigned installer
+        run: pnpm --dir libs/dsh/apps/desktop run package:mac:arm64:unsigned
+      - name: Verify and stage the installer
+        run: |
+          shopt -s nullglob
+          installers=(libs/dsh/apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/convax-*-mac-arm64-unsigned.dmg)
+          if [[ ${#installers[@]} -ne 1 ]]; then
+            echo "Expected exactly one Convax macOS arm64 installer, found ${#installers[@]}" >&2
+            exit 1
+          fi
+          artifact_dir="$RUNNER_TEMP/convax-desktop-artifact"
+          mkdir -p "$artifact_dir"
+          hdiutil verify "${installers[0]}"
+          cp "${installers[0]}" "$artifact_dir/"
+          cd "$artifact_dir"
+          filename="$(basename "${installers[0]}")"
+          shasum -a 256 "$filename" > "$filename.sha256"
+      - name: Upload installer and checksum
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: convax-macos-arm64-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/convax-desktop-artifact/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload packaging diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: convax-macos-arm64-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: libs/dsh/apps/desktop/.desktop-build/packaging-runs/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14

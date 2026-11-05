@@ -24,6 +24,7 @@ import { DESKTOP_BUILD_VERSION_ENV, resolveDesktopBuildVersion, validateDesktopB
 import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts'
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
+import { CONVAX_DESKTOP_PRODUCT, isConvaxDesktopProduct } from './desktop-product.mjs'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
@@ -341,6 +342,10 @@ async function resolveRequestedBuildVersion(
 async function main(): Promise<void> {
   const invocation = parseDesktopPackageInvocation(process.argv.slice(2))
   const { target } = invocation
+  const convax = isConvaxDesktopProduct(process.env)
+  if (convax && (target.platform !== 'darwin' || !invocation.unsigned)) {
+    throw new Error('desktop package: Convax currently supports unsigned macOS builds')
+  }
   if (invocation.skipNotarization) {
     process.stdout.write('desktop package: skipping notarization and stapling; internal debugging only, not qualified for distribution or update publishing\n')
   }
@@ -402,7 +407,8 @@ async function main(): Promise<void> {
   if (success && target.platform === 'darwin' && !invocation.directory && !invocation.prepareOnly) {
     const paths = desktopTargetBuildPaths(target.name, environment)
     const output = desktopArtifactOutput(paths, invocation)
-    const filename = `deepseek-harness-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
+    const prefix = convax ? CONVAX_DESKTOP_PRODUCT.artifactPrefix : 'deepseek-harness'
+    const filename = `${prefix}-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
     console.log(`DMG: ${join(output.directory, filename)}`)
   }
 }

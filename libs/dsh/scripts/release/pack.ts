@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { pnpmInvocation } from '../pnpm-invocation.ts'
+import { pnpmInvocation, pnpmWorkspaceRoot } from '../pnpm-invocation.ts'
 import { releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { isEntry, runConcurrent } from './process.ts'
 import { PUBLISH_ORDER_FILE, packedManifest, tarballFiles } from './tarball.ts'
@@ -57,6 +57,7 @@ async function packMembers(
   }
   if (members.length === 0) return []
   const invocation = pnpmInvocation([
+    '--dir', pnpmWorkspaceRoot(process.cwd()),
     'pack',
     '--recursive',
     `--workspace-concurrency=${String(concurrency)}`,

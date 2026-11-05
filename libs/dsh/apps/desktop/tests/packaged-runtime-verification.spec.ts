@@ -4,7 +4,7 @@ const { verifyDesktopRuntime } = vi.hoisted(() => ({
   verifyDesktopRuntime: vi.fn<(root: string, expected: string) => Promise<void>>(async () => undefined),
 }))
 // The hook imports the built tree, which a clean checkout has not produced; this is the path it resolves.
-vi.mock('/apps/desktop/lib/types/runtime-tree.js', () => ({ verifyDesktopRuntime }))
+vi.mock('../lib/types/runtime-tree.js', () => ({ verifyDesktopRuntime }))
 vi.mock('../scripts/windows-asar-unpack.mjs', async importOriginal => ({
   ...await importOriginal<typeof import('../scripts/windows-asar-unpack.mjs')>(),
   verifyWindowsAsarUnpack: async () => undefined,
