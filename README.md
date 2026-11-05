@@ -9,7 +9,7 @@ Arrange your projects and conversations on a canvas, connect the resources a tas
 <a id="demos"></a>
 ## Demos
 
-Comic-style walkthroughs of parallel projects and app control. Click a preview for the full MP4.
+Watch the interface demos on the [Convax website](https://microvoid.io/convax/), or select a preview below to open the full MP4.
 
 ### Run multiple projects in parallel on one canvas
 
