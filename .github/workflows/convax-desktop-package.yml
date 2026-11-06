@@ -1,4 +1,5 @@
 name: Convax Desktop Package
+run-name: ${{ inputs.release_tag && format('Release Convax {0}', inputs.release_tag) || format('Build Convax desktop ({0})', inputs.signing) }}
 
 on:
   workflow_dispatch:
@@ -9,12 +10,18 @@ on:
         options: [unsigned, signed]
         default: unsigned
         required: true
+      release_tag:
+        description: Version tag to release
+        type: string
+      release_sha:
+        description: SHA from the tag push
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: convax-desktop-package-${{ github.ref }}
+  group: convax-desktop-package-${{ inputs.release_tag || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -34,8 +41,7 @@ jobs:
     env:
       PACKAGE_MODE: unsigned
     steps:
-      - &checkout
-        uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - &setup-pnpm
@@ -87,6 +93,7 @@ jobs:
           shasum -a 256 "$filename" > "$filename.sha256"
       - &upload-installer
         name: Upload installer and checksum
+        id: installer
         uses: actions/upload-artifact@v7.0.1
         with:
           name: convax-macos-arm64-${{ env.PACKAGE_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -105,10 +112,63 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  resolve-signed-source:
+    name: Validate signed build source
+    if: inputs.signing == 'signed' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+      version: ${{ steps.source.outputs.version }}
+    steps:
+      - name: Verify tag and desktop version
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PUSHED_SHA: ${{ inputs.release_sha }}
+        run: |
+          if [[ -z "$RELEASE_TAG" && -z "$PUSHED_SHA" ]]; then
+            printf 'commit=%s\n' "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          number='(0|[1-9][0-9]*)'
+          identifiers='[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*'
+          if [[ ! "$RELEASE_TAG" =~ ^v$number\.$number\.$number(-$identifiers)?(\+$identifiers)?$ ||
+                ! "$PUSHED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Expected a v-prefixed desktop version tag and the SHA from its push." >&2
+            exit 1
+          fi
+
+          commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/tags%2F$RELEASE_TAG" --jq .sha)
+          tag_object=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)
+          if [[ "$PUSHED_SHA" != "$commit" && "$PUSHED_SHA" != "$tag_object" ]]; then
+            echo "Release tag moved after the push." >&2
+            exit 1
+          fi
+          ancestry=$(gh api "repos/$GITHUB_REPOSITORY/compare/$commit...$GITHUB_SHA?per_page=1" --jq .status)
+          if [[ "$ancestry" != ahead && "$ancestry" != identical ]]; then
+            echo "Release tag must point to a commit on main." >&2
+            exit 1
+          fi
+
+          version=$(gh api "repos/$GITHUB_REPOSITORY/contents/libs/dsh/apps/desktop/package.json?ref=$commit" \
+            --header 'Accept: application/vnd.github.raw+json' | jq --exit-status --raw-output .version)
+          if [[ "$RELEASE_TAG" != "v$version" ]]; then
+            echo "Release tag must match the Desktop package version." >&2
+            exit 1
+          fi
+          printf 'commit=%s\nversion=%s\n' "$commit" "$version" >> "$GITHUB_OUTPUT"
+
   macos-arm64-signed:
     name: Apple Silicon macOS DMG (signed and notarized)
     if: inputs.signing == 'signed' && github.ref == 'refs/heads/main'
+    needs: resolve-signed-source
     environment: convax-macos-release
+    outputs:
+      artifact-id: ${{ steps.installer.outputs.artifact-id }}
     runs-on: macos-15
     timeout-minutes: 120
     defaults: *bash-default
@@ -134,7 +194,10 @@ jobs:
             printf 'Missing signing secret %s\n' "${missing[@]}" >&2
             exit 1
           fi
-      - *checkout
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.resolve-signed-source.outputs.commit }}
+          persist-credentials: false
       - *setup-pnpm
       - *setup-node
       - *verify-runner
@@ -190,8 +253,107 @@ jobs:
           export NODE_OPTIONS=--max-old-space-size=4096
           pnpm --dir libs/dsh/apps/desktop run package:mac:arm64
       - *stage-installer
+      - name: Verify a clean install opens and restores the canvas
+        if: inputs.release_tag != ''
+        env:
+          RELEASE_VERSION: ${{ needs.resolve-signed-source.outputs.version }}
+        run: node scripts/smoke-convax-macos-installer.mjs "$RUNNER_TEMP/convax-desktop-artifact/convax-$RELEASE_VERSION-mac-arm64.dmg"
       - *upload-installer
       - *upload-logs
+
+  publish-release:
+    name: Publish the verified installer
+    if: inputs.release_tag != ''
+    needs: [resolve-signed-source, macos-arm64-signed]
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          artifact-ids: ${{ needs.macos-arm64-signed.outputs.artifact-id }}
+          path: ${{ runner.temp }}/convax-release
+      - name: Publish DMG and SHA-256 to GitHub Releases
+        shell: bash
+        working-directory: ${{ runner.temp }}/convax-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_VERSION: ${{ needs.resolve-signed-source.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.resolve-signed-source.outputs.commit }}
+        run: |
+          filename="convax-$RELEASE_VERSION-mac-arm64.dmg"
+          checksum=$(sha256sum "$filename")
+          if [[ "$(<"$filename.sha256")" != "$checksum" ]]; then
+            echo "The downloaded installer does not match its SHA-256 file." >&2
+            exit 1
+          fi
+
+          verify_tag() {
+            local current_commit
+            current_commit=$(gh api "repos/$GH_REPO/commits/tags%2F$RELEASE_TAG" --jq .sha)
+            if [[ "$current_commit" != "$RELEASE_COMMIT" ]]; then
+              echo "Release tag no longer points to the signed commit." >&2
+              exit 1
+            fi
+          }
+
+          verify_tag
+          marker='<!-- convax-tag-release -->'
+          expected=$(sha256sum "$filename" "$filename.sha256" | awk '{print $2 " sha256:" $1}' | sort)
+          assets() {
+            jq -r '.assets[] | select(.state == "uploaded") | .name + " " + .digest' | sort
+          }
+
+          if ! release=$(gh release view "$RELEASE_TAG" --json isDraft,body,assets); then
+            options=()
+            if [[ "${RELEASE_VERSION%%+*}" == *-* ]]; then
+              options+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" --verify-tag --target "$RELEASE_COMMIT" --draft \
+              --title "Convax $RELEASE_TAG" \
+              --generate-notes --notes "$marker" "${options[@]}"
+            release=$(gh release view "$RELEASE_TAG" --json isDraft,body,assets)
+          fi
+
+          actual=$(assets <<< "$release")
+          if jq -e '.isDraft == false' <<< "$release" >/dev/null; then
+            if [[ "$actual" == "$expected" ]]; then
+              exit 0
+            fi
+            echo "The published release has different assets." >&2
+            exit 1
+          fi
+          if ! jq -e --arg marker "$marker" '.body | startswith($marker)' <<< "$release" >/dev/null; then
+            echo "A draft already exists outside the automated release workflow." >&2
+            exit 1
+          fi
+
+          while read -r name digest; do
+            if [[ -z "$name" ]]; then continue; fi
+            if ! grep -Fqx "$name $digest" <<< "$expected"; then
+              echo "The release draft has unexpected or different assets." >&2
+              exit 1
+            fi
+          done <<< "$actual"
+          for asset in "$filename" "$filename.sha256"; do
+            if ! grep -Fq "$asset " <<< "$actual"; then
+              upload_options=()
+              if jq -e --arg asset "$asset" 'any(.assets[]; .name == $asset and .state == "starter")' <<< "$release" >/dev/null; then
+                upload_options+=(--clobber)
+              fi
+              gh release upload "$RELEASE_TAG" "$asset" "${upload_options[@]}"
+            fi
+          done
+          release=$(gh release view "$RELEASE_TAG" --json assets)
+          if [[ "$(assets <<< "$release")" != "$expected" ]]; then
+            echo "GitHub release assets do not match the verified installer." >&2
+            exit 1
+          fi
+          verify_tag
+          gh release edit "$RELEASE_TAG" --verify-tag --draft=false
 
   reject-signed-ref:
     name: Reject signed packaging outside main

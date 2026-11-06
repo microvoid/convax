@@ -1,0 +1,25 @@
+name: Convax Release Tag
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Start the signed release on main
+    if: github.event.created && !github.event.deleted
+    permissions:
+      actions: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch the desktop packaging workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh workflow run convax-desktop-package.yml --ref main \
+            -f signing=signed -f release_tag="$GITHUB_REF_NAME" -f release_sha="$GITHUB_SHA"
