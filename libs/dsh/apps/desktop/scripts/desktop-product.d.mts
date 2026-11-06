@@ -8,3 +8,6 @@ export const CONVAX_DESKTOP_PRODUCT: Readonly<{
 
 /** Select the package's product from the build environment, preserving the upstream default. */
 export function isConvaxDesktopProduct(environment: NodeJS.ProcessEnv): boolean
+
+/** Read the Convax release version from the workspace manifest. */
+export function readConvaxDesktopVersion(): string

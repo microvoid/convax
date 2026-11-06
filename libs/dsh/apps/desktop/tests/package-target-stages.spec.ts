@@ -1,5 +1,5 @@
-import { renameSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { afterEach, expect, it, vi } from 'vitest'
 import { packageTarget, parseDesktopPackageInvocation } from '../scripts/package-target.ts'
@@ -297,9 +297,11 @@ it('smokes the signed Convax app before notarizing and promoting the DMG alone',
   expect(withMacOSNotarizationProxy).toHaveBeenCalledOnce()
   expect(packageMacOSArtifacts).not.toHaveBeenCalled()
   expect(writeFileSync).not.toHaveBeenCalled()
+  const { version } = JSON.parse(readFileSync(new URL('../../../../../package.json', import.meta.url), 'utf8')) as { version: string }
+  const artifact = `convax-${version}-mac-arm64.dmg`
   expect(renameSync).toHaveBeenCalledExactlyOnceWith(
-    expect.stringMatching(/^fixture-dmg[/\\]convax-.+-mac-arm64\.dmg$/u),
-    expect.stringMatching(/[/\\]artifacts[/\\]convax-.+-mac-arm64\.dmg$/u),
+    join('fixture-dmg', artifact),
+    expect.stringContaining(join('artifacts', artifact)),
   )
 })
 

@@ -24,7 +24,7 @@ import { DESKTOP_BUILD_VERSION_ENV, resolveDesktopBuildVersion, validateDesktopB
 import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts'
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
-import { CONVAX_DESKTOP_PRODUCT, isConvaxDesktopProduct } from './desktop-product.mjs'
+import { CONVAX_DESKTOP_PRODUCT, isConvaxDesktopProduct, readConvaxDesktopVersion } from './desktop-product.mjs'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
@@ -355,7 +355,7 @@ async function main(): Promise<void> {
     : loadDesktopPackageEnvironment(target.platform, process.env, APP_ROOT, {
       unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
     })
-  const productVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
+  const productVersion = convax ? readConvaxDesktopVersion() : packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   // Release settings come from the selected configuration files, so the version this run publishes is an
   // argument; the environment variable below only carries it to the child processes that build.
   const buildVersion = await resolveRequestedBuildVersion(invocation, productVersion, environment)
@@ -562,7 +562,7 @@ export async function packageTarget(
         const output = mkdtempSync(join(buildPaths.root, 'convax-notarization-'))
         try {
           await execute(desktopElectronBuilderArguments(target, false, { format: 'dmg', appPath, output }), notaryEnv)
-          const version = resolveDesktopBuildVersion(environment, packageVersion(join(APP_ROOT, 'package.json'), 'desktop package'))
+          const version = resolveDesktopBuildVersion(environment, readConvaxDesktopVersion())
           const filename = `${CONVAX_DESKTOP_PRODUCT.artifactPrefix}-${version}-mac-${target.arch}.dmg`
           renameSync(join(output, filename), join(artifactsRoot, filename))
         } finally {

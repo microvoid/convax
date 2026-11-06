@@ -24,7 +24,7 @@ async function closeApplication(application) {
   assert.equal(child.exitCode, 0, `Convax exited with ${child.signalCode ?? child.exitCode}`)
 }
 
-async function withApplication(executablePath, scratch, inspect) {
+async function withApplication(executablePath, scratch, expectedVersion, inspect) {
   const home = join(scratch, 'home')
   const application = await electron.launch({
     executablePath,
@@ -40,6 +40,8 @@ async function withApplication(executablePath, scratch, inspect) {
     timeout: startupTimeout,
   })
   try {
+    assert.equal(await application.evaluate(({ app }) => app.getVersion()), expectedVersion,
+      'The installed Convax version must match the release tag')
     const page = await application.firstWindow({ timeout: startupTimeout })
     page.setDefaultTimeout(startupTimeout)
     await page.locator('[data-convax-workspace]').waitFor()
@@ -60,9 +62,10 @@ async function canvasAndChat(page) {
   return { canvasId, chatId }
 }
 
-const [installer, ...extra] = process.argv.slice(2)
+const [installer, expectedVersion, ...extra] = process.argv.slice(2)
 assert(process.platform === 'darwin' && process.arch === 'arm64', 'The Convax installer smoke requires an Apple Silicon Mac')
-assert(installer && isAbsolute(installer) && extra.length === 0, 'Usage: node scripts/smoke-convax-macos-installer.mjs ABSOLUTE_DMG_PATH')
+assert(installer && isAbsolute(installer) && expectedVersion && extra.length === 0,
+  'Usage: node scripts/smoke-convax-macos-installer.mjs ABSOLUTE_DMG_PATH VERSION')
 
 const scratch = await mkdtemp(join(tmpdir(), 'convax-installer-smoke-'))
 const mount = join(scratch, 'mount')
@@ -80,12 +83,12 @@ try {
   }
 
   const executable = join(bundle, 'Contents', 'MacOS', 'Convax')
-  const created = await withApplication(executable, scratch, async page => {
+  const created = await withApplication(executable, scratch, expectedVersion, async page => {
     await page.getByRole('button', { name: /^(New canvas|新建画布)$/ }).first().click()
     await page.locator('[data-convax-graph]').getByRole('button', { name: /^(New chat|新建聊天)$/ }).click()
     return canvasAndChat(page)
   })
-  const restored = await withApplication(executable, scratch, canvasAndChat)
+  const restored = await withApplication(executable, scratch, expectedVersion, canvasAndChat)
   assert.deepEqual(restored, created, 'Convax did not restore the same canvas and Chat after restarting')
   console.log('Convax installer opened the canvas workspace and restored the canvas and Chat after restart.')
 } finally {

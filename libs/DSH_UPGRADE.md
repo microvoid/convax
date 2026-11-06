@@ -51,7 +51,9 @@ DSH_DESKTOP_PRODUCT=convax pnpm --dir libs/dsh/apps/desktop run package:mac:arm6
 
 产物位于 `libs/dsh/apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/`。Convax 的应用标识为 `io.microvoid.convax`，图标源文件与官网共用。首次启动从包内加载 Convax bundle，直接进入画布。默认数据目录为 Electron 的 `userData/data`，可通过 `DSH_HOME` 覆盖。
 
-从 GitHub 发布 macOS 安装包时，先将 [Desktop 清单](dsh/apps/desktop/package.json)的 `version` 更新并合入 `main`，再为对应提交创建并推送版本标签。标签名由 `v` 和该提交的 `version` 组成，例如 `v0.2.1-rc.4`。标签推送会从 `main` 触发 [Convax Desktop Package](../.github/workflows/convax-desktop-package.yml)，流水线核对标签与清单版本，并使用标签指向的提交构建。
+Convax 安装包的版本由仓库根目录的 [`package.json`](../package.json) 管理。[DSH Desktop 清单](dsh/apps/desktop/package.json)保留上游包的版本。
+
+从 GitHub 发布 macOS 安装包时，先将 Convax 的 `version` 更新并合入 `main`，再为对应提交创建并推送版本标签。标签名由 `v` 和该提交的 Convax 版本组成，例如 `v0.1.0`。标签推送会从 `main` 触发 [Convax Desktop Package](../.github/workflows/convax-desktop-package.yml)，流水线核对标签与 Convax 版本，并使用标签指向的提交构建。
 
 Apple Silicon runner 使用 Developer ID Application 签名，将 DMG 提交 Apple 公证并附加公证票据。流水线验证签名、公证票据和 Gatekeeper 后，从 DMG 安装应用，在空用户数据目录下确认首启进入画布，再创建画布和 Chat 并重启检查数据。验收通过后，流水线将同一次运行生成的 DMG 和 SHA-256 校验文件发布到该标签的 GitHub Release。带预发布后缀的版本标记为预发布。重跑流水线会保留已发布的附件。
 

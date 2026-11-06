@@ -1,8 +1,23 @@
 import { describe, expect, it, vi } from 'vitest'
+import { readFile } from 'node:fs/promises'
 
 const { verifyDesktopRuntime } = vi.hoisted(() => ({
   verifyDesktopRuntime: vi.fn<(root: string, expected: string) => Promise<void>>(async () => undefined),
 }))
+const convaxVersion = '0.0.0-convax-version-fixture'
+
+vi.mock('node:fs', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs')>()
+  const workspaceManifest = new URL('../../../../../package.json', import.meta.url)
+  return {
+    ...fs,
+    readFileSync(path: Parameters<typeof fs.readFileSync>[0], options?: Parameters<typeof fs.readFileSync>[1]) {
+      if (path instanceof URL && path.href === workspaceManifest.href) return JSON.stringify({ version: convaxVersion })
+      return fs.readFileSync(path, options)
+    },
+  }
+})
+
 // The hook imports the built tree, which a clean checkout has not produced; this is the path it resolves.
 vi.mock('../lib/types/runtime-tree.js', () => ({ verifyDesktopRuntime }))
 vi.mock('../scripts/windows-asar-unpack.mjs', async importOriginal => ({
@@ -59,5 +74,17 @@ describe('packaged runtime verification', () => {
     expect(config.extraMetadata).toMatchObject({ version: `${productVersion}.20260921.1` })
     await config.afterPack(CONTEXT as never)
     expect(verifyDesktopRuntime.mock.calls[0]?.[1]).toBe(productVersion)
+  })
+
+  it('packages the Convax workspace version and verifies the bundled DSH Desktop version', async () => {
+    const { version: runtimeVersion } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    verifyDesktopRuntime.mockClear()
+    const config = createElectronBuilderConfig({
+      ...ENVIRONMENT, DSH_DESKTOP_PRODUCT: 'convax', DSH_DESKTOP_TARGET_PLATFORM: 'darwin', DSH_DESKTOP_TARGET_ARCH: 'arm64',
+    }, 'darwin', 'arm64')
+    expect(config.extraMetadata).toHaveProperty('version', convaxVersion)
+    await config.afterPack(CONTEXT as never)
+    expect(verifyDesktopRuntime.mock.calls[0]?.[1]).toBe(runtimeVersion)
   })
 })

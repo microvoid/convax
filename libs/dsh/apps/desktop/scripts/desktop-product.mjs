@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 /** Brand and identity for the opt-in Convax Desktop installer. */
 export const CONVAX_DESKTOP_PRODUCT = Object.freeze({
   appId: 'io.microvoid.convax',
@@ -12,4 +14,13 @@ export function isConvaxDesktopProduct(environment) {
   if (product === undefined) return false
   if (product === 'convax') return true
   throw new Error('desktop package: DSH_DESKTOP_PRODUCT must be convax when set')
+}
+
+/** Read the Convax release version from the workspace manifest. */
+export function readConvaxDesktopVersion() {
+  const { version } = JSON.parse(readFileSync(new URL('../../../../../package.json', import.meta.url), 'utf8'))
+  if (typeof version !== 'string' || version === '') {
+    throw new Error('desktop package: Convax workspace has no version')
+  }
+  return version
 }

@@ -121,7 +121,7 @@ jobs:
       commit: ${{ steps.source.outputs.commit }}
       version: ${{ steps.source.outputs.version }}
     steps:
-      - name: Verify tag and desktop version
+      - name: Verify tag and Convax version
         id: source
         shell: bash
         env:
@@ -138,7 +138,7 @@ jobs:
           identifiers='[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*'
           if [[ ! "$RELEASE_TAG" =~ ^v$number\.$number\.$number(-$identifiers)?(\+$identifiers)?$ ||
                 ! "$PUSHED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Expected a v-prefixed desktop version tag and the SHA from its push." >&2
+            echo "Expected a v-prefixed Convax version tag and the SHA from its push." >&2
             exit 1
           fi
 
@@ -154,10 +154,10 @@ jobs:
             exit 1
           fi
 
-          version=$(gh api "repos/$GITHUB_REPOSITORY/contents/libs/dsh/apps/desktop/package.json?ref=$commit" \
+          version=$(gh api "repos/$GITHUB_REPOSITORY/contents/package.json?ref=$commit" \
             --header 'Accept: application/vnd.github.raw+json' | jq --exit-status --raw-output .version)
           if [[ "$RELEASE_TAG" != "v$version" ]]; then
-            echo "Release tag must match the Desktop package version." >&2
+            echo "Release tag must match the Convax workspace version." >&2
             exit 1
           fi
           printf 'commit=%s\nversion=%s\n' "$commit" "$version" >> "$GITHUB_OUTPUT"
@@ -257,7 +257,7 @@ jobs:
         if: inputs.release_tag != ''
         env:
           RELEASE_VERSION: ${{ needs.resolve-signed-source.outputs.version }}
-        run: node scripts/smoke-convax-macos-installer.mjs "$RUNNER_TEMP/convax-desktop-artifact/convax-$RELEASE_VERSION-mac-arm64.dmg"
+        run: node scripts/smoke-convax-macos-installer.mjs "$RUNNER_TEMP/convax-desktop-artifact/convax-$RELEASE_VERSION-mac-arm64.dmg" "$RELEASE_VERSION"
       - *upload-installer
       - *upload-logs
 
