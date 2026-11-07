@@ -19,7 +19,17 @@ const PICKER = fileURLToPath(new URL('../libs/dsh/apps/web/tests/pin-browse-pick
 const LANGUAGE_NAMES = { en: 'English', zh: '中文', ja: '日本語', es: 'Español', fr: 'Français', de: 'Deutsch', ru: 'Русский', pt: 'Português' }
 const USER_TITLE = 'User named board / 用户命名'
 type Language = keyof typeof LANGUAGE_NAMES
-type Copy = Pick<typeof en, 'workspace.actions' | 'workspace.settings' | 'workspace.addProject' | 'workspace.addFile'>
+type Copy = Pick<typeof en, 'workspace.actions' | 'workspace.settings' | 'workspace.addResources' | 'workspace.addProject' | 'workspace.addFile'>
+
+async function resourceActions(page: Page, copy: Copy): Promise<void> {
+  await page.locator('[data-convax-creation-dock]:visible')
+    .getByRole('button', { name: copy['workspace.addResources'], exact: true }).click()
+  const menu = page.getByRole('menu')
+  await menu.getByRole('menuitem', { name: copy['workspace.addProject'], exact: true }).waitFor()
+  await menu.getByRole('menuitem', { name: copy['workspace.addFile'], exact: true }).waitFor()
+  await page.keyboard.press('Escape')
+  await menu.waitFor({ state: 'detached' })
+}
 
 async function settingsLanguage(page: Page, current: Language, next: Language, copy: Copy): Promise<void> {
   await page.getByRole('button', { name: copy['workspace.actions'], exact: true }).click()
@@ -87,7 +97,7 @@ describe('Convax internationalization in the shipped Web composition', () => {
     await card.evaluate((element) => { element.setAttribute('data-i18n-mount', 'retained') })
     const before = scaffold.ctx.convax.workspace().canvases.find(canvas => canvas.id === canvasId)
     await settingsLanguage(page, 'en', 'zh', en)
-    await page.getByRole('button', { name: zh['workspace.addProject'], exact: true }).waitFor()
+    await resourceActions(page, zh)
     await card.getByRole('button', { name: '增加', exact: true }).waitFor()
     expect(await card.getAttribute('data-i18n-mount')).toBe('retained')
     expect(scaffold.ctx.convax.workspace().canvases.find(canvas => canvas.id === canvasId)).toEqual(before)
@@ -96,7 +106,9 @@ describe('Convax internationalization in the shipped Web composition', () => {
     const warnings = tripwire.warnings.length
     await page.reload()
     acknowledgeReloadConnectionLoss(tripwire, warnings)
-    await page.getByRole('button', { name: zh['workspace.addFile'], exact: true }).waitFor({ timeout: 30_000 })
+    await page.locator('[data-convax-creation-dock]:visible')
+      .getByRole('button', { name: zh['workspace.addResources'], exact: true }).waitFor({ timeout: 30_000 })
+    await resourceActions(page, zh)
     await card.getByRole('button', { name: '增加', exact: true }).waitFor()
     expect(await page.locator('html').getAttribute('lang')).toBe('zh-CN')
     expect(await page.evaluate(() => localStorage.getItem('dsh.locale'))).toBeNull()
@@ -110,8 +122,7 @@ describe('Convax internationalization in the shipped Web composition', () => {
     for (const next of ['ja', 'es', 'fr', 'de', 'ru', 'pt', 'zh', 'en'] as const) {
       await settingsLanguage(page, current, next, dictionaries[current])
       const copy = dictionaries[next]
-      await page.getByRole('button', { name: copy['workspace.addProject'], exact: true }).waitFor()
-      await page.getByRole('button', { name: copy['workspace.addFile'], exact: true }).waitFor()
+      await resourceActions(page, copy)
       await page.getByRole('button', { name: copy['workspace.actions'], exact: true }).waitFor()
       expect(scaffold.ctx.convax.workspace().canvases.find(canvas => canvas.id === canvasId)?.title).toBe(USER_TITLE)
       await expect.poll(() => readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8'))
