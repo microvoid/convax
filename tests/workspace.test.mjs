@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, globSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -143,6 +144,77 @@ test('root hooks retain the DSH commit and merge gates', () => {
     assert.equal(active[hook].jobs.find(job => job.name === 'archived agent notes').glob, 'libs/dsh/.agents/notes/archived/**')
     assert.equal(active[hook].jobs.find(job => job.name === 'translation pairing (staged records)').run,
       'node scripts/check-staged-translations.mjs {staged_files}')
+  }
+})
+
+test('staged translation hooks retain a linked worktree and its relative alternate index', () => {
+  const fixture = mkdtempSync(join(tmpdir(), 'convax-translation-hook-'))
+  const checkout = join(fixture, 'checkout')
+  const linked = join(fixture, 'linked')
+  const hooks = join(fixture, 'hooks')
+  const environment = { ...process.env }
+  for (const name of Object.keys(environment)) if (name.startsWith('GIT_')) delete environment[name]
+  environment.GIT_CONFIG_NOSYSTEM = '1'
+  const run = (command, args, cwd, env = environment) => {
+    const result = spawnSync(command, args, { cwd, env, encoding: 'utf8', timeout: 30_000, killSignal: 'SIGKILL' })
+    assert.equal(result.error, undefined)
+    assert.equal(result.signal, null, `${command} was interrupted`)
+    return result
+  }
+  const git = (args, cwd = checkout, env = environment) => {
+    const result = run('git', ['-c', `core.hooksPath=${hooks}`, '-c', 'commit.gpgsign=false', ...args], cwd, env)
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`)
+    return result
+  }
+  const sourcePath = 'libs/dsh/docs/guide.md'
+  const source = '# Guide\n\nEnglish | [中文](guide.zh.md)\n\nStaged source.\n'
+  try {
+    mkdirSync(join(checkout, 'scripts'), { recursive: true })
+    mkdirSync(join(checkout, 'libs/dsh/scripts'), { recursive: true })
+    mkdirSync(join(checkout, 'libs/dsh/docs'), { recursive: true })
+    mkdirSync(hooks)
+    git(['init', '--quiet'])
+    copyFileSync(join(root, 'scripts/check-staged-translations.mjs'), join(checkout, 'scripts/check-staged-translations.mjs'))
+    for (const name of ['verify-translation-pairing', 'translation-pairing', 'translation-pairing-git',
+      'translation-pairing-record', 'translation-links', 'translation-repository-context', 'markdown']) {
+      copyFileSync(join(root, `libs/dsh/scripts/${name}.ts`), join(checkout, `libs/dsh/scripts/${name}.ts`))
+    }
+    writeFileSync(join(checkout, 'libs/dsh/scripts/translation-pairing.manifest.json'), '{"excluded":[]}\n')
+    writeFileSync(join(checkout, sourcePath), source)
+    writeFileSync(join(checkout, 'libs/dsh/docs/guide.zh.md'), '# 指南\n\n[English](guide.md) | 中文\n\n暂存正文。\n')
+    const dependencyLink = directory => symlinkSync(join(root, 'node_modules'), join(directory, 'node_modules'),
+      process.platform === 'win32' ? 'junction' : 'dir')
+    dependencyLink(checkout)
+    const record = run(process.execPath, ['--import', 'tsx/esm', 'libs/dsh/scripts/verify-translation-pairing.ts',
+      '--write', 'docs/guide.md'], checkout)
+    assert.equal(record.status, 0, `${record.stdout}${record.stderr}`)
+    git(['add', 'scripts', 'libs'])
+    git(['-c', 'user.name=Translation Fixture', '-c', 'user.email=translation@example.test',
+      'commit', '--quiet', '-m', 'translation fixture'])
+    git(['worktree', 'add', '--quiet', '--detach', linked, 'HEAD'])
+    dependencyLink(linked)
+    writeFileSync(join(hooks, 'pre-commit'), '#!/bin/sh\nexec node scripts/check-staged-translations.mjs libs/dsh/docs/guide.i18n.yaml\n')
+    chmodSync(join(hooks, 'pre-commit'), 0o755)
+
+    // A valid staged pair must survive both Git's worktree hook environment and unrelated unstaged text.
+    writeFileSync(join(linked, sourcePath), `${source}\nUnstaged prose.\n`)
+    const staged = git(['hook', 'run', 'pre-commit'], linked)
+    assert.match(`${staged.stdout}${staged.stderr}`, /1 named staged pair\(s\) consistent/)
+    writeFileSync(join(linked, sourcePath), source)
+    const alternate = { ...environment, GIT_INDEX_FILE: 'translation-index' }
+    git(['read-tree', 'HEAD'], linked, alternate)
+    writeFileSync(join(linked, sourcePath), `${source}\nStaged unmatched prose.\n`)
+    git(['add', sourcePath], linked)
+    writeFileSync(join(linked, sourcePath), source)
+
+    // The default index rejects the drift even though the working copy is now restored.
+    const rejected = run('git', ['-c', `core.hooksPath=${hooks}`, 'hook', 'run', 'pre-commit'], linked)
+    assert.equal(rejected.status, 1, `${rejected.stdout}${rejected.stderr}`)
+    assert.match(`${rejected.stdout}${rejected.stderr}`, /out of sync/)
+    const selected = git(['hook', 'run', 'pre-commit'], linked, alternate)
+    assert.match(`${selected.stdout}${selected.stderr}`, /1 named staged pair\(s\) consistent/)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
   }
 })
 
