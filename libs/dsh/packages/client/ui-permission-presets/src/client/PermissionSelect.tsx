@@ -64,7 +64,7 @@ export interface PermissionSelectInjected {
     /** One process catalog shared with the slash popup. */
     permissionCatalog: HostObservable<PermissionCatalogState>
   }
-  /** Submit one current-session preset through the existing command writer. */
+  /** Switch the current Session and save configured presets as the future default; rejects on either failure. */
   select: (preset: string) => Promise<boolean>
 }
 
@@ -83,6 +83,7 @@ export function PermissionSelect({
   const [open, setOpen] = useState(false)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [acknowledged, setAcknowledged] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!locked && selection !== undefined && catalog !== null
@@ -122,14 +123,14 @@ export function PermissionSelect({
 
   const submit = (id: string): void => {
     setPick(id)
+    setError(null)
     void select(id)
-      .catch(() => false)
+      .catch((cause: unknown) => { setError(cause instanceof Error ? cause.message : String(cause)) })
       .then(() => { setPick(null) })
   }
 
   const choose = (id: string): void => {
     setOpen(false)
-    if (id === selection.currentValue) return
     if (id === FULL_ACCESS || id === AUTO_REVIEW) {
       setAcknowledged(false)
       setConfirmation(id)
@@ -162,7 +163,7 @@ export function PermissionSelect({
     : t('confirm.enable')
 
   return (
-    <>
+    <span className={css.control}>
       <Menu
         open={open}
         items={items}
@@ -190,6 +191,7 @@ export function PermissionSelect({
           </button>
         }
       />
+      {error !== null && <span role="alert" className={css.feedback}>{error}</span>}
       {confirmation !== null && (
         <RiskConfirmation
           open
@@ -206,6 +208,6 @@ export function PermissionSelect({
           onConfirm={() => { confirmSelection(confirmation) }}
         />
       )}
-    </>
+    </span>
   )
 }

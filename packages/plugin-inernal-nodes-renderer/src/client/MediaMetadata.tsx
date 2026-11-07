@@ -19,5 +19,5 @@ export function MediaMetadata({ path, metadataFallback = '', useResource, useMed
   const duration = seconds > 0 ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}` : ''
   const label = resolution && duration ? t('media.metadata', { resolution, duration }) : resolution || duration || metadataFallback
   const details = metadataFallback && label !== metadataFallback ? `${metadataFallback} · ${label}` : label
-  return <Tooltip label={details} portal><span className={css.metadata} tabIndex={0} data-convax-media-metadata="">{label}</span></Tooltip>
+  return <Tooltip label={details} side="bottom" portal><span className={css.metadata} tabIndex={0} data-convax-media-metadata="">{label}</span></Tooltip>
 }

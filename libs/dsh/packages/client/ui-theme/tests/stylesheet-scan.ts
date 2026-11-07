@@ -3,8 +3,9 @@
  * rules and enumerate the package stylesheets those contracts range over.
  */
 import { readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { additionalWorkspacePackageManifests } from '../../../../scripts/workspace-package-globs.ts'
 
 /** One flattened CSS rule: its comma-separated selector parts and its declarations in source order. */
 export interface CssRule {
@@ -75,27 +76,37 @@ export function varReferences(value: string): string[] {
  * Every file shipped as package source whose name the predicate accepts,
  * excluding build output and installed dependencies.
  * @param accepts - filename predicate.
- * @returns absolute paths under packages/, `/`-separated on every platform so
+ * @param includeAdditional - include packages declared by an enclosing workspace.
+ * @returns absolute paths under the selected package roots, `/`-separated on every platform so
  *   specs can match repo-relative suffixes verbatim.
  */
-export function packageFiles(accepts: (name: string) => boolean): string[] {
-  const found: string[] = []
+export function packageFiles(accepts: (name: string) => boolean, includeAdditional = false): string[] {
+  const found = new Set<string>()
+  const visited = new Set<string>()
   const walk = (dir: string): void => {
+    const directory = resolve(dir)
+    if (visited.has(directory)) return
+    visited.add(directory)
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name)
       if (entry.isDirectory()) {
         if (entry.name !== 'node_modules' && entry.name !== 'lib' && entry.name !== 'dist') walk(path)
-      } else if (accepts(entry.name)) found.push(path.replaceAll('\\', '/'))
+      } else if (accepts(entry.name)) found.add(path.replaceAll('\\', '/'))
     }
   }
   walk(PACKAGES_DIR)
-  return found
+  if (includeAdditional) {
+    const root = resolve(PACKAGES_DIR, '..')
+    for (const manifest of additionalWorkspacePackageManifests(root)) walk(dirname(resolve(root, manifest)))
+  }
+  return [...found]
 }
 
 /**
  * Every CSS file shipped as package source.
+ * @param includeAdditional - include packages declared by an enclosing workspace.
  * @returns absolute stylesheet paths, `/`-separated on every platform.
  */
-export function packageStylesheets(): string[] {
-  return packageFiles(name => name.endsWith('.css'))
+export function packageStylesheets(includeAdditional = false): string[] {
+  return packageFiles(name => name.endsWith('.css'), includeAdditional)
 }

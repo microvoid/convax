@@ -143,7 +143,8 @@ describe('web e2e: Convax Chat settings', () => {
       await page.getByRole('menuitem', { name: 'All canvases', exact: true }).click()
       await page.locator('[data-canvas-manager-row="' + fixture.canvasId + '"] button').first().click()
       await page.locator('[data-canvas-gestures-ready]').waitFor()
-      await page.getByRole('combobox', { name: 'Canvas input mode', exact: true }).selectOption('touchpad')
+      await page.getByRole('button', { name: 'Canvas input mode', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Touchpad mode', exact: true }).click()
       const chat = page.locator(`[data-convax-chat="${fixture.nodeId}"]`)
       const tab = (id: SessionId) => chat.locator(`[data-thread-tab="${id}"]`)
       const arrow = (id: SessionId) => tab(id).getByRole('button', { name: 'Current thread actions', exact: true })
@@ -227,7 +228,7 @@ describe('web e2e: Convax Chat settings', () => {
       await compareOrRefreshGolden(join(EXPECTED, 'settings.expected.md'),
         await captureStableAria(page, SETTINGS, scaffold.workspaceCwd), webSnapshotMode())
       await page.screenshot({ path: join(ARTIFACTS, 'convax-chat-settings-ptc.png') })
-      await page.locator('[data-convax-graph]').click({ position: { x: 40, y: 40 } })
+      await page.locator('[data-convax-graph]').click({ position: { x: 40, y: 120 } })
       await secondDialog.waitFor({ state: 'detached' })
       await tab(fixture.first).getByRole('tab').click()
       await expect.poll(() => input.textContent()).toBe('Keep the first thread draft')

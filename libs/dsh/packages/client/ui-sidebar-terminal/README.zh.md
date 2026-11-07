@@ -45,6 +45,8 @@ kind: "package-reference"
 
 插件向右侧栏注册 `terminal` 类型及正文和标题 seat。开始页入口复用插件页面的蓝色终端图标，页签标题使用线条图标。无 React 依赖的终端模型属于 `api-terminal-controller`，通过框架 keyed hooks 暴露状态。`ui-primitives` 的 Menu 与 Button 提供 shell 选择和启动控件，支持键盘导航与选中标记。正文在 terminal 视图挂载时加载包内 `client.terminal.js` chunk，使 xterm.js 与 FitAddon 不进入启动 `client.js`；加载后由它们负责屏幕渲染和视口测量。正文在面板高度内为页签条下方预留 8px 间距。输入原样传到 PTY，包括 Tab 和控制字符。
 
+根 Factory `terminal.content` 向其他容器提供相同的延迟加载终端内容。拥有者提供可观察屏幕状态、终端命令、可见性和新建实例操作；可选的自动聚焦独立于可见性。终端模型通过 `webTerminals.createView` 接受适配器拥有的身份，进程归属仍由适配器持有。
+
 模拟器屏幕声明 `data-gesture-surface="content"`，使嵌入容器将普通滚轮滚动留给终端处理。标签页控件和恢复提示保持在该区域之外。
 
 终端 controller 独立保存每个全局唯一内容身份与 Host 的关联，并负责内容恢复；侧栏负责布局持久化。恢复视图不能分配替代进程。侧栏关闭 handler 通过[终端 controller](../../api/terminal-controller/README.zh.md#understand-the-implementation)安排清理并同步返回。浏览器组件清理和 tab 的 abort signal 只停止浏览器工作。

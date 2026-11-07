@@ -9,6 +9,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { AgentPresetInput, type AgentPresetInputProps } from '../src/client/AgentPresetInput.tsx'
 import type { AgentPresetSeatState } from '../src/client/seat-store.ts'
+import type { AgentPresetDefaultState } from '../src/client/default-store.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -19,6 +20,7 @@ function bench(options: {
   locked?: boolean
   enabled?: boolean
   state?: Partial<AgentPresetSeatState>
+  defaults?: Partial<AgentPresetDefaultState>
   create?: () => Promise<void>
 } = {}) {
   const sid = SessionId('input-session')
@@ -38,6 +40,7 @@ function bench(options: {
     } }, phase: 'ready', projectionsBySession: {},
   })
   const developerTools = createSnapshotStore(options.enabled ?? true)
+  const defaults = createSnapshotStore<AgentPresetDefaultState>({ saving: false, error: null, ...options.defaults })
   const select = vi.fn(() => Promise.resolve(undefined))
   const load = vi.fn(() => Promise.resolve())
   const onNewSession = vi.fn(options.create ?? (() => Promise.resolve()))
@@ -45,11 +48,14 @@ function bench(options: {
     sessionId: sid,
     useSessions: bindSnapshotSelector(sessions),
     useAgentPresetSeat: bindSnapshotSelector(state),
+    usePresetDefault: bindSnapshotSelector(defaults),
     useDeveloperTools: bindSnapshotSelector(developerTools),
-    select, load, onNewSession, locked: options.locked ?? false, t: makeTranslate(en),
+    select, load, onNewSession,
+    startSession: (id, create) => create(id),
+    locked: options.locked ?? false, t: makeTranslate(en),
   } as AgentPresetInputProps
   const view = render(<AgentPresetInput {...props} />)
-  return { state, sessions, developerTools, select, load, onNewSession, view }
+  return { state, defaults, sessions, developerTools, select, load, onNewSession, view }
 }
 
 function open() {
@@ -155,6 +161,17 @@ describe('composer agent mode', () => {
   it('shows a refused blank-Session selection beside its composer', () => {
     bench({ state: { error: { preset: { id: 'ptc' }, reason: 'Already started' } } })
     expect(screen.getByRole('alert').textContent).toBe('Could not switch to PTC mode: Already started')
+  })
+
+  it('keeps a failed default save visible beside the selected mode', () => {
+    bench({ state: { current: 'ptc' }, defaults: { error: 'Disk full' } })
+    expect(screen.getByRole('button', { name: 'Agent mode: PTC mode' })).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toBe('Mode selected, but could not save it for new conversations: Disk full')
+  })
+
+  it('disables mode choices while another composer saves the shared default', () => {
+    bench({ defaults: { saving: true } })
+    expect(screen.getByRole('button', { name: 'Agent mode: Standard mode' }).getAttribute('disabled')).toBe('')
   })
 
   it('dismisses its portaled menu with Escape', () => {

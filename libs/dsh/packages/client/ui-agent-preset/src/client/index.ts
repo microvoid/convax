@@ -38,11 +38,12 @@ import { AgentPresetLabel } from './AgentPresetLabel.tsx'
 import { CreatePluginMenuItem } from './CreatePluginMenuItem.tsx'
 import type { AgentPresetLabelInjected } from './AgentPresetLabel.tsx'
 import { AgentPresetSeat } from './AgentPresetSeat.tsx'
-import { AgentPresetInput } from './AgentPresetInput.tsx'
+import { AgentPresetInput, type AgentPresetInputInjected } from './AgentPresetInput.tsx'
 import type { AgentPresetSeatInjected } from './AgentPresetSeat.tsx'
 import { AgentPresetSection } from './AgentPresetSection.tsx'
 import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController, type AgentPresetStage } from './seat-store.ts'
+import { AgentPresetDefaultController } from './default-store.ts'
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, ja, es, fr, de, ru, pt, zh, type AgentPresetSettingsKey } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
@@ -80,6 +81,7 @@ export function apply(ctx: ClientContext): void {
   // Host preferences start at false before their first accepted document.
   const codingToolsDisabled = (): boolean => active && toolsSettings.getSnapshot().value?.enabled === false
   const controller = new AgentPresetSettingsController(ctx)
+  const defaults = new AgentPresetDefaultController(ctx)
   const staged: AgentPresetStage = { id: undefined, introduce: false }
   const seats = new WeakMapWithValues<SessionBinding, AgentPresetSeatController>()
   const inputSeats = new WeakMapWithValues<SessionBinding, AgentPresetSeatController>()
@@ -88,7 +90,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => async () => {
     await Promise.all([...boundSeatDisposers].map(dispose => dispose()))
   }, 'ui-agent-preset: bound selections')
-  const unboundSeat = new AgentPresetSeatController(ctx, () => undefined, staged)
+  const unboundSeat = new AgentPresetSeatController(ctx, () => undefined, staged, defaults)
   const seatFor = (binding: SessionBinding, embedded = false): AgentPresetSeatController => {
     const collection = embedded ? inputSeats : seats
     const existing = collection.get(binding)
@@ -103,7 +105,7 @@ export function apply(ctx: ClientContext): void {
           ? { ...summary, blank: summary.projectionValues?.sessionListMetadata?.blank ?? summary.blank }
           : summary
         : undefined
-    }, embedded ? { id: undefined, introduce: false } : staged)
+    }, embedded ? { id: undefined, introduce: false } : staged, defaults)
     collection.set(binding, seat)
     const dispose = binding.ctx.effect(() => {
       const stop = ctx.sessions.list.subscribe(() => { void seat.apply() })
@@ -205,7 +207,7 @@ export function apply(ctx: ClientContext): void {
           const from = analyticsMode(state.current)
           const to = analyticsMode(id)
           const enabled = toolsSettings.getSnapshot().value?.enabled
-          const outcome = await seat.select(id)
+          const outcome = await (embedded ? seat.selectDefault(id) : seat.select(id))
           // A bound pick counts once the Host applies it; an unbound pick counts when staged for the next Session.
           const accepted = outcome.kind === 'applied' || (outcome.kind === 'staged' && sessionId === undefined)
           if (accepted && from !== undefined && to !== undefined && to !== 'other' && from !== to && enabled !== undefined) {
@@ -269,7 +271,17 @@ export function apply(ctx: ClientContext): void {
     scope.slots.inject('conversation.input.agentPreset', () => scope.slots.register({
       name: 'conversation.input.agentPreset',
       locale: 'settings.agentPreset',
-      inject: (sessionId: SessionId) => seatInjected(sessionId, true),
+      inject: (sessionId: SessionId): AgentPresetInputInjected => {
+        const seat = seatInjected(sessionId, true)
+        return {
+          ...seat,
+          hooks: { ...seat.hooks, presetDefault: defaults.store },
+          startSession: (id, create) => {
+            const binding = ctx.sessions.binding(sessionId)
+            return (binding === undefined ? unboundSeat : seatFor(binding, true)).startSession(id, create)
+          },
+        }
+      },
     }, AgentPresetInput))
   })
 

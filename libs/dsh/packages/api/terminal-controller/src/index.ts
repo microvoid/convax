@@ -6,9 +6,9 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import { Remote, RemoteError, TypertRemoteService, type RemoteStream } from '@deepseek-ai/dsh-typert-protocol'
-import { discoverShells, resolveShell } from './shells.ts'
-import { BrowserTerminal } from './terminal.ts'
-import { TerminalRetention } from './retention.ts'
+import { UserTerminalOwner, type UserTerminalExecution } from './runtime.ts'
+export { UserTerminalOwner } from './runtime.ts'
+export type { UserTerminalExecution } from './runtime.ts'
 import type {
   TerminalShell, TerminalInput, TerminalCreateRequest, TerminalEnvironment, TerminalFrame, TerminalRetentionFrame,
   WebTerminalId, WebTerminalInfo,
@@ -58,20 +58,6 @@ export interface Config {
   readonly cleanupRetryMs: number
 }
 
-interface TerminalAllocation {
-  info: WebTerminalInfo
-  readonly cleanup: TerminalRetention
-}
-
-interface OwnedSession {
-  readonly lifetime: AbortController
-  readonly closedIds: Set<WebTerminalId>
-  cleanup?: Promise<void>
-  readonly terminals: Map<WebTerminalId, BrowserTerminal>
-  readonly pending: Map<WebTerminalId, Promise<BrowserTerminal>>
-  readonly allocations: Map<WebTerminalId, TerminalAllocation>
-}
-
 /** Typed Remote control of transient Session-owned terminal processes. */
 export class TerminalController extends TypertRemoteService {
   static inject = ['subprocess', 'sandboxPolicy', 'workingDirectory', 'typert']
@@ -92,7 +78,7 @@ export class TerminalController extends TypertRemoteService {
     cleanupRetryMs: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(60_000),
   })
 
-  private readonly owners = new Map<SessionId, OwnedSession>()
+  private readonly owners = new Map<SessionId, UserTerminalOwner>()
   private readonly lifetime = new AbortController()
 
   /**
@@ -133,7 +119,7 @@ export class TerminalController extends TypertRemoteService {
   @Remote
   shells(agent: Agent, signal: AbortSignal): Promise<TerminalShell[]> {
     signal.throwIfAborted()
-    return discoverShells(this.execution(agent).subprocess, this.config.shell, this.config.shellCandidates, signal)
+    return this.owner(agent).shells(signal)
   }
 
   /**
@@ -145,7 +131,7 @@ export class TerminalController extends TypertRemoteService {
   list(sessionId: SessionId): WebTerminalInfo[] {
     const owner = this.owners.get(sessionId)
     if (owner === undefined) return []
-    return [...owner.terminals.values(), ...owner.allocations.values()].map(terminal => terminal.info)
+    return owner.list()
   }
 
   /**
@@ -158,34 +144,7 @@ export class TerminalController extends TypertRemoteService {
   @Remote
   async create(agent: Agent, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo> {
     this.lifetime.signal.throwIfAborted()
-    if (!/^[\w-]{1,128}$/u.test(request.id)) throw new Error('Invalid terminal identity')
-    this.dimensions(request.cols, request.rows)
-    const owner = this.owner(agent)
-    owner.lifetime.signal.throwIfAborted()
-    this.requireOpen(owner, request.id)
-    const existing = owner.terminals.get(request.id)
-    if (existing !== undefined) return existing.info
-    const pending = owner.pending.get(request.id)
-    if (pending !== undefined) {
-      const terminal = await pending
-      this.requireOpen(owner, request.id)
-      return terminal.info
-    }
-    if (new Set([...owner.terminals.keys(), ...owner.pending.keys(), ...owner.allocations.keys()]).size >= this.config.maxTerminals) throw new RemoteError('terminal/limit-reached', 'Session terminal limit reached', { limit: this.config.maxTerminals })
-    const allocation = this.spawn(agent, owner, request, AbortSignal.any([signal, this.lifetime.signal, owner.lifetime.signal]))
-    owner.pending.set(request.id, allocation)
-    try {
-      const terminal = await allocation
-      owner.terminals.set(request.id, terminal)
-      owner.allocations.delete(request.id)
-      terminal.monitor(this.config, () => { owner.closedIds.add(request.id) }, () => {
-        owner.terminals.delete(request.id)
-      }, (error) => { this.ctx.logger.error('Browser terminal cleanup failed', error) })
-      this.requireOpen(owner, request.id)
-      return terminal.info
-    } finally {
-      owner.pending.delete(request.id)
-    }
+    return this.owner(agent).create(request, signal)
   }
 
   /**
@@ -198,11 +157,8 @@ export class TerminalController extends TypertRemoteService {
   @Remote({ mode: 'stream' })
   retain(sessionId: SessionId, id: WebTerminalId, signal: AbortSignal): AsyncIterable<TerminalRetentionFrame> {
     const owner = this.owners.get(sessionId)
-    const terminal = owner?.terminals.get(id)
-    if (terminal === undefined || owner?.closedIds.has(id) === true || owner?.lifetime.signal.aborted === true) {
-      throw new RemoteError('terminal/unavailable', 'Terminal is closing or unavailable', {})
-    }
-    return terminal.retain(signal)
+    if (owner === undefined) throw new RemoteError('terminal/unavailable', 'Terminal is closing or unavailable', {})
+    return owner.retain(id, signal)
   }
 
   /**
@@ -216,7 +172,7 @@ export class TerminalController extends TypertRemoteService {
   attach(agent: Agent, id: WebTerminalId, signal: AbortSignal): RemoteStream<TerminalFrame, TerminalInput> {
     const invocation = this.ctx.invocation
     if (invocation === undefined) throw new Error('Terminal attachment requires a Remote invocation')
-    return this.terminal(agent, id).attach(invocation.uplink<TerminalInput>(), this.config, signal, invocation.uplinkWindow)
+    return this.owner(agent).attach(id, invocation.uplink<TerminalInput>(), signal, invocation.uplinkWindow)
   }
 
   /**
@@ -227,8 +183,7 @@ export class TerminalController extends TypertRemoteService {
    */
   @Remote
   rename(agent: Agent, id: WebTerminalId, title: string): void {
-    if (title.trim().length === 0 || title.length > 120) throw new Error('Terminal title must contain 1–120 characters')
-    this.terminal(agent, id).rename(title.trim())
+    this.owner(agent).rename(id, title)
   }
 
   /**
@@ -239,26 +194,28 @@ export class TerminalController extends TypertRemoteService {
    */
   @Remote
   async close(agent: Agent, id: WebTerminalId): Promise<void> {
-    const owner = this.owner(agent)
-    owner.closedIds.add(id)
-    // create publishes the allocation before this wait settles; close owns it even if create then rejects.
-    await owner.pending.get(id)?.catch(() => { /* Creation reports its failure; close still owns any allocated process. */ })
-    const terminal = owner.terminals.get(id)
-    if (terminal !== undefined) {
-      await terminal.close()
-      owner.terminals.delete(id)
-    } else {
-      const allocation = owner.allocations.get(id)
-      if (allocation === undefined) return
-      await allocation.cleanup.close()
-      owner.allocations.delete(id)
-    }
+    await this.owner(agent).close(id)
   }
 
-  private owner(agent: Agent): OwnedSession {
+  /**
+   * Construct a view-independent terminal owner for an application resource.
+   * The caller owns disposal; zero unattendedTimeoutMs retains processes until explicit resource cleanup.
+   * @param execution - Provider and validated directory resolver for this resource.
+   * @param unattendedTimeoutMs - Owner retention interval, or zero for resource-owned retention.
+   * @returns A new owner using the controller's shell and screen configuration.
+   */
+  createOwner(execution: () => UserTerminalExecution, unattendedTimeoutMs: number): UserTerminalOwner {
+    return new UserTerminalOwner({ ...this.config, unattendedTimeoutMs }, execution,
+      (error) => { this.ctx.logger.error('Browser terminal cleanup failed', error) })
+  }
+
+  private owner(agent: Agent): UserTerminalOwner {
     let owner = this.owners.get(agent.id)
     if (owner === undefined) {
-      owner = { terminals: new Map(), pending: new Map(), allocations: new Map(), closedIds: new Set(), lifetime: new AbortController() }
+      owner = this.createOwner(() => {
+        const { subprocess, workingDirectory } = this.execution(agent)
+        return { subprocess, ensureCwd: signal => workingDirectory.ensure(agent, signal), env: { DSH_SESSION_ID: agent.id } }
+      }, this.config.unattendedTimeoutMs)
       this.owners.set(agent.id, owner)
       const owned = owner
       agent.ctx.effect(() => async () => { await this.disposeOwner(agent.id, owned) }, 'terminal-controller.owner')
@@ -266,38 +223,9 @@ export class TerminalController extends TypertRemoteService {
     return owner
   }
 
-  private disposeOwner(id: SessionId, owner: OwnedSession): Promise<void> {
-    if (owner.cleanup !== undefined) return owner.cleanup
-    owner.lifetime.abort(new Error('Terminal Session owner disposed'))
-    owner.cleanup = (async () => {
-      await Promise.allSettled(owner.pending.values())
-      const results = await Promise.allSettled([
-        ...[...owner.terminals.values()].map(terminal => terminal.dispose()),
-        ...[...owner.allocations.values()].map(allocation => allocation.cleanup.dispose()),
-      ])
-      const errors = results.filter(result => result.status === 'rejected').map(result => result.reason as unknown)
-      if (errors.length > 0) throw new AggregateError(errors, 'Session terminal cleanup failed')
-      owner.terminals.clear()
-      owner.allocations.clear()
-      this.owners.delete(id)
-    })().catch((error: unknown) => { delete owner.cleanup; throw error })
-    return owner.cleanup
-  }
-
-  private terminal(agent: Agent, id: WebTerminalId): BrowserTerminal {
-    const terminal = this.owners.get(agent.id)?.terminals.get(id)
-    if (terminal === undefined) throw new RemoteError('terminal/unavailable', 'Terminal no longer exists in this Session', {})
-    this.requireOpen(this.owners.get(agent.id) as OwnedSession, id)
-    return terminal
-  }
-
-  private requireOpen(owner: OwnedSession, id: WebTerminalId): void {
-    if (owner.closedIds.has(id)) throw new RemoteError('terminal/unavailable', 'Terminal was closed in this Session', {})
-  }
-
-  private dimensions(cols: number, rows: number): void {
-    if (!Number.isSafeInteger(cols) || cols < 2 || cols > this.config.maxCols
-      || !Number.isSafeInteger(rows) || rows < 1 || rows > this.config.maxRows) throw new Error('Terminal dimensions exceed the configured limits')
+  private async disposeOwner(id: SessionId, owner: UserTerminalOwner): Promise<void> {
+    await owner.dispose()
+    this.owners.delete(id)
   }
 
   private execution(agent: Agent): { subprocess: Context['subprocess']; sandboxPolicy: Context['sandboxPolicy']; workingDirectory: Context['workingDirectory'] } {
@@ -310,43 +238,6 @@ export class TerminalController extends TypertRemoteService {
     return { subprocess, sandboxPolicy, workingDirectory }
   }
 
-  private async spawn(agent: Agent, owner: OwnedSession, request: TerminalCreateRequest, signal: AbortSignal): Promise<BrowserTerminal> {
-    const { subprocess, workingDirectory } = this.execution(agent)
-    const cwd = await workingDirectory.ensure(agent, signal)
-    const shell = request.shellPath === undefined
-      ? await resolveShell(subprocess, this.config.shell, signal)
-      : (await this.shells(agent, signal)).find(candidate => candidate.path === request.shellPath)
-    if (shell === undefined) throw new Error('Selected shell is not available in this execution environment')
-    const handle = await subprocess.spawnTerminal({
-      argv: [shell.path, ...shell.args], cwd, cols: request.cols, rows: request.rows,
-      terminalType: 'xterm-256color', env: { DSH_SESSION_ID: agent.id },
-      shellActivity: true,
-      graceMs: this.config.disposeGraceMs, signal,
-    })
-    const info: WebTerminalInfo = {
-      id: request.id, shell, title: shell.name, cwd,
-      cols: request.cols, rows: request.rows, state: 'running', exitCode: null,
-    }
-    try {
-      signal.throwIfAborted()
-      return new BrowserTerminal(handle, info, this.config.scrollback, this.config.maxBufferedBytes)
-    } catch (error) {
-      const cleanup = new TerminalRetention(this.config, handle.inspectActivity.bind(handle), async () => {
-        owner.closedIds.add(request.id)
-        await handle.terminate()
-        owner.allocations.delete(request.id)
-      }, (cleanupError) => { this.ctx.logger.error('Browser terminal allocation cleanup failed', cleanupError) })
-      owner.allocations.set(request.id, {
-        info: { ...info, state: 'failed', error: error instanceof Error ? error.message : String(error) }, cleanup,
-      })
-      try {
-        await cleanup.close()
-      } catch (cleanupError) {
-        throw new AggregateError([error, cleanupError], 'Terminal allocation cleanup failed')
-      }
-      throw error
-    }
-  }
 }
 
 /** Browser terminal service plugin. */

@@ -18,6 +18,18 @@ import type { BrowserPageFactory } from './browser/BrowserPage.ts'
 import { BROWSER_ID, browserDefinition } from './definition.tsx'
 import { en, ja, es, fr, de, ru, pt, zh } from './locales.ts'
 import { createBrowserStore } from './browser/store.ts'
+import { BrowserViews } from './browser/BrowserViews.ts'
+import { BrowserContent, BrowserStateHost, browserContentInjected } from './view/BrowserContent.tsx'
+
+export type { BrowserViews, BrowserViewId, BrowserViewOptions, BrowserViewStates } from './browser/BrowserViews.ts'
+export type { BrowserContentProps, BrowserContentInjected } from './view/BrowserContent.tsx'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Window-owned independent browser pages with owner-supplied storage and lifetime. */
+    browserViews: BrowserViews
+  }
+}
 
 export type { BrowserBodyProps } from './view/BrowserBody.tsx'
 export type { BrowserControllerState, BrowserInjected, BrowserMountRequest } from './browser/BrowserController.ts'
@@ -70,6 +82,14 @@ export function apply(ctx: Context): void {
     dshDesktop?: { readonly protocolVersion: number; readonly browser?: DesktopBrowserBridge }
   }).dshDesktop
   const desktop = carrier?.protocolVersion === 1 ? carrier.browser : undefined
+  const viewStore = createBrowserStore()
+  const views = new BrowserViews(workspace => desktop === undefined ? createIframePage
+    : options => createElectronPage(options, desktop, workspace))
+  const releaseViews = ctx.reflect.provide('browserViews', views)
+  ctx.effect(() => async () => { try { await views.dispose() } finally { await releaseViews() } }, 'ui-sidebar-browser: independent views')
+  ctx.effect(() => ctx.slots.registerFactory({ name: 'browser.content', scope: 'root', locale: namespace,
+    store: viewStore, inject: actions => browserContentInjected(views, actions),
+  }, BrowserContent), 'ui-sidebar-browser: independent content')
   ctx.effect(() => ctx.locale.register(namespace, { zh, en, ja, es, fr, de, ru, pt }), 'ui-sidebar-browser.copy')
   ctx.effect(() => ctx.sidebarRightTabs.register({ ...browserDefinition(t), keepMounted: desktop !== undefined }), 'ui-sidebar-browser.type')
   const installFrames = (scope: Context, factory: (sessionId: BrowserBodyProps['sessionId']) => BrowserPageFactory): void => {
@@ -102,4 +122,8 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
     name: 'sidebar.right.pane.tab.title', key: BROWSER_ID, store,
   }, BrowserTitle)), 'ui-sidebar-browser.title')
+  ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'browser-view-checkpoints', store: viewStore,
+    inject: (actions) => { views.rebind(actions); return {} },
+  }, BrowserStateHost)), 'ui-sidebar-browser: checkpoint lifetime')
 }

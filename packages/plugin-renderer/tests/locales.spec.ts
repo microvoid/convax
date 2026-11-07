@@ -21,8 +21,9 @@ describe('Convax locale resources', () => {
     const languageNeutral = new Set(['workspace.title', 'activity.itemLabel', 'media.resolution', 'media.metadata', 'media.position'])
     // These words are spelled identically in English and their translated languages.
     const sharedWords: Readonly<Record<string, readonly string[]>> = {
-      fr: ['chat.settingsConversation', 'media.volume'], de: ['workspace.plugins', 'chat.thread'],
-      pt: ['workspace.plugins', 'media.volume'],
+      es: ['terminal.title'],
+      fr: ['chat.settingsConversation', 'media.volume', 'terminal.title'], de: ['workspace.plugins', 'chat.thread', 'terminal.title', 'browser.title'],
+      pt: ['workspace.plugins', 'media.volume', 'terminal.title'],
     }
     for (const [key, original] of Object.entries(en)) {
       if (languageNeutral.has(key) || sharedWords[locale]?.includes(key)) continue

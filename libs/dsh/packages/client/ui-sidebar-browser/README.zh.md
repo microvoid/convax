@@ -42,6 +42,8 @@ Browser 在 Web profile 中默认禁用，在 Desktop 中默认启用。Web 用�
 
 Client 插件可以调用 `ctx.sidebarRight.openTab('browser', { params: { url } })` 打开 tab。可选 URL 会在导航前接受与地址栏输入相同的校验。
 
+独立视图的所有者通过 `ctx.browserViews.create` 提供稳定标识、生命周期 signal、存储工作区解析和 popup callback，再以该标识渲染 root `browser.content` Factory。Factory 复用现有浏览器工具栏、载体和持久化地址 checkpoint，不需要 Session 或 Sidebar tab。隐藏时必须保留 DOM 容器的挂载，才能保留活跃页面。`close` 沿用浏览器的正常清理并移除 checkpoint；所有者关闭时释放页面，保留 checkpoint 供重启后显式恢复。
+
 命令 `browser.new` 在焦点停靠分栏打开独立浏览器页，替换开始页并保留已有内容页。从聊天区或浮动内容页触发时，使用活动停靠分栏。桌面默认键在 macOS 上为 Cmd+T，在 Windows 上为 Ctrl+T；Windows 和 macOS Web 使用[快捷键服务的平台默认值](../shortcuts/README.zh.md)；Linux Web 默认不绑定此命令。开始页按钮使用蓝色地球图标，并在按钮内显示有效快捷键，不额外弹出重复提示。
 
 工具栏提供后退、前进、刷新、前往和在系统浏览器中打开。Web 还提供逐 tab sandbox 开关；关闭它是临时选择，并会显示灰字、琥珀色底的警告。Desktop 显示观察到的页面标题。重启后，Browser 展示保存的标题和 URL；只有点击恢复或刷新才打开该地址。
@@ -66,7 +68,7 @@ Web 记录 toolbar 提交和 typed tab 打开。导航状态机把每个受控 r
 
 ### Controller
 
-每个 tab 的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Slot injection 提供 `useBrowserState` 和普通 callback，React body 不接收 provider 对象或 observable。
+每个 tab 或独立视图的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Slot injection 提供 `useBrowserState` 和普通 callback，React body 不接收 provider 对象或 observable。
 
 Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略。preload 只暴露限定范围的 Browser 操作。共享声明通过标准 `/types` 出口配合 `import type` 引入；Host 与 Client 使用独立 tsconfig 编译。Desktop Browser tab 声明 `keepMounted`，Sidebar 因而在切 tab、切 Session、收起与浮动期间保留其 DOM。
 
@@ -89,7 +91,7 @@ Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略�
 <a id="model-experience"></a>
 ## 模型体验
 
-无。Browser tab 是用户侧呈现状态，不注册工具、prompt section 或 Session event。
+无。Browser 视图是用户侧呈现状态，不注册工具、prompt section 或 Session event。
 
 #### KV Cache 影响
 

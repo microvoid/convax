@@ -1,0 +1,11 @@
+- article:
+  - button "Collapse Browser" [expanded]
+  - text: Browser
+  - button "Back" [disabled]
+  - button "Forward" [disabled]
+  - button "Reload"
+  - textbox "Enter an HTTP(S) address": https://tool-cards.test/preview
+  - button "Open in system browser"
+  - button "Disable sandbox restrictions"
+  - iframe
+  - button "Resize preview"

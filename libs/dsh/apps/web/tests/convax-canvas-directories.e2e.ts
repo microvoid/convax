@@ -24,7 +24,7 @@ async function execute(scaffold: WebScaffold, canvasId: CanvasId, command: Canva
 }
 
 function creationDock(page: Page) {
-  return page.locator('.react-flow__panel').filter({ has: page.getByRole('button', { name: 'Add project', exact: true }) })
+  return page.locator('[data-convax-creation-dock]')
 }
 
 async function sessionDirectory(scaffold: WebScaffold, sessionId: SessionId): Promise<string | undefined> {

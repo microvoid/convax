@@ -59,7 +59,7 @@ export function CanvasEdge({
           const next = event.relatedTarget
           if (!(next instanceof Element) || next.closest('[data-convax-edge]')?.getAttribute('data-convax-edge') !== id) data.hover(null)
         }}>
-        <Tooltip label={data.t('connection.cut')} portal>
+        <Tooltip label={data.t('connection.cut')} side="top" portal>
           <Button size="sm" className={css.cutButton} aria-label={data.t('connection.cut')} data-convax-edge-cut={id}
             disabled={data.busy} onFocus={() => { data.select(id) }} onClick={(event) => {
               event.stopPropagation()

@@ -1,6 +1,8 @@
 - menu:
-  - menuitem "Add project"
+  - menuitem "Add folder"
   - menuitem "Add files"
+  - menuitem "Terminal"
+  - menuitem "Browser"
   - menuitem "New chat"
   - separator
   - menuitem "Paste"

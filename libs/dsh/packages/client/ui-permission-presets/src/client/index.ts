@@ -12,8 +12,8 @@
  * write through one path and the pushed projection frame is the one
  * confirmation. The Full access row carries the same explicit risk gate as
  * the composer chip; the shared popup shell owns the modal mechanics.
- * The General-settings row separately writes the default preset for sessions
- * created later through the host Settings API.
+ * Configured picks also become the default for sessions created later through
+ * the host Settings API; current-session-only options do not change it.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionFace } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -46,7 +46,7 @@ import {
 import {
   AUTO_REVIEW_PRESET, displayPermissionPreset, FULL_ACCESS_PRESET,
 } from './presentation.ts'
-import { PermissionPresetSettingsController } from './settings-store.ts'
+import { PERMISSION_SETTINGS_NS, PermissionPresetSettingsController } from './settings-store.ts'
 
 export type { PermissionRowInjected, PermissionRowProps } from './PermissionRow.tsx'
 export type { PermissionCatalogState } from './catalog.ts'
@@ -58,7 +58,7 @@ export type {
 /** Required services (cordis fiber inject). */
 export const inject = [
   'commandUi', 'connection', 'sessions', 'slots', 'locale', 'remote',
-  'remote.permissionPresets', 'remote.settings',
+  'remote.commands', 'remote.permissionPresets', 'remote.settings',
   'configForms', 'settingsSchema',
 ]
 
@@ -128,20 +128,30 @@ export function apply(ctx: ClientContext): void {
     'ui-permission: current-session dictionaries',
   )
   const t = ctx.locale.bind(PERMISSION_ACCESS_NS)
+  const catalog = new PermissionCatalogDirectory(ctx)
   const sessionFor = (session: ClientSessionContext): SessionFace | undefined =>
     sessions.binding(session.sessionId)?.session
   const submit = async (sessionId: SessionId, preset: string): Promise<boolean> => {
     const live = sessions.binding(sessionId)?.session
     if (live === undefined) throw new Error('this session is not materialized yet')
-    const result = await live.command(`/permission ${preset}`)
+    const defaults = (await catalog.load()).defaultOptions
+    const result = await ctx.remote.commands.execute(sessionId, `/permission ${preset}`, [])
     if (!result.ok) {
       throw new Error(`permission switch failed: ${result.error.code}: ${result.error.message}`)
     }
-    if (!result.value.matched) throw new Error('the host offers no /permission command')
+    if (result.value === undefined) throw new Error('the host offers no /permission command')
+    if (result.value.result.kind === 'error') throw new Error(result.value.result.text)
+    if (defaults.some(option => option.value === preset)) {
+      try {
+        const saved = await ctx.remote.settings.update(PERMISSION_SETTINGS_NS, { defaultPreset: preset }, undefined)
+        if (!saved.ok) throw new Error(saved.error.message)
+      } catch (error) {
+        throw new Error(t('defaultSaveFailed', { reason: error instanceof Error ? error.message : String(error) }))
+      }
+    }
     return true
   }
 
-  const catalog = new PermissionCatalogDirectory(ctx)
   ctx.effect(() => () => { catalog.dispose() }, 'ui-permission: process catalog directory')
   ctx.effect(
     // Only an invalidation makes displayed options stale; publishing the result

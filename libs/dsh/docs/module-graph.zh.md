@@ -324,6 +324,8 @@ flowchart TD
   end
   subgraph group_external["Enclosing workspace"]
     pkg_convax_plugin_host["convax-plugin-host"]
+    pkg_convax_plugin_inernal_nodes_host["convax-plugin-inernal-nodes-host"]
+    pkg_convax_plugin_inernal_nodes_renderer["convax-plugin-inernal-nodes-renderer"]
     pkg_convax_plugin_renderer["convax-plugin-renderer"]
   end
   subgraph group_feedback["packages/feedback"]
@@ -1290,6 +1292,21 @@ flowchart TD
   pkg_convax_plugin_host --> pkg_tools
   pkg_convax_plugin_host --> pkg_typert_protocol
   pkg_convax_plugin_host --> pkg_workspace
+  pkg_convax_plugin_inernal_nodes_host --> pkg_agent
+  pkg_convax_plugin_inernal_nodes_host --> pkg_agent_preset_registry
+  pkg_convax_plugin_inernal_nodes_host --> pkg_api_terminal_controller
+  pkg_convax_plugin_inernal_nodes_host --> pkg_fs
+  pkg_convax_plugin_inernal_nodes_host --> pkg_jobs
+  pkg_convax_plugin_inernal_nodes_host --> pkg_permission_presets
+  pkg_convax_plugin_inernal_nodes_host --> pkg_sandbox_policy
+  pkg_convax_plugin_inernal_nodes_host --> pkg_session
+  pkg_convax_plugin_inernal_nodes_host --> pkg_session_persistence
+  pkg_convax_plugin_inernal_nodes_host --> pkg_session_projection
+  pkg_convax_plugin_inernal_nodes_host --> pkg_session_query
+  pkg_convax_plugin_inernal_nodes_host --> pkg_subprocess
+  pkg_convax_plugin_inernal_nodes_host --> pkg_tool_present
+  pkg_convax_plugin_inernal_nodes_host --> pkg_typert_protocol
+  pkg_convax_plugin_inernal_nodes_host --> pkg_workspace
   pkg_goal_round_driver --> pkg_agent
   pkg_goal_round_driver --> pkg_goal
   pkg_goal_round_driver --> pkg_llm
@@ -1627,6 +1644,7 @@ flowchart TD
 | [`personalized-recommendations`](../packages/experimental/personalized-recommendations) | `experimental` | — |
 | [`client-ui-cordis`](../packages/extensions/ui-cordis) | `extensions` | — |
 | [`cordis-client-runner`](../packages/extensions/cordis-client-runner) | `extensions` | — |
+| [`convax-plugin-inernal-nodes-renderer`](../../../packages/plugin-inernal-nodes-renderer) | `external` | — |
 | [`convax-plugin-renderer`](../../../packages/plugin-renderer) | `external` | — |
 | [`host-directory-picker`](../packages/host/directory-picker) | `host` | — |
 | [`host-directory-picker-browse`](../packages/host/directory-picker-browse) | `host` | — |
@@ -1839,6 +1857,7 @@ flowchart TD
 | [`tool-session-query`](../packages/experimental/tool-session-query) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`webhook-github`](../packages/experimental/webhook-github) | `experimental` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`session`](../packages/core/session), [`webhook`](../packages/experimental/webhook) |
 | [`convax-plugin-host`](../../../packages/plugin-host) | `external` | [`agent`](../packages/core/agent), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`api-remote-access`](../packages/api/remote-access), [`client-connection`](../packages/client/connection), [`fs`](../packages/fs/fs), [`jobs`](../packages/jobs/jobs), [`office-to-pdf`](../packages/document/office-to-pdf), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`session-query`](../packages/session-query/session-query), [`skill`](../packages/skill/skill), [`tool-present`](../packages/deliverables/tool-present), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
+| [`convax-plugin-inernal-nodes-host`](../../../packages/plugin-inernal-nodes-host) | `external` | [`agent`](../packages/core/agent), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`api-terminal-controller`](../packages/api/terminal-controller), [`fs`](../packages/fs/fs), [`jobs`](../packages/jobs/jobs), [`permission-presets`](../packages/interaction/permission-presets), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`session-query`](../packages/session-query/session-query), [`subprocess`](../packages/subprocess/subprocess), [`tool-present`](../packages/deliverables/tool-present), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
 | [`goal-round-driver`](../packages/goal/goal-round-driver) | `goal` | [`agent`](../packages/core/agent), [`goal`](../packages/goal/goal), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
 | [`subagent-acp`](../packages/subagent/subagent-acp) | `subagent` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`subagent-claude-code`](../packages/subagent/subagent-claude-code) | `subagent` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |

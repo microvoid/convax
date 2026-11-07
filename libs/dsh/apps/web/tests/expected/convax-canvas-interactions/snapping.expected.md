@@ -10,14 +10,13 @@
       - text: outline.md MD · 29B
       - button "Resize preview"
   - img
-  - button "Add project"
-  - button "Add files"
+  - button "Add folder or files"
+  - button "Terminal"
+  - button "Browser"
   - button "New chat"
-- combobox "Canvas input mode":
-  - option "Touchpad mode" [selected]
-  - option "Mouse mode"
+- button "Canvas input mode"
 - button "Zoom out"
-- button "Reset zoom to 100%": 100%
+- button "Reset zoom to 100%"
 - button "Zoom in"
 - button "Fit canvas"
 - button "Undo"

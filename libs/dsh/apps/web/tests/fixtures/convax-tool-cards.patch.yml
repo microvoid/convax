@@ -1,0 +1,7 @@
+# Pin only the external shell executable; keep the shipped terminal lifecycle and limits.
+- id: terminal-controller
+  config:
+    shell:
+      path: /bin/bash
+      name: bash
+      args: [--noprofile, --norc, -i]

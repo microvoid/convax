@@ -25,7 +25,7 @@ afterEach(async () => {
 
 interface Recorded {
   name: string
-  key: string
+  key?: string
   locale?: string
   store?: unknown
   inject?: unknown
@@ -37,8 +37,14 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
   contexts.push(ctx)
   const tabs = new SidebarRightTabRegistry(ctx)
   const registered: Recorded[] = []
+  const factories: Recorded[] = []
   const slots = {
     inject: vi.fn((_name: string, register: () => () => void) => register()),
+    registerFactory: vi.fn((options: Omit<Recorded, 'component'>, component: unknown) => {
+      const entry = { ...options, component }
+      factories.push(entry)
+      return () => { factories.splice(factories.indexOf(entry), 1) }
+    }),
     register: vi.fn((options: Omit<Recorded, 'component'>, component: unknown) => {
       const entry: Recorded = { ...options, component }
       registered.push(entry)
@@ -66,7 +72,7 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
   ctx.provide('locale', locale as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { tabs, registered, dictionaries, fiber, openTabs, registry, sidebar, target }
+  return { ctx, tabs, registered, factories, dictionaries, fiber, openTabs, registry, sidebar, target }
 }
 
 describe('ui-sidebar-browser apply', () => {
@@ -130,7 +136,7 @@ describe('ui-sidebar-browser apply', () => {
       zh: { 'guide.description': '浏览网页' },
       en: { 'guide.description': 'Browse web pages' },
     })
-    expect(registered.map(entry => [entry.name, entry.key, entry.locale, entry.component])).toEqual([
+    expect(registered.filter(entry => entry.name !== 'shell.overlay').map(entry => [entry.name, entry.key, entry.locale, entry.component])).toEqual([
       ['sidebar.right.pane.tab', BROWSER_ID, 'sidebarBrowser', BrowserBody],
       ['sidebar.right.pane.tab.title', BROWSER_ID, undefined, BrowserTitle],
     ])
@@ -168,10 +174,14 @@ describe('ui-sidebar-browser apply', () => {
   })
 
   it('removes every registration when the plugin is disposed', async () => {
-    const { tabs, registered, dictionaries, fiber } = await boot()
+    const { ctx, tabs, registered, factories, dictionaries, fiber } = await boot()
+    expect(ctx.get('browserViews')).toBeDefined()
+    expect(factories).toHaveLength(1)
     await fiber.dispose()
     expect(tabs.get(BROWSER_KIND)).toBeUndefined()
     expect(registered).toEqual([])
+    expect(factories).toEqual([])
+    expect(ctx.get('browserViews')).toBeUndefined()
     expect(dictionaries.size).toBe(0)
   })
 })

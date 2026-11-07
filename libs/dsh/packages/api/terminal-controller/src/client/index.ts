@@ -4,7 +4,7 @@ import { remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-api-gateway/client'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
-import { TerminalView, type TerminalRemote } from './model.ts'
+import { TerminalView, type TerminalRemote, type TerminalRemoteFor } from './model.ts'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { TerminalShell, WebTerminalId, WebTerminalInfo } from '../types.ts'
@@ -14,7 +14,7 @@ import { TerminalWindowHold } from './retention.ts'
 import { TerminalBindings } from './bindings.ts'
 import { TerminalInventory } from './inventory.ts'
 
-export type { TerminalView, TerminalViewState, TerminalViewIssue, TerminalRenderFrame, TerminalRemote } from './model.ts'
+export type { TerminalView, TerminalViewState, TerminalViewIssue, TerminalRenderFrame, TerminalRemote, TerminalRemoteFor, TerminalControls } from './model.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -36,6 +36,22 @@ export interface TerminalCloseFailure {
   readonly message: string
 }
 
+/** A resource view owns its inventory and reports quiescent disposal to its model factory. */
+class OwnedTerminalView<Owner> extends TerminalView<Owner> {
+  private cleanup: Promise<void> | undefined
+
+  constructor(owner: Owner, remote: TerminalRemoteFor<Owner>, gateway: Pick<Context['remote'], '$stream'>,
+    private readonly ownedInventory: TerminalInventory, id: WebTerminalId, createWhenMissing: boolean,
+    shellPath: string | undefined, private readonly released: () => void) {
+    super(owner, remote, gateway, ownedInventory, id, createWhenMissing, shellPath)
+  }
+
+  override dispose(): Promise<void> {
+    return this.cleanup ??= Promise.all([super.dispose(), this.ownedInventory.dispose()])
+      .then(() => {}).finally(this.released)
+  }
+}
+
 /** Session and occurrence lookup, independent tab and terminal identities and background cleanup. */
 export class ClientTerminals extends Service {
   /** Failed cleanup tasks; successful and in-progress closes have no visible notification. */
@@ -44,6 +60,7 @@ export class ClientTerminals extends Service {
   private readonly closing = new Map<WebTerminalId, Promise<void>>()
   private readonly closed = new Set<WebTerminalId>(this.requests.pending().map(request => request.id))
   private disposed = false
+  private readonly ownedViews = new Set<{ dispose(): Promise<void> }>()
   private readonly views = new Map<SessionId, Map<string, TerminalView>>()
   private readonly inventories = new Map<SessionId, TerminalInventory>()
   private readonly bindings = new TerminalBindings()
@@ -78,7 +95,8 @@ export class ClientTerminals extends Service {
       this.bindings.clear()
       const holds = [...this.holds.values()].flatMap(holds => [...holds.values()].map(hold => hold.dispose()))
       this.holds.clear()
-      await Promise.all([...listing, ...detaching, ...holds, ...this.releasing, ...this.closing.values()])
+      const owned = [...this.ownedViews].map(view => view.dispose())
+      await Promise.all([...listing, ...detaching, ...owned, ...holds, ...this.releasing, ...this.closing.values()])
     }, 'terminal-controller.client.views')
     for (const request of this.requests.pending()) this.cleanup(request)
   }
@@ -106,6 +124,35 @@ export class ClientTerminals extends Service {
       this.reconcileHolds()
       void view.refresh()
     }
+    return view
+  }
+
+  /**
+   * Build a view for an explicitly owned transport without assigning a Session.
+   * @param owner - Adapter-owned resource identity.
+   * @param transport - Existing terminal operations bound to that resource.
+   * @param id - Requested running-instance identity.
+   * @param signal - Owner lifetime; releasing it only detaches Client work.
+   * @param createWhenMissing - Whether this is a newly created card.
+   * @param shellPath - Optional shell chosen for this instance.
+   * @returns The same screen and streaming model used by sidebar terminals.
+   */
+  createView<Owner>(owner: Owner, transport: TerminalRemoteFor<Owner>, id: WebTerminalId,
+    signal: AbortSignal, createWhenMissing: boolean = true, shellPath?: string): TerminalView<Owner> {
+    if (this.disposed) throw new Error('Terminal view factory disposed')
+    const inventory = new TerminalInventory(() => transport.list(owner))
+    const dispose = (): void => {
+      void view.dispose().catch((error: unknown) => {
+        this.ctx.logger.error('Owned terminal view cleanup failed', error)
+      })
+    }
+    const view = new OwnedTerminalView(owner, transport, this.ctx.remote, inventory, id, createWhenMissing, shellPath, () => {
+      signal.removeEventListener('abort', dispose)
+      this.ownedViews.delete(view)
+    })
+    this.ownedViews.add(view)
+    signal.addEventListener('abort', dispose, { once: true })
+    if (signal.aborted) dispose()
     return view
   }
 

@@ -53,6 +53,7 @@ async function bench() {
   ctx.provide('locale', locale)
   const mock = RemoteMock.create().load(remoteDefaultResponses)
   onTestFinished(() => { mock.assertNoUnmatched() })
+  onTestFinished(() => ctx.fiber.dispose())
   let catalog = CATALOG
   let catalogCalls = 0
   let catalogFailure: string | undefined
@@ -68,7 +69,13 @@ async function bench() {
       return Promise.resolve({ ok: true as const, value: catalog })
     },
   }
-  const remote = new TestRemote(ctx, { settings: mock.remote.settings, permissionPresets })
+  let saveFailure: string | undefined
+  const updateSettings = vi.fn(async () => saveFailure === undefined
+    ? { ok: true as const, value: {} }
+    : { ok: false as const, error: { code: 'gateway/internal', message: saveFailure } })
+  const remote = new TestRemote(ctx, {
+    settings: { describe: mock.remote.settings.describe, update: updateSettings }, permissionPresets,
+  })
   ctx.provide('connection', {
     generation: {
       getSnapshot: () => ({ id: 1, host: { home: '/host', isLoopback: true } }),
@@ -103,7 +110,7 @@ async function bench() {
   })
   const values = new Map<SessionId, PermissionSelection>()
   const commands: string[] = []
-  let commandResult: { ok: boolean; matched?: boolean } = { ok: true, matched: true }
+  let commandResult: { ok: boolean; matched?: boolean; error?: string } = { ok: true, matched: true }
   const session = (id: SessionId) => ({
     projections: {
       faceOf: (key: string) => ({
@@ -111,13 +118,18 @@ async function bench() {
         subscribe: () => () => {},
       }),
     },
-    command: (line: string) => {
+  })
+  remote.provideNamespaces({ commands: {
+    execute: (_sessionId: SessionId, line: string) => {
       commands.push(line)
       return Promise.resolve(commandResult.ok
-        ? { ok: true as const, value: { matched: commandResult.matched ?? true } }
+        ? { ok: true as const, value: commandResult.matched === false ? undefined : {
+          commandId: 'permission-command',
+          result: commandResult.error === undefined ? { kind: 'success' as const } : { kind: 'error' as const, text: commandResult.error },
+        } }
         : { ok: false as const, error: { code: 'gateway/internal', message: 'boom' } })
     },
-  })
+  } })
   ctx.provide('sessions', {
     binding: (id: SessionId) => (values.has(id) ? { sessionId: id, session: session(id) } : undefined),
   })
@@ -125,14 +137,15 @@ async function bench() {
   await fiber.await()
   await vi.waitFor(() => { expect(catalogCalls).toBe(1) })
   return {
-    ctx, fiber, locale, values, commands, remote, dismissed,
+    ctx, fiber, locale, values, commands, remote, dismissed, updateSettings,
+    setSaveFailure: (message: string | undefined) => { saveFailure = message },
     catalogCalls: () => catalogCalls,
     setCatalog: (value: PermissionCatalog) => {
       catalog = value
       remote.emit('permission-presets/catalog-changed', [])
     },
     setCatalogFailure: (message: string | undefined) => { catalogFailure = message },
-    setResult: (r: { ok: boolean; matched?: boolean }) => { commandResult = r },
+    setResult: (r: { ok: boolean; matched?: boolean; error?: string }) => { commandResult = r },
     decoration: () => decoration,
     shell: () => shell,
     openShell: (): PopupSelectController<{ sessionId: SessionId }> => {
@@ -185,6 +198,7 @@ describe('ui-permission browser plugin', () => {
     expect(selectInjected?.hooks.permissionCatalog.getSnapshot().value).toEqual(CATALOG)
     await expect(selectInjected.select('auto')).resolves.toBe(true)
     expect(b.commands).toEqual(['/permission auto'])
+    expect(b.updateSettings).not.toHaveBeenCalled()
     expect(b.catalogCalls()).toBe(1)
   })
 
@@ -318,13 +332,31 @@ describe('ui-permission browser plugin', () => {
     b.values.set(sid('s1'), { currentValue: 'workspace-write' })
     await b.popup().onSelect({ id: 'danger-full-access', label: 'danger-full-access' }, proj)
     expect(b.commands).toEqual(['/permission danger-full-access'])
+    expect(b.updateSettings).toHaveBeenCalledExactlyOnceWith('permission', { defaultPreset: 'danger-full-access' }, undefined)
     b.setResult({ ok: false })
     await expect(b.popup().onSelect({ id: 'read-only', label: 'read-only' }, proj)).rejects.toThrow(/permission switch failed/)
     b.setResult({ ok: true, matched: false })
     await expect(b.popup().onSelect({ id: 'read-only', label: 'read-only' }, proj)).rejects.toThrow(/no \/permission command/)
+    b.setResult({ ok: true, error: 'permission change refused' })
+    await expect(b.popup().onSelect({ id: 'read-only', label: 'read-only' }, proj)).rejects.toThrow('permission change refused')
     // An unmaterialized session throws before any submit.
     await expect(b.popup().onSelect({ id: 'read-only', label: 'read-only' }, { sessionId: sid('ghost') }))
       .rejects.toThrow(/not materialized/)
+    expect(b.updateSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a saved-default failure after switching and can retry the current preset', async () => {
+    const b = await bench()
+    const selectEntry = b.permissionSelect()!
+    const select = (selectEntry.inject as unknown as (sessionId: SessionId) => PermissionSelectInjected)(sid('s1'))
+    b.values.set(sid('s1'), { currentValue: 'workspace-write' })
+    b.setSaveFailure('disk full')
+    await expect(select.select('danger-full-access')).rejects.toThrow('This session’s permission changed, but its default could not be saved: disk full')
+    expect(b.commands).toEqual(['/permission danger-full-access'])
+    b.values.set(sid('s1'), { currentValue: 'danger-full-access' })
+    b.setSaveFailure(undefined)
+    await expect(select.select('danger-full-access')).resolves.toBe(true)
+    expect(b.updateSettings).toHaveBeenCalledTimes(2)
   })
 
   it('disposal removes the decoration (HMR safety)', async () => {

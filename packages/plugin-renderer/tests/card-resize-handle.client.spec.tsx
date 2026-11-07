@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CardResizeHandle } from '../src/client/CardResizeHandle.tsx'
 import { resizeResource, type ResourceSize } from '../src/client/resource-size.ts'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 function fixture({ collapsed = false, contentVisible = true, size = { width: 500, height: 280 } }: {
   collapsed?: boolean
@@ -102,12 +102,31 @@ describe('Convax resource card resizing', () => {
     expect(b.pointerCapture.setPointerCapture).toHaveBeenCalledExactlyOnceWith(7)
   })
 
-  it.each(['pointercancel', 'lostpointercapture', 'blur', 'Escape'])('cancels the gesture on %s without saving it', (ending) => {
+  it('keeps resizing after capture loss and commits the final release on the canvas once', () => {
+    const b = fixture()
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointermove', 120, 130)
+    b.grip.releasePointerCapture(7)
+    pointer(b.grip, 'lostpointercapture', 120, 130)
+    expect(b.grip.hasAttribute('data-resizing')).toBe(true)
+    expect(b.props.commit).not.toHaveBeenCalled()
+    pointer(document.body, 'pointermove', 140, 150)
+    expect(b.props.preview).toHaveBeenLastCalledWith({ width: 700, height: 460 })
+    pointer(document.body, 'pointerup', 160, 170)
+    expect(b.props.commit).toHaveBeenCalledExactlyOnceWith({ width: 740, height: 500 })
+    expect(b.props.preview).toHaveBeenLastCalledWith(null)
+    expect(b.grip.hasAttribute('data-resizing')).toBe(false)
+    pointer(b.grip, 'pointerup', 180, 190)
+    expect(b.props.commit).toHaveBeenCalledOnce()
+  })
+
+  it.each(['pointercancel', 'blur', 'window blur', 'Escape'])('cancels the gesture on %s without saving it', (ending) => {
     const b = fixture()
     pointer(b.grip, 'pointerdown', 100, 100)
     pointer(b.grip, 'pointermove', 120, 130)
     expect(b.props.preview).toHaveBeenLastCalledWith({ width: 660, height: 420 })
     if (ending === 'blur') fireEvent.blur(b.grip)
+    else if (ending === 'window blur') fireEvent(window, new Event('blur'))
     else if (ending === 'Escape') fireEvent.keyDown(b.grip, { key: 'Escape' })
     else pointer(b.grip, ending, 120, 130)
     expect(b.grip.hasAttribute('data-resizing')).toBe(false)
@@ -116,6 +135,36 @@ describe('Convax resource card resizing', () => {
     pointer(b.grip, 'pointerup', 120, 130)
     expect(b.props.commit).not.toHaveBeenCalled()
     expect(b.parentKey).not.toHaveBeenCalled()
+  })
+
+  it.each(['release', 'pointercancel', 'blur', 'window blur', 'Escape', 'unmount'])('removes document gesture listeners after capture loss and %s', (ending) => {
+    const b = fixture()
+    const listen = vi.spyOn(document, 'addEventListener')
+    const unlisten = vi.spyOn(document, 'removeEventListener')
+    const listenWindow = vi.spyOn(window, 'addEventListener')
+    const unlistenWindow = vi.spyOn(window, 'removeEventListener')
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointermove', 120, 130)
+    b.grip.releasePointerCapture(7)
+    pointer(b.grip, 'lostpointercapture', 120, 130)
+    const listeners = listen.mock.calls.filter(([type]) => ['pointermove', 'pointerup', 'pointercancel'].includes(type))
+    expect(listeners).toHaveLength(3)
+    const blur = listenWindow.mock.calls.find(([type]) => type === 'blur')
+    expect(blur).toBeDefined()
+    if (ending === 'release') pointer(document.body, 'pointerup', 140, 150)
+    else if (ending === 'pointercancel') pointer(document.body, 'pointercancel', 140, 150)
+    else if (ending === 'blur') fireEvent.blur(b.grip)
+    else if (ending === 'window blur') fireEvent(window, new Event('blur'))
+    else if (ending === 'Escape') fireEvent.keyDown(b.grip, { key: 'Escape' })
+    else b.unmount()
+    for (const listener of listeners) expect(unlisten).toHaveBeenCalledWith(...listener)
+    expect(unlistenWindow).toHaveBeenCalledWith(...blur!)
+    const previews = b.props.preview.mock.calls.length
+    pointer(document.body, 'pointermove', 180, 190)
+    pointer(document.body, 'pointerup', 180, 190)
+    expect(b.props.preview).toHaveBeenCalledTimes(previews)
+    expect(b.props.preview).toHaveBeenLastCalledWith(null)
+    expect(b.props.commit).toHaveBeenCalledTimes(ending === 'release' ? 1 : 0)
   })
 
   it('releases pointer capture and clears the current preview callback on unmount', () => {

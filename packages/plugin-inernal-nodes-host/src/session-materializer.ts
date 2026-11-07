@@ -9,6 +9,8 @@ import { buildForkSeed } from '@deepseek-ai/dsh-session/fork'
 import { SessionPersistenceNotFoundError } from '@deepseek-ai/dsh-session-persistence'
 import type {} from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import type {} from '@deepseek-ai/dsh-permission-presets'
+import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type { CanvasRepository } from '@deepseek-ai/dsh-convax-plugin-host'
 import type { CanvasSessionReservation, CanvasThreadIntent } from '@deepseek-ai/dsh-convax-plugin-host'
 import { threadRequestSchema } from '@deepseek-ai/dsh-convax-plugin-host'
@@ -76,14 +78,22 @@ export class CanvasSessionMaterializer implements CanvasThreadSessions {
       await this.ctx.sessionPersistence.flush()
     }
     const agentPreset = await this.preset(requested)
+    const permissions = request.kind === 'create' ? this.ctx.get('permissionPresets') : undefined
+    let permission: CanvasSessionReservation['permission']
+    if (permissions !== undefined) {
+      const preset = permissions.defaultPreset
+      const spec = permissions.resolve(preset)
+      permission = { preset, sandbox: spec.sandbox, approval: spec.approval }
+    }
     return {
       phase: 'reserved', sessionId: SessionId(`session-${randomUUID()}`), createdAt: Date.now(), cwd,
       ...(agentPreset === undefined ? {} : { agentPreset }), ...(boundary === undefined ? {} : { boundary }),
+      ...(permission === undefined ? {} : { permission }),
     }
   }
 
   private async persist(request: CanvasThreadRequest, reservation: CanvasSessionReservation): Promise<void> {
-    let seed: readonly SessionEvent[] = []
+    let seed: readonly SessionEvent[] = initialPermissionEvents(reservation)
     if (request.kind === 'fork') {
       using source = await this.ctx.sessionQuery.observeSession(request.sourceSessionId)
       if (reservation.boundary === undefined || source.events[reservation.boundary]?.seq !== reservation.boundary) throw new Error('Reserved fork source no longer contains its inherited prefix')
@@ -125,6 +135,16 @@ export class CanvasSessionMaterializer implements CanvasThreadSessions {
       || inherited !== (reservation.boundary === undefined ? 0 : reservation.boundary + 1)) throw new Error('Reserved Session has different persisted metadata')
     if (!isDeepStrictEqual(existing, seed.slice(0, existing.length))) throw new Error('Reserved Session has a different inherited prefix')
   }
+}
+
+function initialPermissionEvents(reservation: CanvasSessionReservation): readonly SessionEvent[] {
+  const permission = reservation.permission
+  if (permission === undefined) return []
+  return [
+    { type: 'permission/preset', seq: SessionSeq(0), time: reservation.createdAt, data: { preset: permission.preset } },
+    { type: 'sandbox/mode', seq: SessionSeq(1), time: reservation.createdAt, data: { mode: permission.sandbox } },
+    { type: 'approval/policy', seq: SessionSeq(2), time: reservation.createdAt, data: { policy: permission.approval } },
+  ]
 }
 
 function completedPrefix(events: readonly SessionEvent[]): number | undefined {

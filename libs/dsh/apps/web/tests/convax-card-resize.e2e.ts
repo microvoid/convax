@@ -170,7 +170,8 @@ it('resizes every card at canvas zoom, retains previews and bindings, and restor
   await page.getByRole('menuitem', { name: 'All canvases', exact: true }).click()
   await page.locator(`[data-canvas-manager-row="${fixture.canvasId}"] button`).first().click()
   await page.locator('[data-canvas-gestures-ready]').waitFor()
-  await page.getByRole('combobox', { name: 'Canvas input mode', exact: true }).selectOption('touchpad')
+  await page.getByRole('button', { name: 'Canvas input mode', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Touchpad mode', exact: true }).click()
   const document = () => scaffold.ctx.convax.workspace().canvases.find(canvas => canvas.id === fixture.canvasId)!
   const file = page.locator(`[data-convax-resource="${fixture.fileId}"]`)
   const folder = page.locator(`[data-convax-resource="${fixture.folderId}"]`)
@@ -246,5 +247,106 @@ it('resizes every card at canvas zoom, retains previews and bindings, and restor
   for (const entry of cases) restored.push({ kind: entry.name, ...await dimensions(entry.card, entry.body) })
   await compareOrRefreshGolden(EXPECTED, JSON.stringify({ zoom: Number((await viewport(page))[0]!.toFixed(4)),
     cards: restored, connections: document().connections.length, draft: await composer.textContent() }, null, 2), webSnapshotMode())
+  expect(console.pageErrors).toEqual([])
+})
+
+it('commits a quick resize after pointer capture is lost and preserves Escape cancellation', async () => {
+  const scaffold = await launchWebScaffold({
+    extraOverlayPath: [join(BUNDLE, 'cordis.patch.yml'), fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))],
+    extraInstallAnchors: [join(BUNDLE, 'package.json')],
+  })
+  const owned: { browser?: Browser; page?: Page } = {}
+  onTestFinished(async ({ task }) => {
+    try {
+      if (task.result?.state === 'fail' && owned.page !== undefined) await saveFailureShot(owned.page, 'convax-card-resize-capture')
+    } finally { try { await owned.browser?.close() } finally { await scaffold.close() } }
+  })
+  const fixture = await seed(scaffold)
+  const htmlId = randomUUID() as CanvasNodeId
+  const htmlPath = join(scaffold.workspaceCwd, 'resize-frame.html')
+  await writeFile(htmlPath, '<!doctype html><title>Resize frame</title><p>Preview frame</p><input value="Preview input">')
+  await execute(scaffold, fixture.canvasId, { kind: 'add-node', node: {
+    id: htmlId, typeId: 'convax.file' as CanvasNodeTypeId, dataVersion: 1, data: { path: htmlPath }, position: { x: 80, y: 580 }, revision: 0,
+  } })
+  const browser = await chromium.launch()
+  owned.browser = browser
+  const page = await newEnglishPage(browser, 1100)
+  owned.page = page
+  const console = watchConsole(page)
+  await page.goto(scaffold.authenticatedUrl)
+  await page.locator('[data-convax-workspace]').waitFor({ timeout: 30_000 })
+  await page.getByRole('button', { name: 'Workspace actions', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'All canvases', exact: true }).click()
+  await page.locator(`[data-canvas-manager-row="${fixture.canvasId}"] button`).first().click()
+  await page.locator('[data-canvas-gestures-ready]').waitFor()
+  await page.getByRole('button', { name: 'Canvas input mode', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Touchpad mode', exact: true }).click()
+  const file = page.locator(`[data-convax-resource="${fixture.fileId}"]`)
+  const html = page.locator(`[data-convax-resource="${htmlId}"]`)
+  const chat = page.locator(`[data-convax-chat="${fixture.chatId}"]`)
+  await chat.locator('[data-composer-input][contenteditable="true"]').filter({ visible: true }).waitFor({ timeout: 15_000 })
+  await file.getByRole('button', { name: 'Expand notes.txt', exact: true }).click()
+  await positionCard(page, html)
+  await html.getByRole('button', { name: 'Expand resize-frame.html', exact: true }).click()
+  await html.locator('iframe').waitFor()
+  await setZoom(page, 0.75)
+  const cases = [
+    { name: 'file', id: fixture.fileId, card: file, body: file.locator('[data-convax-file-preview]'), grip: file.locator('[data-convax-resource-resize]') },
+    { name: 'html', id: htmlId, card: html, body: html.locator('[data-convax-file-preview]'), grip: html.locator('[data-convax-resource-resize]') },
+    { name: 'chat', id: fixture.chatId, card: chat, body: chat.locator('[data-conversation-scroll]').filter({ visible: true }), grip: chat.locator('[data-convax-chat-resize]').filter({ visible: true }) },
+  ]
+  const persistedSize = (id: CanvasNodeId, isChat: boolean) => page.evaluate(({ id, isChat }) => {
+    const value = JSON.parse(localStorage.getItem(isChat ? 'convax.chat.view.v1' : 'convax.canvas.view.v1') ?? '{}') as {
+      sizes?: Record<string, { width: number; height: number }>
+      resourceViews?: Record<string, { width: number; height: number }>
+    }
+    const size = (isChat ? value.sizes : value.resourceViews)?.[id]
+    return size === undefined ? undefined : { width: size.width, height: size.height }
+  }, { id, isChat })
+  const expected: Record<string, { width: number; height: number }> = {}
+  for (const entry of cases) {
+    await dragResize(page, entry.card, entry.grip, 90, 60)
+    await positionCard(page, entry.card)
+    await entry.card.hover({ position: { x: 30, y: 20 } })
+    const before = await dimensions(entry.card, entry.body)
+    const box = await entry.grip.boundingBox()
+    if (box === null) throw new Error('Resize capture fixture grip is missing')
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    const pointer = await entry.grip.evaluateHandle((element) => {
+      const pointer = { id: 0 }
+      element.addEventListener('pointerdown', (event) => {
+        if (event instanceof PointerEvent) pointer.id = event.pointerId
+      }, { once: true })
+      return pointer
+    })
+    await page.mouse.move(point.x, point.y)
+    await page.mouse.down()
+    await page.mouse.move(point.x - 30, point.y - 15)
+    await entry.grip.evaluate((element, pointer) => {
+      if (!element.hasPointerCapture(pointer.id)) throw new Error('Resize capture fixture did not capture the pointer')
+      element.releasePointerCapture(pointer.id)
+    }, pointer)
+    // The pointer finishes over preview content after crossing the minimum width.
+    await page.mouse.move(point.x - 300, point.y - 90)
+    await page.mouse.up()
+    await pointer.dispose()
+    expected[entry.name] = { width: entry.name === 'chat' ? 400 : 320, height: before.height - 120 }
+    await expect.poll(() => dimensions(entry.card, entry.body), { message: `${entry.name} commits after losing capture` }).toEqual(expected[entry.name])
+    await expect.poll(() => persistedSize(entry.id, entry.name === 'chat')).toEqual(expected[entry.name])
+
+    await positionCard(page, entry.card)
+    const cancelBox = await entry.grip.boundingBox()
+    if (cancelBox === null) throw new Error('Resize cancellation fixture grip is missing')
+    await page.mouse.move(cancelBox.x + cancelBox.width / 2, cancelBox.y + cancelBox.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(cancelBox.x + cancelBox.width / 2 + 60, cancelBox.y + cancelBox.height / 2 + 45)
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await expect.poll(() => dimensions(entry.card, entry.body)).toEqual(expected[entry.name])
+    expect(await persistedSize(entry.id, entry.name === 'chat')).toEqual(expected[entry.name])
+  }
+  await page.reload()
+  await page.locator('[data-convax-workspace]').waitFor({ timeout: 30_000 })
+  for (const entry of cases) await expect.poll(() => dimensions(entry.card, entry.body)).toEqual(expected[entry.name])
   expect(console.pageErrors).toEqual([])
 })

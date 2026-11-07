@@ -357,3 +357,83 @@ describe('Convax canvas tab dragging', () => {
     expect(b.props.move).not.toHaveBeenCalled()
   })
 })
+
+describe('Convax canvas tab overflow', () => {
+  function boundedFixture(width: number, compact = false) {
+    let notify: ResizeObserverCallback | undefined
+    const disconnect = vi.fn()
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { notify = callback }
+      observe() {}
+      disconnect = disconnect
+    })
+    const props: Props = {
+      tabs, activeId: id('gamma'), open: vi.fn(), close: vi.fn(), move: vi.fn(), rename: vi.fn(),
+      onShowAll: vi.fn(), compact,
+      t: ((key: ConvaxKey, values?: Record<string, string | number>) =>
+        en[key].replace(/\{(\w+)\}/g, (_match, name: string) => String(values?.[name] ?? ''))) as Props['t'],
+    }
+    const view = render(<CanvasTabs {...props} />)
+    const container = screen.getByRole('tablist', { name: 'All canvases' }).parentElement!
+    const resize = (value: number): void => {
+      Object.defineProperty(container, 'clientWidth', { configurable: true, value })
+      act(() => { notify?.([], {} as ResizeObserver) })
+    }
+    resize(width)
+    return { ...view, props, resize, disconnect, notify: () => { notify?.([], {} as ResizeObserver) } }
+  }
+
+  it('keeps the current canvas visible and makes every hidden canvas reachable through its owner', () => {
+    const b = boundedFixture(262)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Alpha', 'Gamma'])
+    expect(screen.getByRole('tab', { name: 'Gamma' }).getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'All canvases' }))
+    expect(b.props.onShowAll).toHaveBeenCalledOnce()
+    b.rerender(<CanvasTabs {...b.props} activeId={id('beta')} />)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Alpha', 'Beta'])
+    expect(screen.getByRole('tab', { name: 'Beta' }).getAttribute('aria-selected')).toBe('true')
+    b.resize(380)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Alpha', 'Beta', 'Gamma'])
+    expect(screen.queryByRole('button', { name: 'All canvases' })).toBeNull()
+    b.rerender(<CanvasTabs {...b.props} activeId={id('beta')} allOpen />)
+    expect(screen.getByRole('button', { name: 'All canvases' }).getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('keeps a focused canvas button mounted while it fits and moves focus to the list when it becomes hidden', () => {
+    const b = boundedFixture(380)
+    const alpha = screen.getByRole('tab', { name: 'Alpha' })
+    alpha.focus()
+    b.resize(262)
+    expect(document.activeElement).toBe(alpha)
+    b.resize(144)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Gamma'])
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'All canvases' }))
+  })
+
+  it('uses the full saved order for keyboard sorting even when the adjacent canvas is hidden', () => {
+    const b = boundedFixture(144)
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Gamma' }), { key: 'ArrowLeft', altKey: true })
+    expect(b.props.move).toHaveBeenCalledExactlyOnceWith(id('gamma'), id('beta'), 'before')
+  })
+
+  it('returns focus to the active canvas when closing the list after every tab fits again', () => {
+    const b = boundedFixture(262)
+    b.rerender(<CanvasTabs {...b.props} allOpen />)
+    screen.getByRole('button', { name: 'All canvases' }).focus()
+    b.resize(400)
+    expect(screen.getByRole('button', { name: 'All canvases' })).toBeDefined()
+    b.rerender(<CanvasTabs {...b.props} />)
+    expect(screen.queryByRole('button', { name: 'All canvases' })).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Gamma' }))
+  })
+
+  it('shows only the active canvas in compact mode and releases its width observer on unmount', () => {
+    const b = boundedFixture(800, true)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Gamma'])
+    expect(screen.getByRole('button', { name: 'All canvases' })).toBeDefined()
+    b.unmount()
+    expect(b.disconnect).toHaveBeenCalledOnce()
+    act(() => { b.notify() })
+    expect(screen.queryByRole('tab')).toBeNull()
+  })
+})

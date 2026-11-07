@@ -5,6 +5,8 @@ import { registerDefaultNodes } from './definitions.ts'
 import { registerCanvasAdmission } from './admission.ts'
 import { CanvasChatCoordinator } from './chats.ts'
 import { CanvasDeliveryCoordinator } from './deliveries.ts'
+import { CanvasTerminalController } from './terminals.ts'
+export { CanvasTerminalController } from './terminals.ts'
 
 export { registerDefaultNodes } from './definitions.ts'
 export { CanvasChatCoordinator } from './chats.ts'
@@ -26,6 +28,7 @@ export const inject = ['convax', 'fs', 'agents', 'sessions', 'sessionPersistence
  * @returns After delivery projection is ready; Session adaptation waits for its own dependencies.
  */
 export async function apply(ctx: Context): Promise<void> {
+  ctx.inject(['terminalController', 'subprocess', 'typert'], (scope) => { new CanvasTerminalController(scope) })
   registerDefaultNodes((definition) => { ctx.effect(() => ctx.convax.registerNodeType(definition)) })
   ctx.effect(() => registerCanvasAdmission(ctx, ctx.convax.repository), 'convax nodes: Session admission')
   const deliveries = new CanvasDeliveryCoordinator(ctx, ctx.convax.repository)

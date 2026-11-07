@@ -65,7 +65,7 @@ function CanvasManagerPanel(props: CanvasManagerProps) {
     onPointerDown={(event) => { event.stopPropagation() }} onClick={(event) => { event.stopPropagation() }}>
     <header className={css.header}>
       <h2 className={css.heading}>{t('canvas.all')}</h2>
-      <Tooltip label={t('canvas.manager.close')} portal>
+      <Tooltip label={t('canvas.manager.close')} side="bottom" portal>
         <Button size="sm" aria-label={t('canvas.manager.close')} onClick={close}><X size={16} aria-hidden /></Button>
       </Tooltip>
     </header>
@@ -137,7 +137,7 @@ function CanvasManagerRow({ canvas, current, chatCount, busy, t, menuOpen, setMe
       {current && <span className={css.current}><Check size={12} aria-hidden />{t('canvas.manager.current')}</span>}
       {canvas.archived === true && <Button size="sm" disabled={busy} onClick={archive}>{t('canvas.manager.unarchive')}</Button>}
       <Menu open={menuOpen} portal align="end" onClose={() => { setMenuOpen(false) }}
-        className={css.more} anchor={<Tooltip label={t('canvas.manager.actions', { name: canvas.title })} portal>
+        className={css.more} anchor={<Tooltip label={t('canvas.manager.actions', { name: canvas.title })} side="bottom" portal>
           <Button size="sm" data-canvas-manager-menu={canvas.id} aria-label={t('canvas.manager.actions', { name: canvas.title })}
             aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => { setMenuOpen(!menuOpen) }}><Ellipsis size={16} aria-hidden /></Button>
         </Tooltip>}

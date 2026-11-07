@@ -1,11 +1,10 @@
 /** Controlled graph presentation; Host commands own every durable edit. */
-import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background, NodeToolbar, Panel, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useStore as useFlowStore,
   type Connection, type Node, type NodeProps, type OnConnectEnd, type ReactFlowInstance, type Viewport,
 } from '@xyflow/react'
-import { Button, Tooltip, isBehindModal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, isBehindModal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   CanvasChat, CanvasCommand, CanvasConnectionId, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeIssue,
   CanvasNodeTypeInfo, CanvasPoint, CanvasPort, CanvasResource,
@@ -34,6 +33,9 @@ import { ConnectionCreationMenu, ConnectionCreationPreview } from './ConnectionC
 import { connectionDropPoint, isBlankConnectionTarget } from './connection-creation.ts'
 import type { CanvasClipboardNotice, CanvasClipboardView } from './canvas-clipboard.ts'
 import { useCanvasClipboard } from './use-canvas-clipboard.ts'
+import { CanvasAddToolbar } from './CanvasAddToolbar.tsx'
+import { CanvasViewToolbar } from './CanvasViewToolbar.tsx'
+import toolbarCss from './CanvasToolbar.module.css'
 
 type CardData = Omit<CanvasNodeOwner, 'definition' | 'selected'> & {
   definition: CanvasNodeTypeInfo | undefined
@@ -55,6 +57,7 @@ function NodeCard({ data, selected }: NodeProps<GraphNode>) {
   if (definition.dataVersion !== node.dataVersion) return <NodePlaceholder {...retained} reason="incompatible" />
   return renderSlot('convax.node', {
     node, definition, ports: data.ports, selected, busy: data.busy,
+    active: data.active,
     canvasId: data.canvasId, canvasRevision: data.canvasRevision, chat: data.chat,
     remove: data.remove, command: data.command, openResource: data.openResource, openSource: data.openSource, createChat: data.createChat,
     focusSessionId: data.focusSessionId, consumeFocus: data.consumeFocus,
@@ -104,11 +107,15 @@ function retainedPorts(document: CanvasDocument, nodeId: CanvasNodeId, definitio
 
 /** Graph-specific props retain the parent Slot's framework-made translation seat. */
 export interface CanvasGraphProps {
+  readonly active?: boolean
   readonly document: CanvasDocument
+  readonly ensureCanvasDirectory?: () => Promise<string>
+  readonly getNode?: (nodeId: CanvasNodeId) => CanvasNode | undefined
+  readonly inputDirectory?: (nodeId: CanvasNodeId) => Promise<string | undefined>
   readonly chats: readonly CanvasChat[]
   readonly nodeTypes: readonly CanvasNodeTypeInfo[]
   readonly nodeIssues: readonly CanvasNodeIssue[]
-  readonly rendererDefinitions?: Readonly<Record<string, Pick<CanvasNodeRendererDefinition, 'defaultSize' | 'dragHandle' | 'presentation' | 'clipboardData'>>>
+  readonly rendererDefinitions?: Readonly<Record<string, Pick<CanvasNodeRendererDefinition, 'defaultSize' | 'defaultExpanded' | 'dragHandle' | 'presentation' | 'clipboardData'>>>
   readonly creations?: readonly CanvasCreationDefinition[]
   readonly renderSlot: PropsRenderSlots<'convax.node'>['renderSlot']
   readonly createChat: (cwd?: string, folderId?: CanvasNodeId, position?: CanvasPoint, origin?: CanvasConnectionOrigin) => void
@@ -139,24 +146,25 @@ export interface CanvasGraphProps {
   readonly addResources: (resources: readonly DroppedResource[], position: CanvasPoint, origin?: CanvasConnectionOrigin) => void
 }
 
-function CreationDock({ busy, creations, invoke }: {
+const FIT_PADDING = { top: '112px', bottom: '112px', left: 0.2, right: 0.2 } as const
+
+function CreationDock({ busy, creations, invoke, t }: {
   readonly busy: boolean
   readonly creations: readonly CanvasCreationDefinition[]
   readonly invoke: (entry: CanvasCreationDefinition, position: CanvasPoint) => void
+  readonly t: WorkspaceProps['t']
 }) {
   const width = useFlowStore(state => state.width)
   const height = useFlowStore(state => state.height)
   const transform = useFlowStore(state => state.transform)
-  return creations.length === 0 ? null : <Panel position="bottom-center" className={`${css.creationDock} nodrag nopan nowheel`}>
-    {creations.map((entry) => {
+  return creations.length === 0 ? null : <Panel position="bottom-center" className={`${css.creationDock} ${toolbarCss.bar} nodrag nopan nowheel`} data-convax-creation-dock="">
+    <CanvasAddToolbar creations={creations} busy={busy} t={t} create={(entry) => {
       const size = entry.defaultSize ?? { width: RESOURCE_CARD_WIDTH, height: 140 }
+      const top = width <= 600 ? 112 : 72
       const position = { x: (width / 2 - transform[0]) / transform[2] - size.width / 2,
-        y: (Math.max(24, (height - 112 - size.height * transform[2]) / 2) - transform[1]) / transform[2] }
-      const Icon = entry.icon
-      return <Button key={entry.id} size="sm" disabled={busy} onClick={() => { invoke(entry, position) }}>
-        {Icon !== undefined && <Icon size={16} aria-hidden />}{typeof entry.label === 'string' ? entry.label : entry.label()}
-      </Button>
-    })}
+        y: (Math.max(top, top + (height - top - 112 - size.height * transform[2]) / 2) - transform[1]) / transform[2] }
+      invoke(entry, position)
+    }} />
   </Panel>
 }
 
@@ -170,12 +178,14 @@ export function CanvasGraph(props: CanvasGraphProps) {
 }
 
 function CanvasGraphContent({
-  document, chats, nodeTypes, nodeIssues, rendererDefinitions = {}, creations = [], renderSlot, createChat, threadFocus, consumeThreadFocus,
+  active = true, document, ensureCanvasDirectory, getNode, inputDirectory, chats, nodeTypes, nodeIssues,
+  rendererDefinitions = {}, creations = [], renderSlot, createChat, threadFocus, consumeThreadFocus,
   t, busy, viewport, setViewport, inputMode, setInputMode, resourceViews, setResourceExpanded, setResourcePreviewSize,
   command, openResource, openSource, resolveFilePath, addResources, addProject, addWindow, captureConnectionTarget, reportClipboard,
   chatPresentations, applyChatPresentation, applyResourceView,
   history, replayHistory,
 }: CanvasGraphProps) {
+  const dragSelects = inputMode === 'touchpad'
   const cancelNativeConnection = useFlowStore(state => state.cancelConnection)
   const graph = useRef<HTMLDivElement>(null)
   const filePicker = useRef<HTMLInputElement>(null)
@@ -224,7 +234,10 @@ function CanvasGraphContent({
   const [drag, setDrag] = useState<{ revision: number; positions: Record<string, { x: number; y: number }> }>({
     revision: document.revision, positions: {},
   })
-  const [selection, setSelection] = useState<string[]>([])
+  const [selectedNodeIds, setSelection] = useState<string[]>([])
+  const retainedNodeIds = useMemo(() => new Set<string>(document.nodes.map(node => node.id)), [document.nodes])
+  // Host updates can remove selected nodes before React Flow emits a selection change.
+  const selection = useMemo(() => selectedNodeIds.filter(id => retainedNodeIds.has(id)), [selectedNodeIds, retainedNodeIds])
   const [edgeSelection, setEdgeSelection] = useState<string[]>([])
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
   const [measurements, setMeasurements] = useState<ReadonlyMap<string, { width: number; height: number }>>(new Map())
@@ -241,7 +254,7 @@ function CanvasGraphContent({
   persistViewport.current = setViewport
   useEffect(() => {
     const root = graph.current
-    if (root === null || flow === null) return
+    if (!active || root === null || flow === null) return
     const controls = {
       getViewport: () => flow.getViewport(),
       setViewport: (next: Viewport) => { void flow.setViewport(next) },
@@ -259,13 +272,14 @@ function CanvasGraphContent({
       releaseWheel()
       releasePan()
     }
-  }, [flow, inputMode])
+  }, [active, flow, inputMode])
   useEffect(() => {
-    const retainedIds = new Set<string>(document.nodes.map(node => node.id))
-    setMeasurements(current => [...current.keys()].every(id => retainedIds.has(id))
+    setSelection(current => current.every(id => retainedNodeIds.has(id))
+      ? current : current.filter(id => retainedNodeIds.has(id)))
+    setMeasurements(current => [...current.keys()].every(id => retainedNodeIds.has(id))
       ? current
-      : new Map([...current].filter(([id]) => retainedIds.has(id))))
-  }, [document.nodes])
+      : new Map([...current].filter(([id]) => retainedNodeIds.has(id))))
+  }, [retainedNodeIds])
   const inputNodes = useMemo(() => {
     const byId = new Map(document.nodes.map(node => [node.id, node]))
     const incoming = new Map<CanvasNodeId, Map<CanvasNodeId, CanvasNode>>()
@@ -302,43 +316,43 @@ function CanvasGraphContent({
         remove: () => { void command({ kind: 'remove-nodes', nodeIds: [node.id] }) },
         command, openResource, openSource, createChat: (cwd, folderId) => {
           createChat(cwd, folderId, { x: node.position.x + RESOURCE_CARD_WIDTH + 120, y: node.position.y })
-        }, busy, t,
+        }, active, busy, t,
         chooseWindow: addWindow === undefined ? undefined : (nodeId) => { addWindow(node.position, nodeId) },
         chat: chats.find(item => item.nodeId === node.id),
         canvasId: document.id, canvasRevision: document.revision, renderSlot,
-        focusSessionId: threadFocus?.nodeId === node.id ? threadFocus.sessionId : undefined,
+        focusSessionId: active && threadFocus?.nodeId === node.id ? threadFocus.sessionId : undefined,
         consumeFocus: () => { if (threadFocus?.nodeId === node.id) consumeThreadFocus(node.id, threadFocus.sessionId) },
         inputs: inputNodes.get(node.id) ?? [],
-        resourceExpanded: resourceView?.expanded ?? false,
+        resourceExpanded: resourceView?.expanded ?? rendererDefinitions[node.typeId]?.defaultExpanded ?? false,
         setResourceExpanded: (expanded) => { setResourceExpanded(node.id, expanded) },
         ...(resourceView?.height === undefined ? {} : { resourcePreviewHeight: resourceView.height }),
         ...(resourceView?.width === undefined ? {} : { resourcePreviewWidth: resourceView.width }),
         setResourcePreviewSize: (size) => { setResourcePreviewSize(node.id, size) },
-        focusNode: () => { void flow?.fitView({ nodes: [{ id: node.id }], padding: 0.2 }) },
+        focusNode: () => { if (active) void flow?.fitView({ nodes: [{ id: node.id }], padding: FIT_PADDING }) },
       },
     }
   }), [document, nodeTypes, nodeIssues, rendererDefinitions, drag, selection, measurements, t, command, openResource, openSource, chats,
     renderSlot, createChat, threadFocus, consumeThreadFocus, busy, flow, inputNodes,
-    resourceViews, setResourceExpanded, setResourcePreviewSize, addWindow, activityHighlight])
+    resourceViews, setResourceExpanded, setResourcePreviewSize, addWindow, activityHighlight, active])
   const revealPastedNodes = useCallback((): void => {
     const ids = pendingReveal.current
-    if (graph.current === null || flow === null || ids === null
+    if (!active || graph.current === null || flow === null || ids === null
       || !ids.every(id => flow.getNode(id)?.measured?.width !== undefined)) return
     pendingReveal.current = null
-    void flow.fitView({ nodes: ids.map(id => ({ id })), padding: 0.2 })
-  }, [flow])
+    void flow.fitView({ nodes: ids.map(id => ({ id })), padding: FIT_PADDING })
+  }, [active, flow])
   const revealActivityNode = useCallback((): void => {
     const request = pendingActivityReveal.current
-    if (flow === null || request === null || request.canvasId !== document.id
+    if (!active || flow === null || request === null || request.canvasId !== document.id
       || request.waitingForExpansion || latestPresentations.current[request.nodeId]?.collapsed === true) return
     const target = flow.getNode(request.nodeId)
     if (target?.measured?.width === undefined || target.measured.height === undefined) return
     pendingActivityReveal.current = null
     setActivityHighlight(request.nodeId)
-    void flow.fitView({ nodes: [{ id: request.nodeId }], padding: 0.2,
+    void flow.fitView({ nodes: [{ id: request.nodeId }], padding: FIT_PADDING,
       minZoom: MIN_ZOOM, maxZoom: flow.getZoom(),
       duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240 })
-  }, [flow, document.id])
+  }, [active, flow, document.id])
   useEffect(() => {
     if (activityCanvas.current !== document.id) {
       activityCanvas.current = document.id
@@ -364,7 +378,7 @@ function CanvasGraphContent({
   const views = Object.fromEntries(nodes.map((node): [string, CanvasClipboardView] => [node.id,
     rendererDefinitions[node.data.node.typeId]?.presentation === 'chat' ? { kind: 'chat', presentation: chatPresentations[node.id] ?? { collapsed: false } }
       : rendererDefinitions[node.data.node.typeId]?.presentation === 'resource'
-        ? { kind: 'resource', presentation: resourceViews[node.id] ?? { expanded: false } } : { kind: 'default' },
+        ? { kind: 'resource', presentation: resourceViews[node.id] ?? { expanded: rendererDefinitions[node.data.node.typeId]?.defaultExpanded ?? false } } : { kind: 'default' },
   ]))
   const clipboard = useCanvasClipboard({ document, dimensions, views,
     copyData: node => rendererDefinitions[node.typeId]?.clipboardData?.(node) ?? structuredClone(node.data),
@@ -389,7 +403,10 @@ function CanvasGraphContent({
     },
   })
   const invokeCreation = (entry: CanvasCreationDefinition, position: CanvasPoint, origin?: CanvasConnectionOrigin): void => {
-    const context: CanvasCreationContext = { position, ...(origin === undefined ? {} : { origin }), command,
+    const context: CanvasCreationContext = { canvasId: document.id, position, ...(origin === undefined ? {} : { origin }), command,
+      ensureCanvasDirectory: ensureCanvasDirectory ?? (() => Promise.reject(new Error('Canvas directories are unavailable'))),
+      getNode: getNode ?? (nodeId => document.nodes.find(node => node.id === nodeId)),
+      inputDirectory: inputDirectory ?? (() => Promise.resolve(undefined)),
       addProject, addFiles: pickFiles, createChat, addWindow }
     entry.create(context)
   }
@@ -420,7 +437,7 @@ function CanvasGraphContent({
   }, [cancelNativeConnection])
   useEffect(() => {
     const root = graph.current
-    if (root === null) return
+    if (!active || root === null) return
     const owner = root.ownerDocument
     const cancelDrag = (): void => {
       if (pointerDrag.current === null) return
@@ -491,7 +508,7 @@ function CanvasGraphContent({
           return
         case 'zoom-in': void flow?.zoomIn(); return
         case 'zoom-out': void flow?.zoomOut(); return
-        case 'fit': void flow?.fitView({ padding: 0.2 }); return
+        case 'fit': void flow?.fitView({ padding: FIT_PADDING }); return
         case 'copy': void clipboard.copy(selection as CanvasNodeId[]); return
         case 'paste': void clipboard.paste(); return
         case 'duplicate': void clipboard.duplicate(selection as CanvasNodeId[]); return
@@ -532,7 +549,7 @@ function CanvasGraphContent({
       owner.defaultView?.removeEventListener('blur', cancelConnectionCreation)
     }
   }, [document, nodes, selection, hoveredEdge, edgeSelection, busy, cut, command, flow, contextMenu, closeContextMenu,
-    connectionMenu, cancelConnectionCreation, clipboard, history, replayHistory])
+    connectionMenu, cancelConnectionCreation, clipboard, history, replayHistory, active])
   const edges: GraphEdge[] = document.connections.map(connection => ({
     id: connection.id, type: 'convaxConnection', source: connection.source, target: connection.target,
     sourceHandle: connection.sourcePort, targetHandle: connection.targetPort,
@@ -599,7 +616,7 @@ function CanvasGraphContent({
   }
   return (
     <div ref={graph} className={css.graph} data-convax-graph="" data-convax-clipboard-pending={clipboard.pending || undefined}
-      data-convax-history-pending={history.pending || undefined}
+      data-convax-history-pending={history.pending || undefined} data-canvas-drag-select={dragSelects || undefined}
       onPointerDownCapture={() => { pendingActivityReveal.current = null }}
       onWheelCapture={() => { pendingActivityReveal.current = null }}
       onKeyDownCapture={() => { pendingActivityReveal.current = null }}
@@ -633,7 +650,12 @@ function CanvasGraphContent({
         onSelectionContextMenu={(event) => { openContextMenu(event) }}
         panOnScroll={false} zoomOnScroll={false} zoomOnPinch preventScrolling={false}
         panActivationKeyCode={null} zoomActivationKeyCode={null}
+        // Touchpad panning comes from two-finger scroll, Space, and the middle button, so a primary
+        // drag box-selects there. Mouse mode keeps its drag-to-pan navigation. The button array also
+        // leaves touch panning to React Flow instead of turning touch drags into a selection.
+        panOnDrag={dragSelects ? [1] : true} selectionOnDrag={dragSelects}
         onNodesChange={(changes) => {
+          if (!active) return
           const dimensions = changes.filter(change => change.type === 'dimensions')
           if (dimensions.length > 0) setMeasurements((current) => {
             const next = new Map(current)
@@ -752,7 +774,7 @@ function CanvasGraphContent({
             flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }))
         }}
         {...viewport === undefined ? {} : { defaultViewport: viewport }}
-        fitView={viewport === undefined} onMove={(_event, next) => { setZoom(next.zoom) }}
+        fitView={viewport === undefined} fitViewOptions={{ padding: FIT_PADDING }} onMove={(_event, next) => { setZoom(next.zoom) }}
         onMoveEnd={(_event, next) => { if (!viewportGesture.current) setViewport(next) }}
         minZoom={MIN_ZOOM} maxZoom={MAX_ZOOM} proOptions={{ hideAttribution: true }}
       >
@@ -767,8 +789,8 @@ function CanvasGraphContent({
         </ViewportPortal>
         {connectionMenu !== null && <ConnectionCreationPreview origin={connectionMenu.origin} from={connectionMenu.from}
           to={connectionMenu.world} position={connectionMenu.position} />}
-        <CreationDock busy={busy} creations={creations} invoke={invokeCreation} />
-        <NodeToolbar nodeId={selection} position={Position.Top} isVisible={selection.length > 1}>
+        <CreationDock busy={busy} creations={creations} invoke={invokeCreation} t={t} />
+        <NodeToolbar nodeId={selection} position={Position.Top} isVisible={active && selection.length > 1}>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => {
             void command({ kind: 'remove-nodes', nodeIds: selection as CanvasNodeId[] }).then((saved) => {
               if (saved) setSelection([])
@@ -776,15 +798,17 @@ function CanvasGraphContent({
           }}>{t('selection.remove')}</Button>
         </NodeToolbar>
       </ReactFlow>
-      {connectionMenu !== null && <ConnectionCreationMenu point={connectionMenu.screen} busy={busy} close={closeConnectionMenu}
-        creations={creations.filter(entry => entry.connected !== false).map(entry => ({ id: entry.id, label: typeof entry.label === 'string' ? entry.label : entry.label(),
-          create: () => { invokeCreation(entry, connectionMenu.world, connectionMenu.origin) } }))} />}
-      {contextMenu !== null && <CanvasContextMenu point={contextMenu.screen} targetCount={contextMenu.nodeIds.length}
+      {active && connectionMenu !== null && <ConnectionCreationMenu point={connectionMenu.screen} busy={busy} close={closeConnectionMenu}
+        creations={creations.filter(entry => entry.connected !== false
+          && (entry.connectionDirection === undefined || entry.connectionDirection !== connectionMenu.origin.direction))
+          .map(entry => ({ id: entry.id, label: typeof entry.label === 'string' ? entry.label : entry.label(),
+            create: () => { invokeCreation(entry, connectionMenu.world, connectionMenu.origin) } }))} />}
+      {active && contextMenu !== null && <CanvasContextMenu point={contextMenu.screen} targetCount={contextMenu.nodeIds.length}
         busy={busy || clipboard.pending} history={history} replayHistory={replayHistory} t={t}
         close={closeContextMenu}
         creations={creations.map(entry => ({ id: entry.id, label: typeof entry.label === 'string' ? entry.label : entry.label(),
           create: () => { invokeCreation(entry, contextMenu.world) } }))}
-        focus={() => { void flow?.fitView({ nodes: contextMenu.nodeIds.map(id => ({ id })), padding: 0.2 }) }}
+        focus={() => { void flow?.fitView({ nodes: contextMenu.nodeIds.map(id => ({ id })), padding: FIT_PADDING }) }}
         remove={() => { void command({ kind: 'remove-nodes', nodeIds: [...contextMenu.nodeIds] }).then((saved) => {
           if (saved) setSelection(current => current.filter(id => !contextMenu.nodeIds.includes(id as CanvasNodeId)))
         }) }}
@@ -792,31 +816,14 @@ function CanvasGraphContent({
         copy={() => { void clipboard.copy(contextMenu.nodeIds) }}
         paste={() => { void clipboard.paste(contextMenu.world) }}
         duplicate={() => { void clipboard.duplicate(contextMenu.nodeIds) }}
-        fit={() => { void flow?.fitView({ padding: 0.2 }) }} />}
-      <div className={css.graphControls}>
-        <select className={css.inputMode} aria-label={t('canvas.inputMode')} value={inputMode}
-          onChange={(event) => {
-            const mode = event.currentTarget.value
-            if (mode === 'touchpad' || mode === 'mouse') setInputMode(mode)
-          }}>
-          <option value="touchpad">{t('canvas.input.touchpad')}</option>
-          <option value="mouse">{t('canvas.input.mouse')}</option>
-        </select>
-        <Tooltip label={t('canvas.zoom.out')} portal>
-          <Button size="sm" aria-label={t('canvas.zoom.out')} onClick={() => { void flow?.zoomOut() }}><span className={css.minus} /></Button>
-        </Tooltip>
-        <Tooltip label={t('canvas.zoom.reset')} portal>
-          <Button size="sm" aria-label={t('canvas.zoom.reset')} onClick={() => { void flow?.zoomTo(1) }}>{new Intl.NumberFormat(globalThis.document.documentElement.lang || 'en', { style: 'percent', maximumFractionDigits: 0 }).format(zoom)}</Button>
-        </Tooltip>
-        <Tooltip label={t('canvas.zoom.in')} portal>
-          <Button size="sm" aria-label={t('canvas.zoom.in')} onClick={() => { void flow?.zoomIn() }}><Plus size={14} aria-hidden /></Button>
-        </Tooltip>
-        <Button size="sm" onClick={() => { void flow?.fitView({ padding: 0.2 }) }}>{t('canvas.zoom.fit')}</Button>
-        <Button size="sm" disabled={busy || clipboard.pending || history.pending || !history.canUndo}
-          onClick={() => { replayHistory('undo') }}>{t('history.undo')}</Button>
-        <Button size="sm" disabled={busy || clipboard.pending || history.pending || !history.canRedo}
-          onClick={() => { replayHistory('redo') }}>{t('history.redo')}</Button>
-      </div>
+        fit={() => { void flow?.fitView({ padding: FIT_PADDING }) }} />}
+      {active && <CanvasViewToolbar className={css.graphControls} inputMode={inputMode} setInputMode={setInputMode}
+        zoom={zoom} locale={globalThis.document.documentElement.lang || 'en'} t={t}
+        zoomOut={() => { void flow?.zoomOut() }} resetZoom={() => { void flow?.zoomTo(1) }}
+        zoomIn={() => { void flow?.zoomIn() }} fit={() => { void flow?.fitView({ padding: FIT_PADDING }) }}
+        undoDisabled={busy || clipboard.pending || history.pending || !history.canUndo}
+        redoDisabled={busy || clipboard.pending || history.pending || !history.canRedo}
+        undo={() => { replayHistory('undo') }} redo={() => { replayHistory('redo') }} />}
       {document.nodes.length === 0 && <div className={css.graphHint}>{t('canvas.hint')}</div>}
     </div>
   )

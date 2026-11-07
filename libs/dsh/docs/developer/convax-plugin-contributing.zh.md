@@ -59,7 +59,7 @@ Profile 选择 bundle，bundle 贡献 Cordis 配置条目。Host 与 Client 在�
 
 准备过程检查提供方、节点版本及已组合文件系统，拒绝取消或源资源变化。准备失败时保留已提交连线，并报告引用插入失败。当前准备支持文件和文件夹引用；端口名称匹配不会将任意笔记文本转换为支持的输入格式。连线不启动下游执行。
 
-DSH 拥有消息、原生草稿与 thread 执行，Convax 拥有 Chat 绑定和图记录，并内嵌已有对话与输入框。新增模型可见输入必须能从 Session 历史重建。[草稿适配器](../../../../packages/plugin-renderer/src/client/draft-references.ts)、[手势集成](../../../../packages/plugin-renderer/src/client/Workspace.tsx)与 [Host 引用方法](../../../../packages/plugin-host/src/index.ts)展示实际职责分工。
+DSH 拥有消息、原生草稿与 thread 执行，Convax 拥有 Chat 绑定和图记录，并内嵌已有对话与输入框。新增模型可见输入必须能从 Session 历史重建。[草稿适配器](../../../../packages/plugin-inernal-nodes-renderer/src/client/draft-references.ts)、[手势集成](../../../../packages/plugin-renderer/src/client/Workspace.tsx)与 [Host 引用方法](../../../../packages/plugin-host/src/index.ts)展示实际职责分工。
 
 <a id="lifecycle-and-versions"></a>
 ## 处理生命周期与数据版本
@@ -88,7 +88,7 @@ npm 包版本与节点数据版本用途不同。Renderer 接受精确载荷版�
 | 提供方校验与取消在哪里定义？ | [Host 注册表](../../../../packages/plugin-host/src/registry.ts) |
 | 节点如何收到图操作和注入的 UI 依赖？ | [节点所有者 props](../../../../packages/plugin-renderer/src/client/props.ts)与 [renderer 注册](../../../../packages/plugin-renderer/src/client/node-renderers.tsx) |
 | 写入如何成为已提交快照？ | [事务仓库](../../../../packages/plugin-host/src/repository.ts) |
-| 图手势在哪里转为原生引用？ | [Workspace](../../../../packages/plugin-renderer/src/client/Workspace.tsx)与[草稿适配器](../../../../packages/plugin-renderer/src/client/draft-references.ts) |
+| 图手势在哪里转为原生引用？ | [Workspace](../../../../packages/plugin-renderer/src/client/Workspace.tsx)与[草稿适配器](../../../../packages/plugin-inernal-nodes-renderer/src/client/draft-references.ts) |
 
 示例的测试与安装验证步骤见 [counter README](../../../../packages/plugin-renderer/examples/counter/README.zh.md)。通用插件贡献规则、测试选择和发布流程分别参考 [DSH 开发教程](../user/develop/basic/index.zh.md)与[测试参考](../testing.zh.md)。
 

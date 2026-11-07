@@ -88,6 +88,18 @@
     },
     {
       "path": "../plugin-renderer"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/terminal-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-sidebar-terminal"
+    },
+    {
+      "path": "../../libs/dsh/packages/client/ui-sidebar-browser/tsconfig.client.json"
+    },
+    {
+      "path": "../plugin-inernal-nodes-host"
     }
   ]
 }

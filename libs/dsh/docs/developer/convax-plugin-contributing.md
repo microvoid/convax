@@ -59,7 +59,7 @@ An edge records a relationship, a reference belongs to an input draft, and sendi
 
 Preparation checks the provider, node version and composed filesystem, and rejects cancellation or a changed source. Failure leaves the committed edge intact and reports reference insertion failure. Current preparation accepts file and folder references; a matching port name does not turn arbitrary note text into a supported input format. Connections do not start downstream execution.
 
-DSH owns messages, native drafts and thread execution. Convax owns Chat bindings and graph records while embedding the existing conversation and composer. New model-visible input must remain reconstructable from Session history. The [draft adapter](../../../../packages/plugin-renderer/src/client/draft-references.ts), [gesture integration](../../../../packages/plugin-renderer/src/client/Workspace.tsx) and [Host reference method](../../../../packages/plugin-host/src/index.ts) show the actual separation.
+DSH owns messages, native drafts and thread execution. Convax owns Chat bindings and graph records while embedding the existing conversation and composer. New model-visible input must remain reconstructable from Session history. The [draft adapter](../../../../packages/plugin-inernal-nodes-renderer/src/client/draft-references.ts), [gesture integration](../../../../packages/plugin-renderer/src/client/Workspace.tsx) and [Host reference method](../../../../packages/plugin-host/src/index.ts) show the actual separation.
 
 <a id="lifecycle-and-versions"></a>
 ## Handle lifecycle and payload versions
@@ -88,7 +88,7 @@ Read only the owners needed for the selected change. This map narrows the first 
 | Where are provider validation and cancellation defined? | [Host registry](../../../../packages/plugin-host/src/registry.ts) |
 | How does a node receive graph actions and injected UI dependencies? | [Node owner props](../../../../packages/plugin-renderer/src/client/props.ts) and [renderer registration](../../../../packages/plugin-renderer/src/client/node-renderers.tsx) |
 | How do writes become committed snapshots? | [Transactional repository](../../../../packages/plugin-host/src/repository.ts) |
-| Where do graph gestures become native references? | [Workspace](../../../../packages/plugin-renderer/src/client/Workspace.tsx) and [draft adapter](../../../../packages/plugin-renderer/src/client/draft-references.ts) |
+| Where do graph gestures become native references? | [Workspace](../../../../packages/plugin-renderer/src/client/Workspace.tsx) and [draft adapter](../../../../packages/plugin-inernal-nodes-renderer/src/client/draft-references.ts) |
 
 The [counter README](../../../../packages/plugin-renderer/examples/counter/README.md) owns the example tests and installation checks. Refer to the [DSH development tutorial](../user/develop/basic/index.md) and [testing reference](../testing.md) for general plugin contribution, test selection and release workflows.
 

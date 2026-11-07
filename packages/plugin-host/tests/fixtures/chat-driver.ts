@@ -32,7 +32,8 @@ try {
   const rendererRow = [...ctx.loader.entries()].find(entry => entry.options.id === 'convax-renderer')
   const nodesHostRow = [...ctx.loader.entries()].find(entry => entry.options.id === 'convax-inernal-nodes-host')
   assert(hostRow?.fiber !== undefined && rendererRow?.fiber !== undefined && nodesHostRow?.fiber !== undefined)
-  assert.deepEqual(host.workspace().nodeTypes.map(type => type.id).sort(), ['convax.chat', 'convax.file', 'convax.folder', 'convax.window'])
+  assert.deepEqual(host.workspace().nodeTypes.map(type => type.id).sort(),
+    ['convax.browser', 'convax.chat', 'convax.file', 'convax.folder', 'convax.terminal', 'convax.window'])
   await hostRow.fiber.await()
   const hostFiber = hostRow.fiber
   let sourceId: SessionId

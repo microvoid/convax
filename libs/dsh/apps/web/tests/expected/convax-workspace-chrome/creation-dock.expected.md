@@ -1,0 +1,5 @@
+- button "Add folder or files"
+- button "Application window"
+- button "Terminal"
+- button "Browser"
+- button "New chat"

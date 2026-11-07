@@ -36,7 +36,6 @@
       "@deepseek-ai/dsh-convax-plugin-renderer/src/*": ["../../packages/plugin-renderer/src/*"],
       "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host": ["../../packages/plugin-inernal-nodes-host/src/index.ts"],
       "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host/src/*": ["../../packages/plugin-inernal-nodes-host/src/*"],
-      "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host/*": ["../../packages/plugin-inernal-nodes-host/src/*"],
       "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": ["../../packages/plugin-inernal-nodes-renderer/src/index.ts"],
       "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client": ["../../packages/plugin-inernal-nodes-renderer/src/client/index.ts"],
       "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/src/*": ["../../packages/plugin-inernal-nodes-renderer/src/*"],

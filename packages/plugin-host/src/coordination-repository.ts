@@ -79,7 +79,7 @@ export class CanvasCoordinationRepository {
   /**
    * Persist a fixed Session identity before any Session or Workspace write.
    * @param operationId - Existing Chat creation intention.
-   * @param candidate - Resolved directory, preset and immutable fork cut.
+   * @param candidate - Resolved directory, agent and permission defaults, and immutable fork cut.
    * @returns Original reservation when a retry already owns one.
    */
   reserveSession(operationId: CanvasOperationId, candidate: CanvasSessionReservation): Promise<CanvasSessionReservation> {

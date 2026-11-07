@@ -1,3 +1,25 @@
+.control {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.feedback {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 1;
+  width: max-content;
+  max-width: min(280px, 70vw);
+  padding: 8px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
 .trigger {
   display: inline-flex;
   align-items: center;

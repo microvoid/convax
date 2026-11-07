@@ -18,6 +18,7 @@ export type AgentPresetSettingsKey =
   | 'composerCreating'
   | 'composerLoadFailed'
   | 'composerCreateFailed'
+  | 'composerSaveFailed'
   | 'headerHint'
   | 'nav'
   | 'sectionIntro'
@@ -56,6 +57,7 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   composerCreating: 'Creating…',
   composerLoadFailed: 'Could not load modes: {reason}',
   composerCreateFailed: 'Could not create conversation: {reason}',
+  composerSaveFailed: 'Mode selected, but could not save it for new conversations: {reason}',
   ...guideEn,
   builtInGroup: 'Built-in', customGroup: 'Custom',
   sectionIntro: 'Choose the agent’s tools and how it works. Use Standard mode for everyday tasks, or Creator mode to add capabilities to DSH.',
@@ -111,6 +113,7 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   composerCreating: '正在创建…',
   composerLoadFailed: '无法加载模式：{reason}',
   composerCreateFailed: '无法创建会话：{reason}',
+  composerSaveFailed: '模式已选择，但无法保存为新会话默认值：{reason}',
   ...guideZh,
   builtInGroup: '内置', customGroup: '自定义',
   sectionIntro: '选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 DSH 的能力用「创造模式」。',
@@ -168,6 +171,7 @@ export const ja = {
   composerCreating: '作成中…',
   composerLoadFailed: 'モードを読み込めませんでした: {reason}',
   composerCreateFailed: '会話を作成できませんでした: {reason}',
+  composerSaveFailed: 'モードは選択されましたが、新しい会話の既定値を保存できませんでした: {reason}',
   ...guideJa,
   'builtInGroup': '組み込み',
   'customGroup': 'カスタム',
@@ -211,6 +215,7 @@ export const es = {
   composerCreating: 'Creando…',
   composerLoadFailed: 'No se pudieron cargar los modos: {reason}',
   composerCreateFailed: 'No se pudo crear la conversación: {reason}',
+  composerSaveFailed: 'Modo seleccionado, pero no se pudo guardar para nuevas conversaciones: {reason}',
   ...guideEs,
   builtInGroup: 'Incorporado', customGroup: 'personalizado',
   sectionIntro: 'Elija las herramientas del agente y cómo funciona. Utilice el modo Estándar para las tareas diarias o el modo Creador para agregar capacidades a DSH.',
@@ -266,6 +271,7 @@ export const fr = {
   composerCreating: 'Création…',
   composerLoadFailed: 'Impossible de charger les modes : {reason}',
   composerCreateFailed: 'Impossible de créer la conversation : {reason}',
+  composerSaveFailed: 'Mode sélectionné, mais impossible de l’enregistrer pour les nouvelles conversations : {reason}',
   ...guideFr,
   builtInGroup: 'Intégré', customGroup: 'Personnalisé',
   sectionIntro: 'Choisissez les outils de l’agent et son fonctionnement. Utilisez le mode Standard pour les tâches quotidiennes ou le mode Créateur pour ajouter des fonctionnalités à DSH.',
@@ -321,6 +327,7 @@ export const de = {
   composerCreating: 'Wird erstellt…',
   composerLoadFailed: 'Modi konnten nicht geladen werden: {reason}',
   composerCreateFailed: 'Gespräch konnte nicht erstellt werden: {reason}',
+  composerSaveFailed: 'Modus ausgewählt, konnte aber nicht für neue Gespräche gespeichert werden: {reason}',
   ...guideDe,
   builtInGroup: 'Eingebaut', customGroup: 'Benutzerdefiniert',
   sectionIntro: 'Wählen Sie die Tools des Agenten und deren Funktionsweise aus. Verwenden Sie den Standardmodus für alltägliche Aufgaben oder den Creator-Modus, um DSH Funktionen hinzuzufügen.',
@@ -376,6 +383,7 @@ export const ru = {
   composerCreating: 'Создание…',
   composerLoadFailed: 'Не удалось загрузить режимы: {reason}',
   composerCreateFailed: 'Не удалось создать разговор: {reason}',
+  composerSaveFailed: 'Режим выбран, но не удалось сохранить его для новых разговоров: {reason}',
   ...guideRu,
   builtInGroup: 'Встроенный', customGroup: 'Пользовательский',
   sectionIntro: 'Выбирайте инструменты агента и то, как они работают. Используйте стандартный режим для повседневных задач или режим Creator, чтобы расширить возможности DSH.',
@@ -431,6 +439,7 @@ export const pt = {
   composerCreating: 'Criando…',
   composerLoadFailed: 'Não foi possível carregar os modos: {reason}',
   composerCreateFailed: 'Não foi possível criar a conversa: {reason}',
+  composerSaveFailed: 'Modo selecionado, mas não foi possível salvá-lo para novas conversas: {reason}',
   ...guidePt,
   builtInGroup: 'Integrado', customGroup: 'Personalizado',
   sectionIntro: 'Escolha as ferramentas do agente e como funciona. Use o modo Padrão para tarefas diárias ou o modo Criador para adicionar recursos ao DSH.',

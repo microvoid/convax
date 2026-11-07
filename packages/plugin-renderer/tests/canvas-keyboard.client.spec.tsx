@@ -316,7 +316,7 @@ describe('Canvas context actions through the graph', () => {
     vi.mocked(b.props.resolveFilePath).mockImplementation(file => `/host/${file.name}`)
     const pane = b.view.container.querySelector<HTMLElement>('.react-flow__pane')!
     fireEvent.contextMenu(pane, { clientX: 700, clientY: 500 })
-    fireEvent.click(b.view.getByRole('menuitem', { name: 'Add project' }))
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Add folder' }))
     expect(b.props.addProject).toHaveBeenCalledExactlyOnceWith({ x: 700, y: 500 })
     fireEvent.contextMenu(pane, { clientX: 650, clientY: 450 })
     fireEvent.click(b.view.getByRole('menuitem', { name: 'Add files' }))

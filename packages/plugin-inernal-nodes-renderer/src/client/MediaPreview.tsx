@@ -25,7 +25,7 @@ function MediaPlayerResource(props: MediaPreviewProps) {
   return <section className={`${css.root} nodrag nopan`} data-convax-media-preview="" data-presentation={props.presentation}>
     {resource.value === undefined && resource.status === 'loading' && <div className={css.status}
       role="status" aria-label={props.t('media.loading')}><span className={css.spinner} aria-hidden="true" /></div>}
-    {failed && (compact ? <Tooltip label={`${props.t('media.failed')} · ${props.t('workspace.retry')}`} portal>
+    {failed && (compact ? <Tooltip label={`${props.t('media.failed')} · ${props.t('workspace.retry')}`} side="top" portal>
       <Button size="sm" className={css.compactAction} aria-label={props.t('workspace.retry')}
         onClick={() => { setAttempt(value => value + 1) }}><RefreshCw size={16} aria-hidden />
         <span className={css.waveformMessage} role="alert">{props.t('media.failed')}</span>
@@ -71,7 +71,7 @@ function LoadedMedia(props: MediaPreviewProps & { readonly source: MediaSource }
   }
   const video = source.kind === 'video'
   const compact = !video && props.presentation === 'compact'
-  const transport = <Tooltip label={compact && playback.autoplayBlocked ? `${t('media.autoplayBlocked')} · ${t(playLabel)}` : t(playLabel)} portal>
+  const transport = <Tooltip label={compact && playback.autoplayBlocked ? `${t('media.autoplayBlocked')} · ${t(playLabel)}` : t(playLabel)} side="top" portal>
     <Button ref={playButton} size="sm" className={video ? css.videoIconButton : css.audioPlay} aria-label={t(playLabel)}
       disabled={unsupported} onClick={() => { toggleMedia(source.path) }}>
       {canPause ? <CirclePause size={16} aria-hidden /> : <CirclePlay size={16} aria-hidden />}
@@ -94,7 +94,7 @@ function LoadedMedia(props: MediaPreviewProps & { readonly source: MediaSource }
         {t(actionFailure === 'open' ? 'media.openFailed' : 'media.fullscreenFailed')}
       </p>}
     </div>}
-    {video && !playing && playback.status !== 'failed' && <Tooltip label={t('media.playVideo')} portal>
+    {video && !playing && playback.status !== 'failed' && <Tooltip label={t('media.playVideo')} side="top" portal>
       <Button size="sm" className={css.centerPlay} aria-label={t('media.playVideo')}
         data-convax-video-play="" onClick={(event) => {
           toggleMedia(source.path)
@@ -110,13 +110,13 @@ function LoadedMedia(props: MediaPreviewProps & { readonly source: MediaSource }
         onChange={(event) => { seekMedia(source.path, event.currentTarget.valueAsNumber) }} />
       <span className={css.videoTime}>{mediaTime(duration)}</span>
       <MediaVolume video volume={playback.volume} onChange={(volume) => { setMediaVolume(source.path, volume) }} t={t} />
-      <Tooltip label={t('media.fullscreen')} portal>
+      <Tooltip label={t('media.fullscreen')} side="top" portal>
         <Button size="sm" className={css.videoIconButton} aria-label={t('media.fullscreen')}
           onClick={fullscreen}><Maximize2 size={16} aria-hidden /></Button>
       </Tooltip>
     </div> : <div className={css.audioControls} role="group" aria-label={t('media.controls')} data-convax-audio-controls="">
       {compact && playback.status === 'failed' ? <Tooltip
-        label={`${t(actionFailure === 'open' ? 'media.openFailed' : unsupported ? 'media.unsupported' : 'media.failed')} · ${t('media.openSystem')}`} portal>
+        label={`${t(actionFailure === 'open' ? 'media.openFailed' : unsupported ? 'media.unsupported' : 'media.failed')} · ${t('media.openSystem')}`} side="top" portal>
         <Button size="sm" className={css.compactAction} disabled={opening} aria-label={t('media.openSystem')}
           onClick={() => { void systemOpen() }}><FolderOpen size={16} aria-hidden />
           <span className={css.waveformMessage} role="alert">{t(actionFailure === 'open' ? 'media.openFailed' : unsupported ? 'media.unsupported' : 'media.failed')}</span>
@@ -157,7 +157,7 @@ function MediaVolume({ video, volume, onChange, t }: {
       setOpen(false)
       trigger.current?.focus({ preventScroll: true })
     }}>
-    <Tooltip label={t('media.volume')} portal>
+    <Tooltip label={t('media.volume')} side="top" portal>
       <Button ref={trigger} size="sm" className={video ? css.videoIconButton : css.audioVolumeButton} aria-label={t('media.volume')}
         aria-expanded={open} aria-controls={id} onClick={() => { setOpen(value => !value) }}>
         <Volume2 size={16} aria-hidden />
@@ -210,7 +210,7 @@ function AudioWaveform({ source, position, duration, seek, t }: {
     if (commit) seekAt(event.currentTarget, event.clientX)
     if (active.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
   }
-  return <Tooltip label={t(waveform === null ? 'media.waveformUnavailable' : 'media.seek')} portal>
+  return <Tooltip label={t(waveform === null ? 'media.waveformUnavailable' : 'media.seek')} side="top" portal>
     <div className={css.waveform} role="slider" tabIndex={0} aria-label={t(waveform ? 'media.waveform' : 'media.seek')}
       aria-disabled={limit === 0 || undefined} aria-valuemin={0} aria-valuemax={limit} aria-valuenow={value}
       aria-valuetext={t('media.position', { current: mediaTime(value), duration: mediaTime(limit) })}

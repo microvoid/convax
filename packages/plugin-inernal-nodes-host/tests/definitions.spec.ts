@@ -10,9 +10,9 @@ function definitions(): Map<string, CanvasNodeDefinition> {
 }
 
 describe('Default node provider formats', () => {
-  it('keeps all four saved identities and payload versions with explicit capabilities', () => {
+  it('keeps saved identities and the terminal provider and payload versions with explicit capabilities', () => {
     const nodes = definitions()
-    expect([...nodes.keys()].sort()).toEqual(['convax.chat', 'convax.file', 'convax.folder', 'convax.window'])
+    expect([...nodes.keys()].sort()).toEqual(['convax.browser', 'convax.chat', 'convax.file', 'convax.folder', 'convax.terminal', 'convax.window'])
     for (const node of nodes.values()) expect(node.dataVersion).toBe(1)
     expect(nodes.get('convax.file')?.capabilities).toEqual({ resourceKind: 'file' })
     expect(nodes.get('convax.folder')?.capabilities).toEqual({ resourceKind: 'folder' })

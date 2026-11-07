@@ -245,6 +245,8 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | Package | Config | Description |
 |---|---|---|
 | `@deepseek-ai/dsh-convax-plugin-host` | yes | Durable Convax canvases and application-level resource references |
+| `@deepseek-ai/dsh-convax-plugin-inernal-nodes-host` | no | Default Convax resource, Chat, window, terminal and browser node providers |
+| `@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer` | no | Default resource, Chat, window, terminal and browser cards for Convax |
 | `@deepseek-ai/dsh-convax-plugin-renderer` | no | Convax multi-canvas file workspace for DeepSeek Harness |
 
 ## feedback

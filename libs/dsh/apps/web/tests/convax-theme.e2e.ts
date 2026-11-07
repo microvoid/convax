@@ -91,7 +91,7 @@ it('keeps canvas cards, tools, menus, focus and resource ports readable in both 
   expect(seeded.ok).toBe(true)
   await page.goto(scaffold.authenticatedUrl)
   await page.locator('[data-convax-workspace]').waitFor({ timeout: 30_000 })
-  const brandMark = page.locator('[data-workspace-titlebar] img[alt=""]')
+  const brandMark = page.locator('[data-workspace-titlebar] img[alt="Convax"]')
   await expect.poll(() => brandMark.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
   await page.getByRole('button', { name: 'Workspace actions', exact: true }).click()
   await page.getByRole('menuitem', { name: 'All canvases', exact: true }).click()
@@ -140,7 +140,7 @@ it('keeps canvas cards, tools, menus, focus and resource ports readable in both 
       ['spreadsheet icon', tree.getByRole('button', { name: 'budget.xlsx', exact: true }).locator('svg'), 3],
       ['presentation icon', tree.getByRole('button', { name: 'slides.pptx', exact: true }).locator('svg'), 3],
       ['Chat paragraph', chat.getByText('Readable project summary with', { exact: false }), 4.5],
-      ['creation button', page.getByRole('button', { name: 'Add project', exact: true }), 4.5],
+      ['creation button', page.getByRole('button', { name: 'Add folder or files', exact: true }), 4.5],
     ]
     for (const [name, locator, minimum] of checks) {
       const value = await paint(locator)
@@ -202,7 +202,7 @@ it('keeps canvas cards, tools, menus, focus and resource ports readable in both 
     if (hover.contrast < 4.5) failures.push(`${colorScheme}: tree hover contrast ${hover.contrast.toFixed(2)}`)
   }
   await page.setViewportSize({ width: 390, height: 844 })
-  for (const name of ['Add project', 'Add files', 'New chat']) {
+  for (const name of ['Add folder or files', 'New chat']) {
     const button = page.locator('.react-flow__panel.bottom.center').getByRole('button', { name, exact: true })
     const box = await button.boundingBox()
     expect(box).not.toBeNull()

@@ -1,5 +1,5 @@
 /** Full-window canvas navigation, resource intake, and file preview. */
-import { Clock3, Ellipsis, Plus } from 'lucide-react'
+import { Bell, Clock3, Ellipsis } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, Input, Menu, Modal, Toast, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
@@ -12,6 +12,7 @@ import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { DroppedResource } from './CanvasGraph.tsx'
 import { nextResourcePosition, RESOURCE_CARD_GAP, RESOURCE_CARD_WIDTH } from './placement.ts'
 import css from './Workspace.module.css'
+import toolbarCss from './CanvasToolbar.module.css'
 import convaxMark from './assets/convax-mark.svg'
 import { CanvasTabs } from './CanvasTabs.tsx'
 import { canvasDisplayTitle } from './localized-content.ts'
@@ -98,8 +99,25 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
     | 'canvas.archived' | 'canvas.unarchived' | 'canvas.duplicated' | 'canvas.purged'
     undoArchive?: CanvasId
   } | null>(null)
-  const [menu, setMenu] = useState<'global' | 'canvases' | null>(null)
+  const [menu, setMenu] = useState<'global' | 'canvases' | 'activity' | null>(null)
   const workspaceMenuAnchor = useRef<HTMLButtonElement>(null)
+  const canvasListAnchor = useRef<HTMLButtonElement>(null)
+  const [canvasManagerSource, setCanvasManagerSource] = useState<'tabs' | 'global'>('global')
+  const [compactTitlebar, setCompactTitlebar] = useState(() =>
+    typeof matchMedia === 'function' && matchMedia('(max-width: 600px)').matches)
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return
+    const query = matchMedia('(max-width: 600px)')
+    const change = (): void => {
+      if (query.matches && document.activeElement?.closest('[data-titlebar-action]') !== null) {
+        workspaceMenuAnchor.current?.focus({ preventScroll: true })
+      }
+      setCompactTitlebar(query.matches)
+      setMenu(current => current === 'activity' ? null : current)
+    }
+    query.addEventListener('change', change)
+    return () => { query.removeEventListener('change', change) }
+  }, [])
   const [automationOpen, setAutomationOpen] = useState(false)
   const [windowPicker, setWindowPicker] = useState<{ canvasId: CanvasId; position: CanvasPoint; nodeId?: CanvasNodeId } | null>(null)
   const [renaming, setRenaming] = useState<CanvasId | null>(null)
@@ -137,9 +155,17 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
     else pending.reject(new Error(error))
   }
   const workspace = snapshot.value
+  const latestWorkspace = useRef(workspace)
+  latestWorkspace.current = workspace
+  const currentCanvas = (canvasId: CanvasId | undefined): CanvasDocument | undefined =>
+    latestWorkspace.current?.canvases.find(canvas => canvas.id === canvasId)
   const activity = props.useCanvasActivity(value => value)
+  const unreadActivity = activity.filter(item => item.unread).length
   const canvases = workspace?.canvases ?? []
   const active = canvases.find(canvas => canvas.id === view.activeCanvasId && canvas.archived !== true)
+  const visitedCanvases = useRef(new Set<CanvasId>())
+  if (active !== undefined) visitedCanvases.current.add(active.id)
+  const retainedCanvases = canvases.filter(canvas => visitedCanvases.current.has(canvas.id))
   const tabs = view.tabs.flatMap((id) => {
     const canvas = canvases.find(item => item.id === id)
     return canvas === undefined || canvas.archived === true ? [] : [canvas]
@@ -181,7 +207,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
     if (mutationPending.current) return false
     mutationPending.current = true
     setPendingKind(request.command.kind === 'history' ? 'history' : 'mutation')
-    const before = workspace?.canvases.find(canvas => canvas.id === request.canvasId)
+    const before = currentCanvas(request.canvasId)
     const beforeViews = latestView.current.resourceViews ?? {}
     if (request.confirmed) actions.stageDeletion(request)
     const connections = request.command.kind === 'add-connection' ? [request.command.connection]
@@ -242,12 +268,13 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
   ): Promise<boolean> => runRequest({
     canvasId: canvas.id, expectedRevision: canvas.revision, operationId: randomUUID() as CanvasOperationId, command,
   }, committed, target)
-  const replayHistory = (direction: 'undo' | 'redo'): void => {
-    if (active === undefined || mutationPending.current) return
-    if (Object.values(latestView.current.deletionAttempts ?? {}).some(request => request.canvasId === active.id)) return
-    const targetOperationId = latestView.current.histories?.[active.id]?.[direction].at(-1)
+  const replayHistory = (direction: 'undo' | 'redo', canvasId = active?.id): void => {
+    const canvas = currentCanvas(canvasId)
+    if (canvas === undefined || mutationPending.current) return
+    if (Object.values(latestView.current.deletionAttempts ?? {}).some(request => request.canvasId === canvas.id)) return
+    const targetOperationId = latestView.current.histories?.[canvas.id]?.[direction].at(-1)
     if (targetOperationId === undefined) return
-    void run(active, { kind: 'history', targetOperationId, direction })
+    void run(canvas, { kind: 'history', targetOperationId, direction })
   }
   const create = async (): Promise<void> => {
     const id = randomUUID() as CanvasId
@@ -313,12 +340,14 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
   }
   const addResources = async (
     references: readonly DroppedResource[], position?: CanvasPoint, origin?: CanvasConnectionOrigin,
+    canvasId = active?.id,
   ): Promise<void> => {
-    if (active === undefined || mutationPending.current || references.length === 0) return
+    const targetCanvas = currentCanvas(canvasId)
+    if (targetCanvas === undefined || mutationPending.current || references.length === 0) return
     mutationPending.current = true
     setPendingKind('mutation')
     setImportNotice(null)
-    let canvas = active
+    let canvas = targetCanvas
     let committedWorkspace: CanvasWorkspace | undefined
     const inputs: CapturedInput[] = []
     const targetSessionId = connectionTarget(origin)?.sessionId
@@ -376,31 +405,32 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
       setPendingKind(null)
     }
   }
-  const addProject = async (position: CanvasPoint, origin?: CanvasConnectionOrigin): Promise<void> => {
+  const addProject = async (position: CanvasPoint, origin?: CanvasConnectionOrigin, canvasId = active?.id): Promise<void> => {
     const captured = origin === undefined ? undefined : captureConnectionTarget(origin)
     try {
       const path = await chooseDirectory()
-      if (path !== null) await addResources([{ name: path, path }], position, captured)
+      if (path !== null) await addResources([{ name: path, path }], position, captured, canvasId)
     } catch (_directoryError) { fail() }
   }
-  const connectionDirectory = async (origin: CanvasConnectionOrigin | undefined): Promise<string | undefined> => {
+  const connectionDirectory = async (origin: CanvasConnectionOrigin | undefined, canvasId: CanvasId): Promise<string | undefined> => {
     if (origin?.direction !== 'output') return undefined
-    const source = active?.nodes.find(node => node.id === origin.nodeId)
+    const source = currentCanvas(canvasId)?.nodes.find(node => node.id === origin.nodeId)
     return source === undefined ? undefined : plugins.actions.inputDirectory?.(source)
 
   }
   const addChat = async (
     directory?: string, folderId?: CanvasNodeId, position?: CanvasPoint, origin?: CanvasConnectionOrigin,
-    automation = false,
+    automation = false, canvasId = active?.id,
   ): Promise<void> => {
-    if (active === undefined || busy) return
+    const canvas = currentCanvas(canvasId)
+    if (canvas === undefined || busy) return
     const target = connectionTarget(origin)
     try {
-      const sourceDirectory = directory ?? await connectionDirectory(origin)
+      const sourceDirectory = directory ?? await connectionDirectory(origin, canvas.id)
       if (!isMounted()) return
       let cwd = sourceDirectory
       if (cwd === undefined) {
-        try { cwd = await props.ensureCanvasDirectory(active.id) }
+        try { cwd = await props.ensureCanvasDirectory(canvas.id) }
         catch (_directoryError) {
           if (isMounted()) setToast({ id: Date.now(), key: 'chat.directoryFailed' })
           return
@@ -414,18 +444,20 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
         connections.push(createdConnection(nodeId, { nodeId: folderId, portId: 'output', direction: 'output' }))
       }
       let committed: CanvasDocument | undefined
-      const added = await run(active, {
+      const targetCanvas = currentCanvas(canvas.id)
+      if (targetCanvas === undefined) return
+      const added = await run(targetCanvas, {
         kind: 'add-node', node: plugins.actions.createChatNode?.(nodeId, cwd, t('chat.untitled'),
-          position ?? nextResourcePosition(active.nodes, plugins.definitions)) ?? (() => { throw new Error('The conversation node plugin is unavailable') })(),
+          position ?? nextResourcePosition(targetCanvas.nodes, plugins.definitions)) ?? (() => { throw new Error('The conversation node plugin is unavailable') })(),
         ...(connections.length === 0 ? {} : { initialConnections: connections }),
       }, (document) => { committed = document }, target)
       if (automation && added && committed !== undefined) {
         const result = await props.initializeAutomation({
-          canvasId: active.id, nodeId, expectedRevision: committed.revision,
+          canvasId: canvas.id, nodeId, expectedRevision: committed.revision,
           operationId: randomUUID() as CanvasOperationId, kind: 'create', cwd,
         }, t('automation.prompt'))
         if (!result.ok) { setToast({ id: Date.now(), key: 'automation.failed' }); return }
-        actions.focusThread(active.id, nodeId, result.sessionId)
+        actions.focusThread(canvas.id, nodeId, result.sessionId)
       }
     } catch (_chatCreationError) {
       if (automation) setToast({ id: Date.now(), key: 'automation.failed' })
@@ -494,42 +526,56 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
           {snapshot.status === 'failed' && <div className={css.notice} role="alert">{t('workspace.error')}
             <Button size="sm" onClick={refresh}>{t('workspace.retry')}</Button>
           </div>}
-          {active === undefined || workspace === undefined ? (
+          {(active === undefined || workspace === undefined) && (
             <div className={css.empty}>
               <h1>{t('canvas.empty')}</h1>
               <p>{t('workspace.empty')}</p>
               <Button variant="primary" disabled={busy} onClick={() => { void create() }}>{t('canvas.new')}</Button>
             </div>
-          ) : (
-            <Fragment key={active.id}>{props.renderFactorySlot('convax.graph', {
-              document: active, busy, nodeTypes: workspace.nodeTypes, nodeIssues: workspace.nodeIssues,
+          )}
+          {workspace !== undefined && retainedCanvases.map(canvas => <div key={canvas.id} className={css.retainedCanvas}
+            data-convax-canvas={canvas.id} hidden={canvas.id !== active?.id} {...canvas.id === active?.id ? {} : { inert: '' }}>
+            {props.renderFactorySlot('convax.graph', {
+              active: canvas.id === active?.id,
+              document: canvas, busy, nodeTypes: workspace.nodeTypes, nodeIssues: workspace.nodeIssues,
+              ensureCanvasDirectory: () => props.ensureCanvasDirectory(canvas.id),
+              getNode: nodeId => currentCanvas(canvas.id)?.nodes.find(node => node.id === nodeId),
+              inputDirectory: async (nodeId) => {
+                const source = currentCanvas(canvas.id)?.nodes.find(node => node.id === nodeId)
+                return source === undefined ? undefined : plugins.actions.inputDirectory?.(source)
+              },
               rendererDefinitions: plugins.definitions, creations: plugins.creations,
-              chats: workspace.chats.filter(chat => chat.canvasId === active.id),
-              createChat: (cwd, folderId, position, origin) => { void addChat(cwd, folderId, position, origin) },
-              addProject: (position, origin) => { void addProject(position, origin) },
+              chats: workspace.chats.filter(chat => chat.canvasId === canvas.id),
+              createChat: (cwd, folderId, position, origin) => { void addChat(cwd, folderId, position, origin, false, canvas.id) },
+              addProject: (position, origin) => { void addProject(position, origin, canvas.id) },
               addWindow: props.windowsAvailable !== true ? undefined : (position, nodeId) => {
-                setWindowPicker({ canvasId: active.id, position, ...(nodeId === undefined ? {} : { nodeId }) })
+                setWindowPicker({ canvasId: canvas.id, position, ...(nodeId === undefined ? {} : { nodeId }) })
               },
               captureConnectionTarget,
               reportClipboard: (key) => { setToast({ id: Date.now(), key }) },
               history: {
-                canUndo: (view.histories?.[active.id]?.undo.length ?? 0) > 0
-                  && !Object.values(view.deletionAttempts ?? {}).some(request => request.canvasId === active.id),
-                canRedo: (view.histories?.[active.id]?.redo.length ?? 0) > 0
-                  && !Object.values(view.deletionAttempts ?? {}).some(request => request.canvasId === active.id),
+                canUndo: (view.histories?.[canvas.id]?.undo.length ?? 0) > 0
+                  && !Object.values(view.deletionAttempts ?? {}).some(request => request.canvasId === canvas.id),
+                canRedo: (view.histories?.[canvas.id]?.redo.length ?? 0) > 0
+                  && !Object.values(view.deletionAttempts ?? {}).some(request => request.canvasId === canvas.id),
                 pending: historyPending,
               },
-              replayHistory,
-              threadFocus: view.threadFocus, consumeThreadFocus: actions.consumeThreadFocus,
-              viewport: view.viewports[active.id], setViewport: (viewport) => { actions.setViewport(active.id, viewport) },
+              replayHistory: (direction) => { replayHistory(direction, canvas.id) },
+              threadFocus: canvas.id === active?.id ? view.threadFocus : undefined,
+              consumeThreadFocus: actions.consumeThreadFocus,
+              viewport: view.viewports[canvas.id], setViewport: (viewport) => { actions.setViewport(canvas.id, viewport) },
               inputMode: view.inputMode ?? props.defaultInputMode, setInputMode: actions.setInputMode,
               resourceViews: view.resourceViews ?? {}, setResourceExpanded: actions.setResourceExpanded,
               setResourcePreviewSize: actions.setResourcePreviewSize, applyResourceView: actions.copyResourceView,
-              command: command => run(active, command), openResource, openSource,
+              command: (command) => {
+                const target = currentCanvas(canvas.id)
+                return target === undefined ? Promise.resolve(false) : run(target, command)
+              },
+              openResource, openSource,
               resolveFilePath: props.resolveFilePath,
-              addResources: (references, position, origin) => { void addResources(references, position, origin) },
-            })}</Fragment>
-          )}
+              addResources: (references, position, origin) => { void addResources(references, position, origin, canvas.id) },
+            })}
+          </div>)}
         </main>
         {previewPath !== null && (
           <Preview key={previewPath} path={previewPath} useResource={useResource}
@@ -542,58 +588,80 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
       {/* Electron applies drag rectangles in DOM order, including clipped canvas controls. */}
       <nav className={css.tabbar} aria-label={t('canvas.all')} data-workspace-titlebar="integrated" data-window-drag="">
         <span className={css.brand}>
-          <img src={convaxMark} width={20} height={20} alt="" />
-          {t('workspace.title')}
+          <img src={convaxMark} width={24} height={24} alt={t('workspace.title')} />
         </span>
         <div className={css.tabStrip}>
           <CanvasTabs tabs={tabs.map(canvas => ({ ...canvas, title: canvasDisplayTitle(canvas, t) }))} activeId={active?.id} t={t}
+            create={() => { void create() }} busy={busy}
+            compact={compactTitlebar} allButtonRef={canvasListAnchor} allOpen={menu === 'canvases' && canvasManagerSource === 'tabs'} onShowAll={() => {
+              setCanvasManagerSource('tabs')
+              setMenu(current => current === 'canvases' && canvasManagerSource === 'tabs' ? null : 'canvases')
+            }}
             open={(id) => { actions.open(id); setMenu(null) }} close={actions.close} move={actions.moveTab}
             rename={rename} />
-          <Tooltip label={t('canvas.new')} side="bottom" portal>
-            <Button size="sm" className={css.chromeButton} disabled={busy} aria-label={t('canvas.new')} onClick={() => { void create() }}><Plus size={14} aria-hidden /></Button>
-          </Tooltip>
         </div>
-        <ActivityMenu items={activity.map(item => ({ ...item,
-          title: item.defaultTitle === true ? t('chat.untitled') : item.title,
-          canvasTitle: canvasDisplayTitle(canvases.find(canvas => canvas.id === item.canvasId) ?? { title: item.canvasTitle }, t),
-        }))} busy={busy} t={t} locale={document.documentElement.lang || 'en'}
-        onReadAll={() => { props.markActivityRead(activity.filter(item => item.unread).map(item => item.sessionId)) }}
-        onSelect={async (item) => {
-          const opened = await revealThread(item.canvasId, item.nodeId, item.sessionId)
-          if (opened) props.markActivityRead([item.sessionId])
-          else setToast({ id: Date.now(), key: 'activity.unavailable' })
-          return opened
-        }} />
-        <Tooltip label={t('automation.title')} side="bottom" portal>
-          <Button size="sm" className={css.automationButton} aria-label={t('automation.open')}
-            onClick={() => { setAutomationOpen(true) }}><Clock3 size={14} aria-hidden /><span>{t('automation.open')}</span></Button>
-        </Tooltip>
-        <CanvasManager anchorRef={workspaceMenuAnchor} canvases={canvases} chats={workspace?.chats ?? []}
-          activeId={active?.id} open={menu === 'canvases'}
-          busy={busy} t={t} onOpenChange={(open) => { setMenu(open ? 'canvases' : null) }} onSelect={actions.open}
-          onRename={rename}
-          onArchive={(id, archived) => { void archive(id, archived) }}
-          onDuplicate={(id) => { void duplicate(id) }} onDelete={confirmPurge} onCreate={() => { void create() }} />
-        <Menu open={menu === 'global'} portal align="end" onClose={() => { setMenu(null) }}
-          anchor={<Button ref={workspaceMenuAnchor} size="sm" className={css.chromeButton} aria-label={t('workspace.actions')}
-            aria-haspopup={menu === 'canvases' ? 'dialog' : 'menu'} aria-expanded={menu !== null}
-            onClick={() => { setMenu(current => current === null ? 'global' : null) }}>
-            <Ellipsis size={16} aria-hidden />
-          </Button>}
-          items={[
-            { id: 'canvases', label: t('canvas.all') },
-            { type: 'separator', id: 'navigation' },
-            { id: 'settings', label: t('workspace.settings') },
-            { id: 'plugins', label: t('workspace.plugins') },
-          ]} onSelect={(id) => {
-            setMenu(null)
-            if (id === 'canvases') {
-              workspaceMenuAnchor.current?.focus()
-              setMenu('canvases')
-            }
-            else if (id === 'settings') props.openSettings()
-            else if (id === 'plugins') props.openPlugins()
-          }} />
+        <div className={css.windowDragSpace} data-canvas-window-drag="" aria-hidden="true" />
+        <div className={`${toolbarCss.bar} ${css.globalActions}`} data-convax-global-toolbar="">
+          <div className={css.activityAction} data-titlebar-action="">
+            <ActivityMenu items={activity.map(item => ({ ...item,
+              title: item.defaultTitle === true ? t('chat.untitled') : item.title,
+              canvasTitle: canvasDisplayTitle(canvases.find(canvas => canvas.id === item.canvasId) ?? { title: item.canvasTitle }, t),
+            }))} busy={busy} t={t} locale={document.documentElement.lang || 'en'}
+            control={{
+              anchorRef: compactTitlebar ? workspaceMenuAnchor : undefined,
+              open: menu === 'activity', onOpenChange: (open) => { setMenu(open ? 'activity' : null) },
+            }}
+            onReadAll={() => { props.markActivityRead(activity.filter(item => item.unread).map(item => item.sessionId)) }}
+            onSelect={async (item) => {
+              const opened = await revealThread(item.canvasId, item.nodeId, item.sessionId)
+              if (opened) props.markActivityRead([item.sessionId])
+              else setToast({ id: Date.now(), key: 'activity.unavailable' })
+              return opened
+            }} />
+          </div>
+          <Tooltip label={t('automation.title')} side="bottom" portal>
+            <Button className={`${toolbarCss.button} ${css.automationButton}`} aria-label={t('automation.open')} data-titlebar-action=""
+              onClick={() => { setAutomationOpen(true) }}><Clock3 size={16} aria-hidden /></Button>
+          </Tooltip>
+          <CanvasManager anchorRef={canvasManagerSource === 'tabs' ? canvasListAnchor : workspaceMenuAnchor} canvases={canvases} chats={workspace?.chats ?? []}
+            activeId={active?.id} open={menu === 'canvases'}
+            busy={busy} t={t} onOpenChange={(open) => { setMenu(open ? 'canvases' : null) }} onSelect={actions.open}
+            onRename={rename}
+            onArchive={(id, archived) => { void archive(id, archived) }}
+            onDuplicate={(id) => { void duplicate(id) }} onDelete={confirmPurge} onCreate={() => { void create() }} />
+          <Menu open={menu === 'global'} portal align="end" onClose={() => { setMenu(null) }}
+            anchor={<Tooltip label={t('workspace.actions')} disabled={menu !== null} side="bottom" portal>
+              <Button ref={workspaceMenuAnchor} className={toolbarCss.button} aria-label={t('workspace.actions')}
+                aria-description={compactTitlebar && unreadActivity > 0 ? t('activity.unreadLabel', { count: unreadActivity }) : undefined}
+                aria-haspopup={menu === 'canvases' || menu === 'activity' ? 'dialog' : 'menu'} aria-expanded={menu !== null}
+                onClick={() => { setMenu(current => current === null ? 'global' : null) }}>
+                <Ellipsis size={16} aria-hidden />
+                {compactTitlebar && unreadActivity > 0 && <span className={css.activityIndicator} aria-hidden />}
+              </Button>
+            </Tooltip>}
+            items={[
+              ...compactTitlebar ? [
+                { id: 'activity', label: t(unreadActivity > 0 ? 'activity.unreadLabel' : 'activity.title', { count: unreadActivity }), icon: <Bell size={14} aria-hidden /> },
+                { id: 'automation', label: t('automation.open'), icon: <Clock3 size={14} aria-hidden /> },
+                { type: 'separator' as const, id: 'workspace' },
+              ] : [],
+              { id: 'canvases', label: t('canvas.all') },
+              { type: 'separator', id: 'navigation' },
+              { id: 'settings', label: t('workspace.settings') },
+              { id: 'plugins', label: t('workspace.plugins') },
+            ]} onSelect={(id) => {
+              setMenu(null)
+              if (id === 'canvases') {
+                setCanvasManagerSource('global')
+                workspaceMenuAnchor.current?.focus()
+                setMenu('canvases')
+              }
+              else if (id === 'activity') { workspaceMenuAnchor.current?.focus(); setMenu('activity') }
+              else if (id === 'automation') setAutomationOpen(true)
+              else if (id === 'settings') props.openSettings()
+              else if (id === 'plugins') props.openPlugins()
+            }} />
+        </div>
       </nav>
       <Modal open={automationOpen} onClose={() => { setAutomationOpen(false) }} title={t('automation.title')}
         headless className={`${css.automationDialog}`}>

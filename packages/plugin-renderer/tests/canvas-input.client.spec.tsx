@@ -7,6 +7,7 @@ import type { CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { CanvasGraph, type CanvasGraphProps } from '../src/client/CanvasGraph.tsx'
 import type { CanvasInputMode } from '../src/client/input-mode.ts'
+import type { CanvasCreationContext } from '../src/client/contributions.ts'
 import { en, type ConvaxKey } from '../src/client/locales.ts'
 import { RESOURCE_CARD_WIDTH } from '../src/client/placement.ts'
 
@@ -60,14 +61,46 @@ function renderFixture(mode: CanvasInputMode, overrides: Partial<CanvasGraphProp
   return { view, graph, pane, viewport, read, wheel, setViewport, setInputMode, props }
 }
 
-async function fixture(mode: CanvasInputMode) {
-  const b = renderFixture(mode)
+async function fixture(mode: CanvasInputMode, overrides: Partial<CanvasGraphProps> = {}) {
+  const b = renderFixture(mode, overrides)
   await waitFor(() => {
     expect(b.graph.hasAttribute('data-canvas-gestures-ready')).toBe(true)
     expect(b.viewport.style.transform).toContain('scale(1)')
   })
   return b
 }
+
+it('suspends document shortcuts and viewport gestures while a retained graph is inactive', async () => {
+  const b = await fixture('touchpad')
+  b.view.rerender(<CanvasGraph {...b.props} active={false} />)
+  expect(b.graph.hasAttribute('data-canvas-gestures-ready')).toBe(false)
+  fireEvent.keyDown(document.body, { key: '+', ctrlKey: true })
+  fireEvent.keyDown(b.pane, { key: ' ', code: 'Space' })
+  expect(b.graph.hasAttribute('data-canvas-pan-ready')).toBe(false)
+  expect(b.read()).toEqual({ x: 0, y: 0, zoom: 1 })
+  b.view.rerender(<CanvasGraph {...b.props} active />)
+  expect(b.view.container.querySelector('[data-convax-graph]')).toBe(b.graph)
+  await waitFor(() => { expect(b.graph.hasAttribute('data-canvas-gestures-ready')).toBe(true) })
+  fireEvent.keyDown(document.body, { key: '+', ctrlKey: true })
+  await waitFor(() => { expect(b.read().zoom).toBeGreaterThan(1) })
+})
+
+it('supplies creation contributions with the owning canvas and narrow current-resource actions', async () => {
+  const ensureCanvasDirectory = vi.fn(async () => '/canvas/work')
+  const getNode = vi.fn<NonNullable<CanvasGraphProps['getNode']>>()
+  const inputDirectory = vi.fn(async () => '/project/work')
+  const b = await fixture('touchpad', { ensureCanvasDirectory, getNode, inputDirectory })
+  const create = vi.fn<(context: CanvasCreationContext) => void>()
+  b.view.rerender(<CanvasGraph {...b.props} creations={[{ id: 'custom', label: 'Create custom', create }]} />)
+  fireEvent.click(b.view.getByRole('button', { name: 'Create custom' }))
+  const context = create.mock.calls[0]![0]
+  expect(context.canvasId).toBe(b.props.document.id)
+  await expect(context.ensureCanvasDirectory()).resolves.toBe('/canvas/work')
+  context.getNode('source' as CanvasNodeId)
+  await expect(context.inputDirectory('source' as CanvasNodeId)).resolves.toBe('/project/work')
+  expect(getNode).toHaveBeenCalledWith('source')
+  expect(inputDirectory).toHaveBeenCalledWith('source')
+})
 
 function revealFixture(zoom = 1, collapsed = false) {
   vi.useFakeTimers()
@@ -175,11 +208,12 @@ describe('Canvas input gestures', () => {
 
   it('creates from the bottom dock inside a panned viewport while the dock stays outside its transform', async () => {
     const b = await fixture('touchpad')
-    const dock = b.view.getByRole('button', { name: 'Add project' }).parentElement!
+    const dock = b.view.getByRole('button', { name: 'Add folder or files' }).closest('[data-convax-creation-dock]')!
     expect(dock.closest('.react-flow__viewport')).toBeNull()
     b.wheel(b.pane, { deltaX: 130, deltaY: 210 })
     await waitFor(() => { expect(b.read().x).toBeLessThan(0) })
-    fireEvent.click(b.view.getByRole('button', { name: 'Add project' }))
+    fireEvent.click(b.view.getByRole('button', { name: 'Add folder or files' }))
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Add folder' }))
     const project = vi.mocked(b.props.addProject).mock.calls[0]![0]
     const transform = b.read()
     expect(project.x * transform.zoom + transform.x).toBeGreaterThanOrEqual(0)
@@ -190,7 +224,7 @@ describe('Canvas input gestures', () => {
     expect(b.props.createChat).toHaveBeenCalledOnce()
     const chatPosition = vi.mocked(b.props.createChat).mock.calls[0]![2]!
     expect(Number.isFinite(chatPosition.x) && Number.isFinite(chatPosition.y)).toBe(true)
-    expect(b.view.getByRole('button', { name: 'Add project' }).parentElement).toBe(dock)
+    expect(b.view.getByRole('button', { name: 'Add folder or files' }).closest('[data-convax-creation-dock]')).toBe(dock)
   })
 
   it('passes selected native files to canvas intake without touching a conversation, including repeated selection', async () => {
@@ -198,7 +232,8 @@ describe('Canvas input gestures', () => {
     const files = [new File(['one'], 'one.txt'), new File(['two'], 'two.md')]
     vi.mocked(b.props.resolveFilePath).mockImplementation(file => `/host/${file.name}`)
     const picker = b.view.container.querySelector<HTMLInputElement>('input[type="file"]')!
-    fireEvent.click(b.view.getByRole('button', { name: 'Add files' }))
+    fireEvent.click(b.view.getByRole('button', { name: 'Add folder or files' }))
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Add files' }))
     fireEvent.change(picker, { target: { files } })
     const [references, point] = vi.mocked(b.props.addResources).mock.calls[0]!
     expect(references).toEqual([
@@ -233,6 +268,44 @@ describe('Canvas input gestures', () => {
     b.wheel(b.pane, { ctrlKey: true, deltaY: -20 })
     await waitFor(() => { expect(b.read().zoom).toBeGreaterThan(1) })
     await waitFor(() => { expect(b.setViewport).toHaveBeenCalled() })
+  })
+
+  it('box-selects cards by primary dragging in Touchpad mode without moving the viewport', async () => {
+    const nodeId = 'bounded-chat' as CanvasNodeId
+    const typeId = 'convax.chat' as CanvasNodeTypeId
+    const b = await fixture('touchpad', {
+      document: { id: 'canvas' as CanvasId, title: 'Board', revision: 0, connections: [], nodes: [{
+        id: nodeId, typeId, dataVersion: 1, revision: 1, data: {}, position: { x: 100, y: 100 },
+      }] },
+      nodeTypes: [{ id: typeId, dataVersion: 1, ports: [] }],
+      renderSlot: () => <div>Bounded chat</div>,
+    })
+    expect(b.graph.hasAttribute('data-canvas-drag-select')).toBe(true)
+    const node = b.view.container.querySelector<HTMLElement>(`.react-flow__node[data-id="${nodeId}"]`)!
+    fireEvent.pointerDown(b.pane, { button: 0, buttons: 1, clientX: 20, clientY: 20, pointerId: 1, isPrimary: true })
+    fireEvent.pointerMove(b.pane, { buttons: 1, clientX: 500, clientY: 400, pointerId: 1, isPrimary: true })
+    await waitFor(() => { expect(node.classList.contains('selected')).toBe(true) })
+    expect(b.view.container.querySelector('.react-flow__selection')).not.toBeNull()
+    fireEvent.pointerUp(b.pane, { button: 0, buttons: 0, clientX: 500, clientY: 400, pointerId: 1, isPrimary: true })
+    expect(b.read()).toEqual({ x: 0, y: 0, zoom: 1 })
+    expect(b.setViewport).not.toHaveBeenCalled()
+  })
+
+  it('keeps primary-drag panning in Mouse mode', async () => {
+    const b = await fixture('mouse')
+    expect(b.graph.hasAttribute('data-canvas-drag-select')).toBe(false)
+    act(() => {
+      const mouse = (target: EventTarget, type: string, x: number, y: number, buttons: number): void => {
+        const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, buttons, clientX: x, clientY: y })
+        Object.defineProperty(event, 'view', { value: document.defaultView })
+        target.dispatchEvent(event)
+      }
+      mouse(b.pane, 'mousedown', 200, 200, 1)
+      mouse(document, 'mousemove', 260, 240, 1)
+      mouse(document, 'mouseup', 260, 240, 0)
+    })
+    await waitFor(() => { expect(b.read()).toEqual({ x: 60, y: 40, zoom: 1 }) })
+    expect(b.view.container.querySelector('.react-flow__selection')).toBeNull()
   })
 
   it('continues a real viewport pan across a nowheel card and saves once after the whole gesture', async () => {
@@ -335,7 +408,7 @@ describe('Canvas input gestures', () => {
     const observe = (action: string, event: WheelEvent) => ({
       action, wheelConsumed: event.defaultPrevented,
       transform: b.viewport.style.transform,
-      displayedZoom: b.view.getByRole('button', { name: 'Reset zoom to 100%' }).textContent,
+      displayedZoom: b.view.getByRole('button', { name: 'Reset zoom to 100%' }).getAttribute('aria-description'),
       contentWheelCount: contentWheel.mock.calls.length,
     })
     const steps = [observe('Pan the canvas', b.wheel(b.pane, { deltaX: 40, deltaY: 60 })),
@@ -360,7 +433,8 @@ describe('Canvas input gestures', () => {
     b.wheel(editor, { deltaX: 30, deltaY: 50 })
     expect(b.read()).toEqual(original)
     expect(b.setViewport).not.toHaveBeenCalled()
-    fireEvent.change(b.view.getByRole('combobox', { name: 'Canvas input mode' }), { target: { value: 'mouse' } })
+    fireEvent.click(b.view.getByRole('button', { name: 'Canvas input mode' }))
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Mouse mode' }))
     expect(b.setInputMode).toHaveBeenCalledExactlyOnceWith('mouse')
     b.view.rerender(<CanvasGraph {...b.props} inputMode="mouse" />)
     expect(b.view.container.querySelector('.react-flow__viewport')).toBe(b.viewport)

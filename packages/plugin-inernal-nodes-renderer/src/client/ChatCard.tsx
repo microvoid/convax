@@ -113,6 +113,7 @@ export function ChatThread(props: ChatThreadProps) {
  * @returns A Chat column and its current thread's attached native tool pane.
  */
 export function ChatCard(props: ChatProps) {
+  const active = props.active !== false
   const updateNodeInternals = useUpdateNodeInternals()
   const { chat, canvasRevision, t, actions, useStore, createThread, ensureInitialThread, useResource, SessionProvider, renderSlot } = props
   const stored = useStore(state => state.selectedThreads[chat.nodeId])
@@ -212,8 +213,8 @@ export function ChatCard(props: ChatProps) {
     data-resized={size !== undefined || undefined}
     style={{ '--dsh-convax-chat-width': `${size?.width ?? CHAT_CARD_WIDTH}px`,
       ...(size === undefined ? {} : { '--dsh-convax-chat-view-height': `${size.height}px` }) } as CSSProperties}
-    onPointerDownCapture={() => { if (selected !== undefined) props.focusSession(selected) }}
-    onFocusCapture={() => { if (selected !== undefined) props.focusSession(selected) }}>
+    onPointerDownCapture={() => { if (active && selected !== undefined) props.focusSession(selected) }}
+    onFocusCapture={() => { if (active && selected !== undefined) props.focusSession(selected) }}>
     <CardToolbar nodeId={chat.nodeId} name={chat.defaultTitle === true ? t('chat.untitled') : chat.title} t={t} actions={[
       { id: 'zoom', label: t('chat.focus'), onClick: props.focusNode },
       { id: 'remove', label: t('chat.delete'), disabled: busy || chat.deleting, onClick: props.remove },
@@ -221,7 +222,7 @@ export function ChatCard(props: ChatProps) {
     <Handle id="input" type="target" position={Position.Left} className={css.handle} />
     <div ref={header} className={css.chatFrameHeader} data-convax-chat-header="">
       <header className={css.threadBar} data-convax-chat-drag="" data-convax-node-drag="">
-        <Tooltip label={t(collapsed ? 'chat.expand' : 'chat.collapse')} portal>
+        <Tooltip label={t(collapsed ? 'chat.expand' : 'chat.collapse')} side="bottom" portal>
           <Button size="sm" className="nodrag nopan" aria-label={t(collapsed ? 'chat.expand' : 'chat.collapse')}
             aria-expanded={!collapsed} onClick={() => {
               if (!collapsed) {
@@ -245,8 +246,8 @@ export function ChatCard(props: ChatProps) {
           }
         })} activeId={selected} reference={headerResource.value?.reference} t={t}
         SessionProvider={SessionProvider} renderSlot={renderSlot} renderFactorySlot={props.renderFactorySlot}
-        menuOpen={menu === 'thread'} setMenuOpen={(open) => { setMenu(current => open ? 'thread' : current === 'thread' ? null : current) }}
-        settingsOpen={menu === 'settings'} setSettingsOpen={(open) => { setMenu(current => open ? 'settings' : current === 'settings' ? null : current) }} disabled={blocked}
+        menuOpen={active && menu === 'thread'} setMenuOpen={(open) => { setMenu(current => open ? 'thread' : current === 'thread' ? null : current) }}
+        settingsOpen={active && menu === 'settings'} setSettingsOpen={(open) => { setMenu(current => open ? 'settings' : current === 'settings' ? null : current) }} disabled={blocked}
         select={(sessionId) => {
           actions.selectThread(chat.nodeId, sessionId)
           props.acknowledgeCompletion(sessionId)
@@ -278,15 +279,17 @@ export function ChatCard(props: ChatProps) {
           <Button size="sm" disabled={chat.deleting} onClick={() => { void submit(attempt) }}>{t('workspace.retry')}</Button>
         </div>}
       </div>
-      {collapsed && <ChatResizeHandle container={header} actions={resize} label={resize.label} help={resize.help}
+      {active && collapsed && <ChatResizeHandle container={header} actions={resize} label={resize.label} help={resize.help}
         useContainer collapsedHeight={size?.height ?? expandedHeight.current} />}
     </div>
-    {selected === undefined && <div ref={pendingBody} className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`} hidden={collapsed}>
+    {selected === undefined && <div ref={pendingBody} className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`}
+      hidden={collapsed}>
       {!unconfirmed && <div className={css.center}><span className={css.spinner} /></div>}
-      {!collapsed && <ChatResizeHandle container={pendingBody} actions={resize} label={resize.label} help={resize.help} useContainer />}
+      {active && !collapsed && <ChatResizeHandle container={pendingBody} actions={resize}
+        label={resize.label} help={resize.help} useContainer />}
     </div>}
     {threads.filter(thread => mounted.has(thread.sessionId)).map(thread => <Fragment key={thread.sessionId}>{props.renderFactorySlot('convax.chat.thread', {
-      sessionId: thread.sessionId, active: thread.sessionId === selected, collapsed,
+      sessionId: thread.sessionId, active: active && thread.sessionId === selected, collapsed,
       layoutChanged: () => { updateNodeInternals(chat.nodeId) },
       resize,
       tools: {

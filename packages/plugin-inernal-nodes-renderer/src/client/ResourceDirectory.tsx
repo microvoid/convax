@@ -19,7 +19,7 @@ function DirectoryEntry({ entry, ...props }: Omit<DirectoryProps, 'path' | 'name
   const folder = entry.kind === 'folder'
   const label = folder ? props.t(expanded ? 'files.collapse' : 'files.expand', { name: entry.name }) : entry.name
   return <li className={css.treeItem}>
-    <Tooltip label={entry.name} portal>
+    <Tooltip label={entry.name} side="bottom" portal>
       <button type="button" className={css.treeRow} disabled={entry.kind === 'other'}
         aria-label={label} aria-expanded={folder ? expanded : undefined}
         aria-controls={folder ? contentsId : undefined}

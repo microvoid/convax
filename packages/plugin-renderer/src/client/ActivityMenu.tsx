@@ -8,6 +8,7 @@ import {
 import type { CanvasActivityItem } from './activity.ts'
 import type { WorkspaceProps } from './props.ts'
 import css from './ActivityMenu.module.css'
+import toolbarCss from './CanvasToolbar.module.css'
 
 interface ActivityProps {
   readonly locale?: string
@@ -16,6 +17,11 @@ interface ActivityProps {
   readonly t: WorkspaceProps['t']
   readonly onSelect: (item: CanvasActivityItem) => Promise<boolean>
   readonly onReadAll: () => void
+  readonly control?: {
+    readonly anchorRef?: RefObject<HTMLButtonElement | null> | undefined
+    readonly open: boolean
+    readonly onOpenChange: (open: boolean) => void
+  } | undefined
 }
 
 const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
@@ -26,19 +32,21 @@ const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
  * @returns The persistent activity entry and its dismissible overlay.
  */
 export function ActivityMenu(props: ActivityProps) {
-  const [open, setOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
   const anchor = useRef<HTMLButtonElement>(null)
+  const open = props.control?.open ?? localOpen
+  const setOpen = props.control?.onOpenChange ?? setLocalOpen
   const unread = props.items.filter(item => item.unread).length
   return <>
-    <Tooltip label={props.t('activity.title')} side="bottom" portal>
-      <Button ref={anchor} size="sm" className={css.trigger} aria-haspopup="dialog" aria-expanded={open}
+    {props.control?.anchorRef === undefined && <Tooltip label={props.t('activity.title')} side="bottom" portal>
+      <Button ref={anchor} className={`${toolbarCss.button} ${css.trigger}`} aria-haspopup="dialog" aria-expanded={open}
         aria-label={props.t(unread === 0 ? 'activity.title' : 'activity.unreadLabel', { count: new Intl.NumberFormat(props.locale ?? 'en').format(unread) })}
-        onClick={() => { setOpen(value => !value) }}>
-        <Bell size={14} aria-hidden /><span>{props.t('activity.title')}</span>
+        onClick={() => { setOpen(!open) }}>
+        <Bell size={16} aria-hidden />
         {unread > 0 && <span className={css.badge} aria-hidden>{unread > 99 ? '99+' : new Intl.NumberFormat(props.locale ?? 'en').format(unread)}</span>}
       </Button>
-    </Tooltip>
-    {open && <ActivityPanel {...props} anchorRef={anchor} unread={unread} close={() => { setOpen(false) }} />}
+    </Tooltip>}
+    {open && <ActivityPanel {...props} anchorRef={props.control?.anchorRef ?? anchor} unread={unread} close={() => { setOpen(false) }} />}
   </>
 }
 
@@ -70,7 +78,7 @@ function ActivityPanel({ items, busy, t, locale = 'en', onSelect, onReadAll, anc
         next?.focus()
         onReadAll()
       }}>{t('activity.markAll')}</Button>
-      <Tooltip label={t('activity.close')} portal>
+      <Tooltip label={t('activity.close')} side="bottom" portal>
         <Button ref={closeButton} size="sm" aria-label={t('activity.close')} onClick={close}
           data-modal-autofocus={items.length === 0 || undefined}><X size={16} aria-hidden /></Button>
       </Tooltip>

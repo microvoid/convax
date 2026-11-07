@@ -42,7 +42,7 @@ export function ChatSettings({ anchorRef, title, onClose, renderFactorySlot, t }
         <h2 className={css.title}>{t('chat.settings')}</h2>
         <p className={css.sessionTitle}>{title}</p>
       </div>
-      <Tooltip label={t('chat.closeSettings')} portal>
+      <Tooltip label={t('chat.closeSettings')} side="bottom" portal>
         <Button size="sm" aria-label={t('chat.closeSettings')} onClick={onClose}><X size={16} aria-hidden /></Button>
       </Tooltip>
     </header>

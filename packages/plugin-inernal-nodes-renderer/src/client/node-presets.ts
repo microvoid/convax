@@ -1,6 +1,7 @@
 /** Default node payloads and creation entries; the canvas kernel owns no type identities. */
-import { AppWindow, FilePlus, FolderClosed, MessageCirclePlus } from 'lucide-react'
-import type { CanvasData, CanvasNode, CanvasNodeTypeId, CanvasResource } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import { AppWindow, BotMessageSquare, FilePlus, FolderClosed, Globe, TerminalSquare } from 'lucide-react'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
+import type { CanvasConnectionId, CanvasData, CanvasNode, CanvasNodeTypeId, CanvasResource } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { CanvasCreationDefinition, CanvasWorkspaceActions, WorkspaceProps } from '@deepseek-ai/dsh-convax-plugin-renderer/client'
 
 /** Presentation metadata remains independently reusable in real composition fixtures. */
@@ -9,6 +10,8 @@ export const defaultNodePresentation = {
   'convax.folder': { defaultSize: { width: 320, height: 140 }, presentation: 'resource' as const },
   'convax.chat': { defaultSize: { width: 620, height: 680 }, presentation: 'chat' as const,
     dragHandle: '[data-convax-chat-drag]', clipboardData: defaultNodeClipboardData },
+  'convax.terminal': { defaultSize: { width: 640, height: 400 }, presentation: 'resource' as const, dragHandle: '[data-convax-tool-drag]' },
+  'convax.browser': { defaultSize: { width: 640, height: 480 }, presentation: 'resource' as const, defaultExpanded: true, dragHandle: '[data-convax-browser-header]' },
   'convax.window': { defaultSize: { width: 480, height: 310 }, presentation: 'resource' as const, dragHandle: '[data-convax-window-header]' },
 }
 
@@ -47,12 +50,12 @@ export function defaultNodeActions(describe: (path: string) => Promise<CanvasRes
 /** Translated entries stay reactive because labels resolve at render time. */
 export function defaultNodeCreations(t: WorkspaceProps['t'], windowsAvailable = false): CanvasCreationDefinition[] {
   return [
-    { id: 'project', label: () => t('workspace.addProject'), icon: FolderClosed, defaultSize: { width: 320, height: 140 },
+    { id: 'project', label: () => t('workspace.addProject'), icon: FolderClosed, dockGroup: 'resources', defaultSize: { width: 320, height: 140 },
       create: (action) => {
         if (action.origin === undefined) action.addProject(action.position)
         else action.addProject(action.position, action.origin)
       } },
-    { id: 'files', label: () => t('workspace.addFile'), icon: FilePlus, defaultSize: { width: 320, height: 140 },
+    { id: 'files', label: () => t('workspace.addFile'), icon: FilePlus, dockGroup: 'resources', defaultSize: { width: 320, height: 140 },
       create: (action) => {
         if (action.origin === undefined) action.addFiles(action.position)
         else action.addFiles(action.position, action.origin)
@@ -60,7 +63,22 @@ export function defaultNodeCreations(t: WorkspaceProps['t'], windowsAvailable = 
     ...windowsAvailable ? [{ id: 'window', label: () => t('window.add'), icon: AppWindow, connected: false,
       defaultSize: { width: 480, height: 310 },
       create: (action: Parameters<CanvasCreationDefinition['create']>[0]) => { action.addWindow?.(action.position) } }] : [],
-    { id: 'chat', label: () => t('chat.new'), icon: MessageCirclePlus, defaultSize: { width: 620, height: 680 },
+    { id: 'terminal', label: () => t('terminal.title'), icon: TerminalSquare, connectionDirection: 'input',
+      defaultSize: { width: 640, height: 400 },
+      create: (action) => { const id = randomUUID() as CanvasNode['id']; void action.command({ kind: 'add-node', node: {
+        id, typeId: 'convax.terminal' as CanvasNodeTypeId,
+        dataVersion: 1, data: {}, position: action.position, revision: 0,
+      }, ...(action.origin === undefined ? {} : { initialConnections: [{
+        id: randomUUID() as CanvasConnectionId, source: action.origin.nodeId, sourcePort: action.origin.portId,
+        target: id, targetPort: 'input', purpose: 'input' as const,
+      }] }) }) } },
+    { id: 'browser', label: () => t('browser.title'), icon: Globe, connected: false,
+      defaultSize: { width: 640, height: 480 },
+      create: (action) => { void action.command({ kind: 'add-node', node: {
+        id: randomUUID() as CanvasNode['id'], typeId: 'convax.browser' as CanvasNodeTypeId,
+        dataVersion: 1, data: {}, position: action.position, revision: 0,
+      } }) } },
+    { id: 'chat', label: () => t('chat.new'), icon: BotMessageSquare, defaultSize: { width: 620, height: 680 },
       create: (action) => {
         if (action.origin === undefined) action.createChat(undefined, undefined, action.position)
         else action.createChat(undefined, undefined, action.position, action.origin)

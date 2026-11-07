@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use file, folder, Chat and selected-window nodes on existing canvases. Chat threads retain native DSH Sessions, execution and persistence. Removing this plugin retains saved nodes, connections and Session bindings. Re-enabling compatible providers restores their availability.
+Use file, folder, Chat, terminal, browser and selected-window nodes on existing canvases. Chat threads retain native DSH Sessions, execution and persistence. Removing this plugin retains saved nodes, connections and Session bindings. Re-enabling compatible providers restores their availability.
 
 ## Table of Contents
 
@@ -35,9 +35,15 @@ The [Convax product composition](../plugin-renderer/cordis.patch.yml) mounts thi
 <details>
 <summary>Registration and lifetime</summary>
 
-Four versioned definitions retain the existing `convax.file`, `convax.folder`, `convax.chat` and `convax.window` identities and payloads. Providers use the same public registration API as other node plugins. The canvas Host owns graph transactions, history, migrations and durable ownership records. This plugin owns node validation and the DSH Session and delivery adapters. DSH continues to own messages, drafts and Agent execution.
+Versioned definitions provide `convax.file`, `convax.folder`, `convax.chat`, `convax.terminal`, `convax.browser` and `convax.window` nodes. Providers use the same public registration API as other node plugins. The canvas Host owns graph transactions, history, migrations and durable ownership records. This plugin owns node validation and the DSH Session and delivery adapters. DSH continues to own messages, drafts and Agent execution.
 
 The canvas stores no new database for these nodes. Stopping this plugin cancels and drains its adapter work without stopping DSH Agents or deleting their logs. New provider-dependent actions remain unavailable until the provider returns. Confirmed deletion retains its separate stop-and-archive behavior.
+
+`remote.convaxTerminal` addresses a terminal by canvas and card identity. Each card owns one user shell through the shared [terminal controller](../../libs/dsh/packages/api/terminal-controller/README.md), without creating or following a Chat Session. Creation uses the latest committed incoming file or folder connection: folders supply their own directory and files supply their parent directory. Without a resource input it uses the canvas directory. Directory changes configure subsequent starts; running shells keep their own process state. Concurrent creates share the card's first committed runtime identity.
+
+Switching canvases, closing a canvas tab and detaching screen views preserve the shell. Removing a card or its canvas uses the shared terminal close path to terminate its process range and drain final output; cleanup failures remain retryable. Undo restores card configuration without reviving the closed process. Host or provider disposal ends owned processes; reopening their cards offers a fresh start rather than replaying commands. Terminal screens and raw output remain outside Session history.
+
+New Chat threads persist the reserved permission preset, sandbox mode and approval policy before their Agent resumes. Retrying a creation retains those values even when the user changes the defaults. Forks retain their source permission history.
 
 </details>
 

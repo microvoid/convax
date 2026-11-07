@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer",
-  "description": "Default file, folder, Chat and application-window nodes for Convax",
+  "description": "Default resource, Chat, window, terminal and browser cards for Convax",
   "version": "0.2.1-rc.3",
   "type": "module",
   "main": "lib/index.js",
@@ -41,7 +41,10 @@
         "@deepseek-ai/dsh-client-ui-sidebar-documentpreview",
         "@deepseek-ai/dsh-client-ui-schedule",
         "@deepseek-ai/dsh-api-workspace-controller",
-        "@deepseek-ai/dsh-client-ui-input-trigger"
+        "@deepseek-ai/dsh-client-ui-input-trigger",
+        "@deepseek-ai/dsh-api-terminal-controller",
+        "@deepseek-ai/dsh-client-ui-sidebar-terminal",
+        "@deepseek-ai/dsh-client-ui-sidebar-browser"
       ],
       "external": [
         "@deepseek-ai/dsh-api-gateway/client",
@@ -61,8 +64,7 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-convax-plugin-renderer": "workspace:*"
+    "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -104,9 +106,12 @@
     "@deepseek-ai/dsh-client-ui-input-trigger": "workspace:*",
     "@deepseek-ai/dsh-util-desktop-capture": "workspace:*",
     "lucide-react": "1.64.0",
-    "@deepseek-ai/dsh-convax-plugin-renderer": "workspace:*"
-  },
-  "dependencies": {
+    "@deepseek-ai/dsh-convax-plugin-renderer": "workspace:*",
+    "@deepseek-ai/dsh-api-terminal-controller": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sidebar-terminal": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sidebar-browser": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host": "workspace:*",
+    "@deepseek-ai/dsh-remote-mock": "workspace:*",
     "@deepseek-ai/dsh-convax-plugin-host": "workspace:*"
   },
   "repository": {

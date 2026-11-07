@@ -1,0 +1,3 @@
+- menu:
+  - menuitem "Add folder"
+  - menuitem "Add files"

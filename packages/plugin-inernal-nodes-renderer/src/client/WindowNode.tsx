@@ -20,7 +20,7 @@ import windowCss from './WindowNode.module.css'
  */
 export function WindowNode(props: CanvasNodeRendererProps) {
   return props.renderFactorySlot('convax.window.content', {
-    node: props.node, canvasId: props.canvasId, canvasRevision: props.canvasRevision,
+    active: props.active, node: props.node, canvasId: props.canvasId, canvasRevision: props.canvasRevision,
     definition: props.definition, ports: props.ports, selected: props.selected, busy: props.busy, chat: props.chat,
     remove: props.remove, command: props.command, openResource: props.openResource, openSource: props.openSource,
     createChat: props.createChat, chooseWindow: props.chooseWindow, focusSessionId: props.focusSessionId,
@@ -94,14 +94,14 @@ export function WindowMirror(props: WindowMirrorProps) {
     <NodePorts nodeId={node.id} ports={ports} connectable={!busy} />
     <div className={css.resourceHeader} data-convax-window-header="">
       <div className={css.resourceHeading}>
-        <Tooltip label={t(expanded ? 'files.collapse' : 'files.expand', { name })} portal>
+        <Tooltip label={t(expanded ? 'files.collapse' : 'files.expand', { name })} side="bottom" portal>
           <Button size="sm" className={`${css.resourceToggle} nodrag nopan`} aria-expanded={expanded} aria-controls={contentsId}
             aria-label={t(expanded ? 'files.collapse' : 'files.expand', { name })} onClick={() => { setPreview(null); props.setResourceExpanded(!expanded) }}>
             {expanded ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
           </Button>
         </Tooltip>
         <AppWindow size={16} aria-hidden />
-        <div className={css.resourceIdentity}><Tooltip label={name} portal><span className={css.nodeTitle}>{name}</span></Tooltip></div>
+        <div className={css.resourceIdentity}><Tooltip label={name} side="bottom" portal><span className={css.nodeTitle}>{name}</span></Tooltip></div>
         <span className={css.resourceMeta}>{t('window.readOnly')}</span>
       </div>
     </div>

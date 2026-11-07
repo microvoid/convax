@@ -3,10 +3,10 @@ import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Button, IconPlusOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { TerminalViewState, TerminalView } from '@deepseek-ai/dsh-api-terminal-controller/client'
+import type { TerminalViewState, TerminalControls } from '@deepseek-ai/dsh-api-terminal-controller/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
-import type { TerminalBodyInjected } from './face.ts'
+import type { TerminalBodyInjected, TerminalSurfaceProps } from './face.ts'
 import type {} from './locales.ts'
 import '@xterm/xterm/css/xterm.css'
 import css from './terminal.module.css'
@@ -23,14 +23,25 @@ export type TerminalBodyProps = PropsRuntime<'sidebar.right.pane.tab'> & PropsLo
  */
 export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, t }: TerminalBodyProps): ReactNode {
   const { tab } = useTabInfo()
-  const theme = useTheme(value => value)
   const model = view(tab.id)
   const state = useTerminal(tab.id)
-  useEffect(() => model.mount(), [model])
   if (state === undefined) return null
+  return <TerminalSurface model={model} state={state} visible={tab.visible} autoFocus={tab.visible}
+    onNewTerminal={() => { tab.actions.openTab('terminal', { replaceTab: true }) }}
+    useTheme={useTheme} t={t} />
+}
+
+/**
+ * Render a terminal independently of the container that owns its process.
+ * @param props - Screen state, commands, visibility and the owner's new-instance action.
+ * @returns The common terminal controls and emulator.
+ */
+export function TerminalSurface({ model, state, visible, autoFocus = false, onNewTerminal, useTheme, t }: TerminalSurfaceProps): ReactNode {
+  const theme = useTheme(value => value)
+  useEffect(() => model.mount(), [model])
   const newTerminal = <Button variant="primary" size={state.issue === 'missingTerminal' ? 'md' : 'sm'}
     icon={<span className={css.actionIcon} aria-hidden="true"><IconPlusOutlineRegular /></span>}
-    onClick={() => { tab.actions.openTab('terminal', { replaceTab: true }) }}>
+    onClick={onNewTerminal}>
     {t('new')}
   </Button>
   if (state.issue === 'missingTerminal') return <section className={css.root} data-sidebar-terminal>
@@ -63,17 +74,18 @@ export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, t }: Ter
           : <Button variant="outline" size="sm" onClick={() => { model.connect() }}>{t('reconnect')}</Button>)}
         {ended && newTerminal}
       </div>}
-      {state.info !== undefined && <TerminalScreen state={state} model={model} visible={tab.visible} label={t('title')} theme={theme} />}
+      {state.info !== undefined && <TerminalScreen state={state} model={model} visible={visible} autoFocus={autoFocus} label={t('title')} theme={theme} />}
       {error !== undefined && <p className={css.error} role="alert">{t('failed', { message: error })}</p>}
     </section>
   )
 }
 
 /* oxlint-disable typescript/no-non-null-assertion -- React sets the DOM ref, then these effects initialize and use the emulator. */
-function TerminalScreen({ state, model, visible, label, theme }: {
+function TerminalScreen({ state, model, visible, autoFocus, label, theme }: {
   state: TerminalViewState
-  model: TerminalView
+  model: TerminalControls
   visible: boolean
+  autoFocus: boolean
   label: string
   theme: ThemeSnapshot
 }): ReactNode {
@@ -160,7 +172,7 @@ function TerminalScreen({ state, model, visible, label, theme }: {
   useEffect(() => {
     terminal.current!.textarea?.setAttribute('aria-label', label)
   }, [label])
-  useEffect(() => { if (visible && state.writable) terminal.current!.focus() }, [visible, state.writable])
+  useEffect(() => { if (visible && autoFocus && state.writable) terminal.current!.focus() }, [visible, autoFocus, state.writable])
   return <div className={css.screen} ref={element} data-gesture-surface="content" />
 }
 /* oxlint-enable typescript/no-non-null-assertion */
@@ -172,7 +184,7 @@ function terminalFontFamily(list: string): string {
   return list === '' ? TERMINAL_FONT_STACK : `${list}, ${TERMINAL_FONT_STACK}`
 }
 
-function fitScreen(xterm: Terminal, fit: FitAddon, state: TerminalViewState, model: TerminalView): void {
+function fitScreen(xterm: Terminal, fit: FitAddon, state: TerminalViewState, model: TerminalControls): void {
   const dimensions = fit.proposeDimensions()
   const environment = state.environment
   if (dimensions === undefined || environment === undefined) return

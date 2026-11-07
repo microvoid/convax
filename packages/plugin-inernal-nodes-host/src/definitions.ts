@@ -18,6 +18,35 @@ export function registerDefaultNodes(register: (definition: CanvasNodeDefinition
       parse: data => ({ ...data, path: resourceData.parse(data).path }),
     })
   }
+  const terminalData = z.strictObject({ title: z.string().trim().min(1).optional(), shellPath: z.string().min(1).optional() })
+  register({
+    id: 'convax.terminal' as CanvasNodeTypeId, dataVersion: 1,
+    description: 'Interactive user terminal owned by this canvas card. Input files and folders select its launch directory.',
+    dataSchema: { type: 'object', properties: {
+      title: { type: 'string', minLength: 1, description: 'Optional display title.' },
+      shellPath: { type: 'string', minLength: 1, description: 'Optional installed shell executable.' },
+    }, additionalProperties: false },
+    ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }],
+    parse: (data) => {
+      const value = terminalData.parse(data)
+      return { ...(value.title === undefined ? {} : { title: value.title }),
+        ...(value.shellPath === undefined ? {} : { shellPath: value.shellPath }) }
+    },
+  })
+  const browserData = z.strictObject({ title: z.string().trim().min(1).optional(), url: z.string().min(1).optional() })
+  register({
+    id: 'convax.browser' as CanvasNodeTypeId, dataVersion: 1,
+    description: 'Interactive browser page owned by this canvas card.',
+    dataSchema: { type: 'object', properties: {
+      title: { type: 'string', minLength: 1, description: 'Optional display title.' },
+      url: { type: 'string', minLength: 1, description: 'Page address.' },
+    }, additionalProperties: false },
+    ports: [],
+    parse: (data) => {
+      const value = browserData.parse(data)
+      return { ...(value.title === undefined ? {} : { title: value.title }), ...(value.url === undefined ? {} : { url: value.url }) }
+    },
+  })
   const windowData = z.strictObject({ bindingId: z.uuid(), name: z.string().trim().min(1) })
   register({
     id: 'convax.window' as CanvasNodeTypeId, dataVersion: 1,

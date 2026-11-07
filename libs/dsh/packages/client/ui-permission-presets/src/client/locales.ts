@@ -40,13 +40,14 @@ export const en = {
 
 /** Simplified Chinese dictionary for the current-session popup gate. */
 export const accessZh = {
+  'defaultSaveFailed': '当前会话权限已切换，但未能保存为新会话默认值：{reason}；请重新选择以重试',
   'mode': '访问模式，当前：{name}',
   'close': '关闭',
   'preset.readOnly': '仅可查看',
   'preset.workspaceWrite': '工作区内修改',
   'preset.fullAccess': '完全权限',
   'confirm.title': '确认启用完全权限？',
-  'confirm.description': '启用完全权限后，智能体将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。',
+  'confirm.description': '启用完全权限后，智能体将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。此选择也会用于新会话，仅建议在你信任当前及后续任务时使用。',
   'confirm.acknowledge': '我已了解风险，并愿意继续',
   'confirm.cancel': '取消',
   'confirm.enable': '启用完全权限',
@@ -64,13 +65,14 @@ export type PermissionAccessKey = keyof typeof accessZh
 
 /** English dictionary for the current-session popup gate. */
 export const accessEn = {
+  'defaultSaveFailed': 'This session’s permission changed, but its default could not be saved: {reason}. Choose it again to retry.',
   'mode': 'Access mode, current: {name}',
   'close': 'Close',
   'preset.readOnly': 'Read Only',
   'preset.workspaceWrite': 'Workspace Write',
   'preset.fullAccess': 'Full access',
   'confirm.title': 'Enable Full access?',
-  'confirm.description': 'Full access reduces confirmation steps and lets the agent perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust the current task.',
+  'confirm.description': 'Full access reduces confirmation steps and lets the agent perform more actions directly, including sensitive operations, file changes, or external commands. This choice also applies to new sessions. Only use it when you trust current and subsequent tasks.',
   'confirm.acknowledge': 'I understand the risks and want to continue',
   'confirm.cancel': 'Cancel',
   'confirm.enable': 'Enable Full access',
@@ -181,13 +183,14 @@ export const pt = {
 
 /** Japanese copy, checked against the English keys. */
 export const accessJa = {
+  'defaultSaveFailed': '現在のセッションの権限は変更されましたが、既定値を保存できませんでした: {reason}。もう一度選択してください。',
   'mode': 'アクセスモード、現在: {name}',
   'close': '閉じる',
   'preset.readOnly': '読み取り専用',
   'preset.workspaceWrite': 'ワークスペース書き込み',
   'preset.fullAccess': 'フルアクセス',
   'confirm.title': 'フルアクセスを有効にしますか？',
-  'confirm.description': 'フルアクセスでは確認ステップが減り、エージェントが機密操作・ファイル変更・外部コマンドなど多くの操作を直接実行できるようになります。現在のタスクを信頼できる場合にのみ使用してください。',
+  'confirm.description': 'フルアクセスでは確認ステップが減り、エージェントが機密操作・ファイル変更・外部コマンドなど多くの操作を直接実行できるようになります。この選択は新しいセッションにも適用されます。現在および以降のタスクを信頼できる場合にのみ使用してください。',
   'confirm.acknowledge': 'リスクを理解し、続行します',
   'confirm.cancel': 'キャンセル',
   'confirm.enable': 'フルアクセスを有効にする',
@@ -202,13 +205,14 @@ export const accessJa = {
 
 /** Spanish dictionary, checked against the English keys. */
 export const accessEs = {
+  'defaultSaveFailed': 'El permiso de esta sesión cambió, pero no se pudo guardar como predeterminado: {reason}. Selecciónelo de nuevo para reintentar.',
   'mode': 'Modo de acceso, actual: {name}',
   'close': 'Cerrar',
   'preset.readOnly': 'Sólo lectura',
   'preset.workspaceWrite': 'Escritura en el espacio de trabajo',
   'preset.fullAccess': 'Acceso completo',
   'confirm.title': '¿Habilitar acceso completo?',
-  'confirm.description': 'El acceso completo reduce los pasos de confirmación y permite al agente realizar más acciones directamente, incluidas operaciones confidenciales, cambios de archivos o comandos externos. Úselo solo cuando confíe en la tarea actual.',
+  'confirm.description': 'El acceso completo reduce los pasos de confirmación y permite al agente realizar más acciones directamente, incluidas operaciones confidenciales, cambios de archivos o comandos externos. Esta opción también se aplica a las nuevas sesiones. Úselo solo si confía en las tareas actuales y posteriores.',
   'confirm.acknowledge': 'Entiendo los riesgos y quiero continuar.',
   'confirm.cancel': 'Cancelar',
   'confirm.enable': 'Habilitar acceso completo',
@@ -223,13 +227,14 @@ export const accessEs = {
 
 /** French dictionary, checked against the English keys. */
 export const accessFr = {
+  'defaultSaveFailed': 'L’autorisation de cette session a changé, mais la valeur par défaut n’a pas pu être enregistrée : {reason}. Sélectionnez-la à nouveau pour réessayer.',
   'mode': "Mode d'accès, actuel : {name}",
   'close': 'Fermer',
   'preset.readOnly': 'Lecture seule',
   'preset.workspaceWrite': "Écriture dans l'espace de travail",
   'preset.fullAccess': 'Accès complet',
   'confirm.title': "Activer l'accès complet ?",
-  'confirm.description': "L'accès complet réduit les étapes de confirmation et permet à l'agent d'effectuer directement davantage d'actions, notamment des opérations sensibles, des modifications de fichiers ou des commandes externes. Utilisez-le uniquement lorsque vous faites confiance à la tâche en cours.",
+  'confirm.description': "L'accès complet réduit les étapes de confirmation et permet à l'agent d'effectuer directement davantage d'actions, notamment des opérations sensibles, des modifications de fichiers ou des commandes externes. Ce choix s’applique aussi aux nouvelles sessions. Utilisez-le uniquement si vous faites confiance aux tâches actuelles et suivantes.",
   'confirm.acknowledge': 'Je comprends les risques et je veux continuer',
   'confirm.cancel': 'Annuler',
   'confirm.enable': "Activer l'accès complet",
@@ -244,13 +249,14 @@ export const accessFr = {
 
 /** German dictionary, checked against the English keys. */
 export const accessDe = {
+  'defaultSaveFailed': 'Die Berechtigung dieser Sitzung wurde geändert, konnte aber nicht als Standard gespeichert werden: {reason}. Wählen Sie sie erneut aus.',
   'mode': 'Zugriffsmodus, aktuell: {name}',
   'close': 'Schließen',
   'preset.readOnly': 'Nur lesen',
   'preset.workspaceWrite': 'Arbeitsbereich schreiben',
   'preset.fullAccess': 'Voller Zugriff',
   'confirm.title': 'Vollzugriff aktivieren?',
-  'confirm.description': 'Durch den Vollzugriff werden Bestätigungsschritte reduziert und der Agent kann mehr Aktionen direkt ausführen, einschließlich vertraulicher Vorgänge, Dateiänderungen oder externer Befehle. Verwenden Sie es nur, wenn Sie der aktuellen Aufgabe vertrauen.',
+  'confirm.description': 'Durch den Vollzugriff werden Bestätigungsschritte reduziert und der Agent kann mehr Aktionen direkt ausführen, einschließlich vertraulicher Vorgänge, Dateiänderungen oder externer Befehle. Diese Auswahl gilt auch für neue Sitzungen. Verwenden Sie sie nur, wenn Sie aktuellen und folgenden Aufgaben vertrauen.',
   'confirm.acknowledge': 'Ich verstehe die Risiken und möchte weitermachen',
   'confirm.cancel': 'Abbrechen',
   'confirm.enable': 'Aktivieren Sie Vollzugriff',
@@ -265,13 +271,14 @@ export const accessDe = {
 
 /** Russian dictionary, checked against the English keys. */
 export const accessRu = {
+  'defaultSaveFailed': 'Разрешение этого сеанса изменено, но значение по умолчанию не сохранено: {reason}. Выберите его ещё раз.',
   'mode': 'Режим доступа, текущий: {name}',
   'close': 'Закрыть',
   'preset.readOnly': 'Только чтение',
   'preset.workspaceWrite': 'Запись в рабочей области',
   'preset.fullAccess': 'Полный доступ',
   'confirm.title': 'Включить полный доступ?',
-  'confirm.description': 'Полный доступ сокращает количество шагов подтверждения и позволяет агенту напрямую выполнять больше действий, включая конфиденциальные операции, изменения файлов или внешние команды. Используйте его только в том случае, если вы доверяете текущей задаче.',
+  'confirm.description': 'Полный доступ сокращает количество шагов подтверждения и позволяет агенту напрямую выполнять больше действий, включая конфиденциальные операции, изменения файлов или внешние команды. Этот выбор применяется и к новым сеансам. Используйте его, только если доверяете текущим и последующим задачам.',
   'confirm.acknowledge': 'Я понимаю риски и хочу продолжить',
   'confirm.cancel': 'Отмена',
   'confirm.enable': 'Включить полный доступ',
@@ -286,13 +293,14 @@ export const accessRu = {
 
 /** Portuguese dictionary, checked against the English keys. */
 export const accessPt = {
+  'defaultSaveFailed': 'A permissão desta sessão mudou, mas não foi possível salvá-la como padrão: {reason}. Selecione-a novamente para tentar de novo.',
   'mode': 'Modo de acesso, atual: {name}',
   'close': 'Fechar',
   'preset.readOnly': 'Somente leitura',
   'preset.workspaceWrite': 'Gravação no espaço de trabalho',
   'preset.fullAccess': 'Acesso total',
   'confirm.title': 'Ativar acesso total?',
-  'confirm.description': 'O acesso total reduz as etapas de confirmação e permite que o agente execute mais ações diretamente, incluindo operações confidenciais, alterações de arquivos ou comandos externos. Use-o apenas quando confiar na tarefa atual.',
+  'confirm.description': 'O acesso total reduz as etapas de confirmação e permite que o agente execute mais ações diretamente, incluindo operações confidenciais, alterações de arquivos ou comandos externos. Esta escolha também se aplica a novas sessões. Use-a apenas se confiar nas tarefas atuais e seguintes.',
   'confirm.acknowledge': 'Entendo os riscos e quero continuar',
   'confirm.cancel': 'Cancelar',
   'confirm.enable': 'Ativar acesso total',

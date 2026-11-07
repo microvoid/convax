@@ -7,13 +7,21 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { AgentPresetSeatInjected } from './AgentPresetSeat.tsx'
+import type { AgentPresetDefaultController } from './default-store.ts'
 import { presetDisplayText } from './locales.ts'
 import { requiresCodingTools } from './settings-store.ts'
 import css from './AgentPresetInput.module.css'
 import seatCss from './AgentPresetSeat.module.css'
 
 /** Controller operations and snapshots shared with the native preset seat. */
-export type AgentPresetInputInjected = Pick<AgentPresetSeatInjected, 'hooks' | 'load' | 'select'>
+export type AgentPresetInputInjected = Pick<AgentPresetSeatInjected, 'load' | 'select'> & {
+  hooks: AgentPresetSeatInjected['hooks'] & {
+    /** Default-save feedback survives switching to the Session just created. */
+    presetDefault: AgentPresetDefaultController['store']
+  }
+  /** Create a Session with the owner's action and remember its accepted mode. */
+  startSession: (id: string, create: (id: string) => Promise<void>) => Promise<void>
+}
 
 /** Full props of the session-bound composer control. */
 export type AgentPresetInputProps =
@@ -27,9 +35,10 @@ export type AgentPresetInputProps =
  * @returns the mode menu and local loading or failure feedback.
  */
 export function AgentPresetInput({
-  sessionId, useSessions, useDeveloperTools, useAgentPresetSeat, load, select, locked, onNewSession, t,
+  sessionId, useSessions, useDeveloperTools, useAgentPresetSeat, usePresetDefault, load, select, startSession, locked, onNewSession, t,
 }: AgentPresetInputProps) {
   const state = useAgentPresetSeat(snapshot => snapshot)
+  const defaults = usePresetDefault(snapshot => snapshot)
   const developerTools = useDeveloperTools(value => value)
   const session = useSessions(snapshot => snapshot.byId[sessionId])
   const started = (session?.projectionValues?.sessionListMetadata?.blank ?? session?.blank) === false
@@ -41,12 +50,13 @@ export function AgentPresetInput({
   const [creating, setCreating] = useState(false)
   const [creationError, setCreationError] = useState<string | null>(null)
   const options = state.options.filter(option => developerTools || !requiresCodingTools(option))
-  const disabled = locked || state.busy || state.loading || creating || session === undefined
+  const disabled = locked || state.busy || state.loading || defaults.saving || creating || session === undefined
   const error = creationError !== null
     ? t('composerCreateFailed', { reason: creationError })
-    : state.error === null ? null : typeof state.error === 'string'
-      ? t('composerLoadFailed', { reason: state.error })
-      : t('switchRefused', { name: presetDisplayText(state.error.preset, t).name, reason: state.error.reason })
+    : defaults.error !== null ? t('composerSaveFailed', { reason: defaults.error })
+      : state.error === null ? null : typeof state.error === 'string'
+        ? t('composerLoadFailed', { reason: state.error })
+        : t('switchRefused', { name: presetDisplayText(state.error.preset, t).name, reason: state.error.reason })
 
   useEffect(() => { void load() }, [load])
 
@@ -59,7 +69,7 @@ export function AgentPresetInput({
     }
     setCreating(true)
     try {
-      await onNewSession(id)
+      await startSession(id, onNewSession)
     } catch (error) {
       setCreationError(error instanceof Error ? error.message : String(error))
     } finally {
@@ -105,7 +115,7 @@ export function AgentPresetInput({
             aria-label={t('composerHint', { name: label })}
             aria-haspopup="menu"
             aria-expanded={open && !disabled}
-            aria-busy={state.loading || state.busy || creating}
+            aria-busy={state.loading || state.busy || defaults.saving || creating}
             disabled={disabled}
             onClick={() => { setOpen(value => !value) }}
           >

@@ -65,7 +65,7 @@ Closed, minimized, locked, inaccessible, or unsupported windows must not silentl
 
 ### Existing capabilities and required extensions
 
-The [node registry](../../../../../../packages/plugin-host/src/registry.ts) and [renderer registry](../../../../../../packages/plugin-renderer/src/client/node-renderers.tsx) supply node contributions. Current [resource preparation](../../../../../../packages/plugin-host/src/index.ts) validates file/folder paths, while [draft insertion](../../../../../../packages/plugin-renderer/src/client/draft-references.ts) creates native file references. A live window binding needs an explicit reference protocol.
+The [node registry](../../../../../../packages/plugin-host/src/registry.ts) and [renderer registry](../../../../../../packages/plugin-renderer/src/client/node-renderers.tsx) supply node contributions. Current [resource preparation](../../../../../../packages/plugin-host/src/index.ts) validates file/folder paths, while [draft insertion](../../../../../../packages/plugin-inernal-nodes-renderer/src/client/draft-references.ts) creates native file references. A live window binding needs an explicit reference protocol.
 
 The [native CUA code](../../../../packages/experimental/cua-macos/native/Sources/CuaNative/) implements single-window screenshots and local pointer operations, not a continuous mirror. Keyboard operations follow application focus; hover can require the original window to be frontmost. The [Computer Use registry](../../../../packages/computer-use/computer-use/src/index.ts) only registers provider identity, without a public capture/input dispatcher. Do not invent `ctx.computerUse.capture`, use private Agent closures, or manufacture an Agent for manual routing.
 

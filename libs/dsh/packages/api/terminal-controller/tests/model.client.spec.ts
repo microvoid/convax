@@ -557,3 +557,15 @@ it('drops waiting commands when input is refused and never replays them on a new
   h.model.write('c')
   await expect.poll(() => h.sent[1]).toEqual([{ type: 'write', sequence: 1, data: 'c' }])
 })
+
+it('adopts the owner-provided instance identity for rename and close', async () => {
+  const { model, remote } = fixture()
+  const existing = 'owner-existing-terminal' as WebTerminalId
+  vi.mocked(remote.create).mockResolvedValue(success({ ...info, id: existing }))
+  await model.refresh()
+  expect(model.id).toBe(existing)
+  await model.rename('Shared canvas shell')
+  expect(remote.rename).toHaveBeenCalledWith(sessionId, existing, 'Shared canvas shell')
+  await model.close()
+  expect(remote.close).toHaveBeenCalledWith(sessionId, existing)
+})

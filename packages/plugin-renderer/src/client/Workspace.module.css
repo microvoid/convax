@@ -1,4 +1,5 @@
 .workspace {
+  position: relative;
   display: flex;
   flex-direction: column;
   reading-flow: flex-visual;
@@ -12,6 +13,9 @@
 }
 
 .tabbar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 10;
   order: -1;
   box-sizing: border-box;
   display: flex;
@@ -22,25 +26,32 @@
   padding: 4px 12px;
   font-size: 12px;
   line-height: 18px;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  border: 0;
 }
 
 :global([data-platform='darwin']) .tabbar {
   padding-inline-start: var(--dsh-frame-leading-clearance);
 }
 
-.brand { display: flex; align-items: center; flex: none; gap: 6px; font-size: 16px; font-weight: 500; }
-.tabStrip { display: flex; align-items: center; flex: 1; gap: 2px; min-width: 0; }
+.brand { display: flex; align-items: center; flex: none; }
+.tabStrip { display: flex; align-items: center; flex: 0 1 560px; gap: 4px; min-width: 160px; max-width: 60%; }
+.windowDragSpace { flex: 1 0 120px; align-self: stretch; min-height: 36px; }
+.globalActions { flex: none; }
+.activityAction { display: flex; }
+.activityIndicator { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: var(--dsw-radius-xs); background: var(--dsw-alias-state-business-primary); }
 .tabs { display: flex; min-width: 0; gap: 2px; padding-block: 4px; margin-block: -4px; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 :global([data-platform='darwin']) .tabs { -webkit-app-region: no-drag; }
 .tab { position: relative; display: flex; align-items: center; flex: 0 0 auto; max-width: 240px; border-radius: var(--dsw-radius-md); }
-.tab[data-active] { background: var(--dsw-alias-bg-module-platform); }
+.tab[data-active] { background: var(--dsw-alias-bg-base); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l2); }
 .tabTitle { min-width: 0; color: inherit; background: transparent; border: 0; font: inherit; cursor: grab; touch-action: none; user-select: none; padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab[data-dragging] .tabTitle { cursor: grabbing; }
-.tabbar .chromeButton { width: 24px; height: 24px; padding: 0; }
+.tabbar .chromeButton { position: relative; width: 28px; height: 28px; padding: 0; flex: none; }
 .body { display: flex; flex: 1; min-width: 0; min-height: 0; }
 .main { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; position: relative; }
+.retainedCanvas { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.retainedCanvas[hidden] { display: none; }
 .renameForm { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .renameForm > span { flex: 1; min-width: 0; }
 .empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
@@ -64,40 +75,23 @@
 .graph[data-canvas-pan-ready] * { cursor: grab !important; }
 .graph[data-canvas-panning],
 .graph[data-canvas-panning] * { cursor: grabbing !important; }
+.graph[data-canvas-drag-select] :global(.react-flow__pane.selection) { cursor: default; }
 .graph[data-canvas-wheel-owner='canvas'] iframe,
 .graph[data-canvas-pan-ready] iframe,
-.graph[data-canvas-panning] iframe { pointer-events: none; }
-.graphControls,
-.creationDock {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  width: max-content;
-  box-sizing: border-box;
-  padding: 4px;
-  border: 0;
-  border-radius: var(--dsw-radius-md);
-  background: var(--dsw-alias-bg-base);
-  box-shadow: var(--dsw-elevation-prominent);
-}
-.graphControls { position: absolute; bottom: 16px; left: 12px; z-index: 5; max-width: calc(100% - 24px); font-size: 12px; line-height: 18px; flex-wrap: wrap; }
-.graphControls button { height: 24px; padding-inline: 6px; white-space: nowrap; }
+.graph[data-canvas-panning] iframe,
+.graph:has([data-convax-resource-resize][data-resizing], [data-convax-chat-resize][data-resizing]) iframe { pointer-events: none; }
+.graphControls { position: absolute; bottom: 12px; left: 12px; z-index: 5; max-width: calc(100% - 24px); flex-wrap: wrap; }
 .creationDock:global(.react-flow__panel.bottom.center) {
   margin: 0;
-  bottom: 16px;
+  bottom: 12px;
   max-width: calc(100% - 24px);
   transform: translateX(-50%);
 }
-.creationDock > button { gap: 6px; white-space: nowrap; }
-.creationDock > button + button { border-left: 0.5px solid var(--dsw-alias-border-l2); }
-.inputMode { max-width: 140px; min-width: 0; height: 24px; padding: 0 6px; color: inherit; background: var(--dsw-alias-bg-base); border: 0; border-right: 0.5px solid var(--dsw-alias-border-l2); border-radius: 0; font: inherit; }
-.minus { display: block; width: 10px; height: 1px; background: currentcolor; }
 .graphHint { position: absolute; inset: 40% 24px auto; text-align: center; pointer-events: none; color: var(--dsw-alias-label-secondary); }
 .preview { width: min(800px, calc(100vw - 32px)); }
 .previewBody { display: flex; flex-direction: column; width: 100%; height: min(70vh, 720px); min-height: 160px; }
 .automationDialog { width: min(1040px, 100%); height: min(640px, 100%); max-height: 100%; min-height: 0; gap: 0; padding: 0; border-radius: var(--dsw-radius-md); }
 .automationBody { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
-.tabbar .automationButton { gap: 6px; height: 28px; padding: 4px 6px; color: inherit; font-size: inherit; }
 .previewText { max-height: 60vh; padding: 12px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
 .notice { color: var(--dsw-alias-label-secondary); padding: 12px; margin: 0; overflow-wrap: anywhere; }
 .center { display: flex; align-items: center; justify-content: center; padding: 24px; min-height: 100px; }
@@ -112,22 +106,26 @@
 }
 
 @media (max-width: 1100px) {
-  .creationDock:global(.react-flow__panel.bottom.center) { bottom: 88px; }
+  .graphControls { bottom: 76px; }
 }
 
 @media (max-width: 600px) {
-  .tabbar { flex-wrap: wrap; padding: 4px 8px; }
-  .tabStrip { order: 1; flex-basis: 100%; }
-  .tabs { flex: 1; }
-  .tab { max-width: min(240px, calc(100vw - 80px)); }
+  .tabbar { flex-wrap: wrap; min-height: 104px; padding-block: 4px; }
+  .brand { display: none; }
+  .tabStrip { order: 1; flex: 1 0 100%; min-width: 0; max-width: none; }
+  .globalActions .automationButton { display: none; }
+  .activityAction { display: none; }
+  .windowDragSpace { min-height: 32px; }
+}
+
+@media (max-width: 900px) {
+  .windowDragSpace { flex-basis: 96px; }
 }
 
 @media (pointer: coarse) {
   .workspace input,
   .workspace select { font-size: 16px; }
   .tabbar .chromeButton { width: 28px; height: 28px; }
-  .graphControls button,
-  .inputMode { height: 28px; }
 }
 
 .dangerButton {

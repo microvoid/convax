@@ -991,6 +991,60 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'convaxTerminal',
+    summary: 'Typed terminal operations using committed canvas nodes as their resource owner.',
+    description: 'Typed terminal operations using committed canvas nodes as their resource owner.',
+    methods: [
+      {
+        signature: '@Remote async environment(canvasId: CanvasId, nodeId: CanvasNodeId, signal: AbortSignal): Promise<TerminalEnvironment>',
+        description: 'Read the card\'s launch directory and shared terminal limits.',
+        parameters: [{ name: 'canvasId', description: 'Owning canvas identity.' }, { name: 'nodeId', description: 'Terminal card identity.' }, { name: 'signal', description: 'Request cancellation.' }],
+        returns: 'Current launch directory and terminal limits; running shells retain their own directory.',
+      },
+      {
+        signature: '@Remote shells(canvasId: CanvasId, nodeId: CanvasNodeId, signal: AbortSignal): Promise<TerminalShell[]>',
+        description: 'Discover shells without allocating a terminal process.',
+        parameters: [{ name: 'canvasId', description: 'Owning canvas identity.' }, { name: 'nodeId', description: 'Terminal card identity.' }, { name: 'signal', description: 'Request cancellation.' }],
+        returns: 'Installed shell choices in the canvas execution environment.',
+      },
+      {
+        signature: '@Remote list(canvasId: CanvasId, nodeId: CanvasNodeId): WebTerminalInfo[]',
+        description: 'List the card\'s retained process without creating a Session or shell.',
+        parameters: [{ name: 'canvasId', description: 'Owning canvas identity.' }, { name: 'nodeId', description: 'Terminal card identity.' }],
+        returns: 'At most one retained process, including its exited screen.',
+      },
+      {
+        signature: '@Remote async create(canvasId: CanvasId, nodeId: CanvasNodeId, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo>',
+        description: 'Start a shell for this card, sharing the current instance across windows and retries.',
+        parameters: [{ name: 'canvasId', description: 'Owning canvas identity.' }, { name: 'nodeId', description: 'Terminal card identity.' }, { name: 'request', description: 'New runtime identity, shell choice and initial dimensions.' }, { name: 'signal', description: 'Cancellation before allocation commits.' }],
+        returns: 'Existing or newly committed process metadata; its id may belong to another window\'s first create.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) retain(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId, signal: AbortSignal): AsyncIterable<TerminalRetentionFrame>',
+        description: 'Hold an existing process without taking input control; cards also retain their process on the Host.',
+        parameters: [{ name: 'canvasId', description: 'Owning canvas identity.' }, { name: 'nodeId', description: 'Terminal card identity.' }, { name: 'id', description: 'Retained runtime identity.' }, { name: 'signal', description: 'Physical stream lifetime.' }],
+        returns: 'Hold acknowledgement followed by its lifetime stream.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) attach(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId, signal: AbortSignal): RemoteStream<TerminalFrame, TerminalInput>',
+        description: 'Attach screen and input to the card\'s current process.',
+        parameters: [{ name: 'canvasId', description: 'Owning canvas identity.' }, { name: 'nodeId', description: 'Terminal card identity.' }, { name: 'id', description: 'Retained runtime identity.' }, { name: 'signal', description: 'Attachment cancellation, which preserves the process.' }],
+        returns: 'Screen recovery, output, writable state and command acknowledgements.',
+      },
+      {
+        signature: '@Remote rename(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId, title: string): void',
+        description: 'Rename the running instance without changing its launch configuration.',
+        parameters: [{ name: 'canvasId', description: 'Owning canvas identity.' }, { name: 'nodeId', description: 'Terminal card identity.' }, { name: 'id', description: 'Retained runtime identity.' }, { name: 'title', description: 'Nonempty display title.' }],
+      },
+      {
+        signature: '@Remote async close(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId): Promise<void>',
+        description: 'Terminate the runtime identity using the shared terminal close path, including after card deletion.',
+        parameters: [{ name: 'canvasId', description: 'Original owning canvas identity.' }, { name: 'nodeId', description: 'Original terminal card identity.' }, { name: 'id', description: 'Runtime identity to close; a later replacement remains independent.' }],
+        returns: 'After provider process cleanup and output drainage settle.',
+      },
+    ],
+  },
+  {
     key: 'cotTranslation',
     summary: 'Optional reasoning translation delegates Session-bound storage to the translator.',
     description: 'Optional reasoning translation delegates Session-bound storage to the translator.',
@@ -3584,6 +3638,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Close an identity to future creation and kill its process range; repeated closes succeed.',
         parameters: [{ name: 'agent', description: 'Session owner supplied by the Gateway.' }, { name: 'id', description: 'terminal identity.' }],
         returns: 'after provider cleanup succeeds. A failure retains the terminal for retry.',
+      },
+      {
+        signature: 'createOwner(execution: () => UserTerminalExecution, unattendedTimeoutMs: number): UserTerminalOwner',
+        description: 'Construct a view-independent terminal owner for an application resource. The caller owns disposal; zero unattendedTimeoutMs retains processes until explicit resource cleanup.',
+        parameters: [{ name: 'execution', description: 'Provider and validated directory resolver for this resource.' }, { name: 'unattendedTimeoutMs', description: 'Owner retention interval, or zero for resource-owned retention.' }],
+        returns: 'A new owner using the controller\'s shell and screen configuration.',
       },
     ],
   },
@@ -9098,6 +9158,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'UserMessage',
     declaration: 'export interface UserMessage extends MessageBase {\n    readonly role: \'user\';\n}',
+  },
+  {
+    name: 'UserTerminalExecution',
+    declaration: 'export interface UserTerminalExecution {\n    readonly subprocess: Context[\'subprocess\'];\n    readonly ensureCwd: (signal: AbortSignal) => Promise<string>;\n    readonly env: Readonly<Record<string, string>>;\n}',
+  },
+  {
+    name: 'UserTerminalOwner',
+    declaration: 'export class UserTerminalOwner {\n    constructor(private readonly config: Config, private readonly execution: () => UserTerminalExecution, private readonly failed: (error: unknown) => void);\n    environment(cwd: string): TerminalEnvironment;\n    shells(signal: AbortSignal): Promise<TerminalShell[]>;\n    list(): WebTerminalInfo[];\n    async create(request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo>;\n    retain(id: WebTerminalId, signal: AbortSignal): AsyncIterable<TerminalRetentionFrame>;\n    attach(id: WebTerminalId, input: AsyncIterable<TerminalInput>, signal: AbortSignal, inputWindow?: RemoteUplinkWindow): AsyncIterable<TerminalFrame>;\n    rename(id: WebTerminalId, title: string): void;\n    async close(id: WebTerminalId): Promise<void>;\n    dispose(): Promise<void>;\n}',
   },
   {
     name: 'VerifiedWebhookDelivery',

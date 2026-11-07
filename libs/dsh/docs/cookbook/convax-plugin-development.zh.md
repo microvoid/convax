@@ -38,7 +38,7 @@
 | 具名连线 | 提供方 `ports` 与 Host 连线校验 | 输出、输入的 `valueKind` 必须完全相同。连线记录关系，不运行下游工作。 |
 | 文件、文件夹与预览 | Host `describe`、目录和内容读取及监听、`readDocument`、`mediaSource` | 复用组合文件系统访问和资源预览；校验绝对路径，读取不创建 Session。参见[资源行为](../../../../packages/plugin-host/README.zh.md)。 |
 | 输入框引用 | Host `prepareReference` 与提供方 `prepareInput` | 将显式源解析为校验过的文件或文件夹资源。解析不发送提示词；输入插入与保留由现有输入框负责。 |
-| Chat 与 thread | 内置 `convax.chat`、Host `createThread` 与 [Chat 协调器](../../../../packages/plugin-host/src/chats.ts) | 创建或 fork 持久化 DSH Session 绑定；使用现有对话和输入框渲染。只有图记录的 Chat 节点不代表已创建 Session。 |
+| Chat 与 thread | 内置 `convax.chat`、Host `createThread` 与 [Chat 协调器](../../../../packages/plugin-inernal-nodes-host/src/chats.ts) | 创建或 fork 持久化 DSH Session 绑定；使用现有对话和输入框渲染。只有图记录的 Chat 节点不代表已创建 Session。 |
 | 持久化与升级 | Convax [仓储](../../../../packages/plugin-host/src/repository.ts)和[迁移协调器](../../../../packages/plugin-host/src/migrations.ts) | 图封装记录的持久化独立于渲染器生命周期；节点相邻纯迁移失败时保留原数据。 |
 | agent（智能体）图操作 | Host 注册的五个[图工具](../../../../packages/plugin-host/src/tools.ts) | 无需打开视图，即可查询画布、添加已有文件、连线、移动与排列节点。自定义节点创建仍需自有操作或工具。 |
 

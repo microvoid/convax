@@ -1,5 +1,5 @@
 /** Session identity, allocation races, human execution permissions and real PTY behavior. */
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -203,7 +203,7 @@ describe('TerminalController', () => {
     const allocation = Promise.withResolvers<SubprocessTerminalHandle>()
     subprocess.spawnTerminal.mockImplementationOnce(() => allocation.promise)
     const creating = controller.create(agent, request, signal())
-    const rejected = expect(creating).rejects.toThrow('closed in this Session')
+    const rejected = expect(creating).rejects.toThrow('closed in this owner')
     const closing = controller.close(agent, id)
     allocation.resolve(handle)
     await rejected
@@ -216,7 +216,7 @@ describe('TerminalController', () => {
     const { controller, agent, subprocess } = fixture()
     await controller.close(agent, id)
     await controller.close(agent, id)
-    await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this Session')
+    await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this owner')
     expect(subprocess.spawnTerminal).not.toHaveBeenCalled()
     const nextId = 'next-terminal' as WebTerminalId
     await expect(controller.create(agent, { ...request, id: nextId }, signal())).resolves.toMatchObject({ id: nextId })
@@ -230,15 +230,15 @@ describe('TerminalController', () => {
     subprocess.spawnTerminal.mockImplementationOnce(() => { spawning.resolve(undefined); return allocation.promise })
     const creating = controller.create(agent, request, signal())
     const duplicate = controller.create(agent, request, signal())
-    const rejected = expect(creating).rejects.toThrow('closed in this Session')
-    const duplicateRejected = expect(duplicate).rejects.toThrow('closed in this Session')
+    const rejected = expect(creating).rejects.toThrow('closed in this owner')
+    const duplicateRejected = expect(duplicate).rejects.toThrow('closed in this owner')
     try {
       await spawning.promise
       const closing = controller.close(agent, id)
-      await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this Session')
+      await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this owner')
       allocation.resolve(handle)
       await Promise.all([rejected, duplicateRejected, closing])
-      await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this Session')
+      await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this owner')
       expect(handle.terminate).toHaveBeenCalledOnce()
       expect(subprocess.spawnTerminal).toHaveBeenCalledOnce()
       expect(controller.list(agent.id)).toEqual([])
@@ -263,7 +263,7 @@ describe('TerminalController', () => {
     vi.mocked(handle.terminate).mockRejectedValueOnce(new Error('process still alive'))
     await expect(controller.close(agent, id)).rejects.toThrow('still alive')
     expect(controller.list(agent.id)).toHaveLength(1)
-    await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this Session')
+    await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this owner')
     await controller.close(agent, id)
     expect(controller.list(agent.id)).toHaveLength(0)
   })
@@ -299,7 +299,7 @@ describe('TerminalController', () => {
     handle.terminate.mockRejectedValueOnce(new Error('still alive'))
     await expect(controller.create(agent, request, abort.signal)).rejects.toThrow('cleanup failed')
     expect(controller.list(agent.id)).toMatchObject([{ id, state: 'failed', error: 'lost request' }])
-    await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this Session')
+    await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this owner')
     await expect(controller.create(agent, { ...request, id: 'another' as WebTerminalId }, signal())).rejects.toMatchObject({ code: 'terminal/limit-reached', details: { limit: 1 } })
     await controller.close(agent, id)
     expect(controller.list(agent.id)).toEqual([])
@@ -462,8 +462,8 @@ describe('TerminalController', () => {
     const { controller, agent, handle, disposeEffect } = fixture()
     await controller.create(agent, request, signal())
     handle.terminate.mockRejectedValueOnce(new Error('still alive'))
-    await expect(disposeEffect('terminal-controller.owner')).rejects.toThrow('Session terminal cleanup failed')
-    await expect(controller.create(agent, request, signal())).rejects.toThrow('Session owner disposed')
+    await expect(disposeEffect('terminal-controller.owner')).rejects.toThrow('Terminal owner cleanup failed')
+    await expect(controller.create(agent, request, signal())).rejects.toThrow('Terminal owner disposed')
     handle.terminate.mockRejectedValueOnce(new Error('still alive again'))
     await expect(disposeEffect('terminal-controller.processes')).rejects.toThrow('Browser terminal cleanup failed')
     expect(controller.list(agent.id)).toHaveLength(1)
@@ -573,7 +573,9 @@ it.skipIf(process.platform === 'win32')('runs a real interactive shell with comp
   const ctx = new Context()
   const runtime = await ctx.plugin(LocalSubprocessRuntime)
   try {
-    const handle = await ctx.subprocess.spawnTerminal({ argv: ['/bin/bash', '--noprofile', '--norc', '-i'], cwd, rows: 24, cols: 80, terminalType: 'xterm-256color', graceMs: 100, env: { PS1: 'READY> ', PS2: '' } })
+    await writeFile(join(cwd, 'completion-target.txt'), 'private completion target')
+    const handle = await ctx.subprocess.spawnTerminal({ argv: ['/bin/bash', '--noprofile', '--norc', '-i'], cwd,
+      rows: 24, cols: 80, terminalType: 'xterm-256color', graceMs: 100, env: { PS1: 'READY> ', PS2: '', INPUTRC: '/dev/null' } })
     let output = ''
     handle.output.on('data', (data: Buffer) => { output += data.toString('utf8') })
     try {
@@ -582,9 +584,10 @@ it.skipIf(process.platform === 'win32')('runs a real interactive shell with comp
       await handle.write("printf 'TERM:%s\\n' \"$TERM\"; stty size\r")
       await expect.poll(() => output).toContain('TERM:xterm-256color')
       await expect.poll(() => output).toContain('30 100')
-      // Bash's builtin completion expands this unambiguous command before Enter.
-      await handle.write('histor\t')
-      await expect.poll(() => output).toContain('history')
+      await expect.poll(() => output).toMatch(/30 100\r?\nREADY> /)
+      // A private filename keeps completion independent of the caller's executable PATH.
+      await handle.write("printf '%s\\n' completion-tar\t")
+      await expect.poll(() => output).toContain('completion-target.txt')
     } finally { await handle.terminate() }
     await expect(handle.done).resolves.toBeDefined()
   } finally {
@@ -653,7 +656,7 @@ it('retains a known terminal without Agent resolution and fences stream admissio
   await h.controller.close(h.agent, id)
   expect(await ended).toMatchObject({ done: true })
   expect(() => h.controller.retain(h.agent.id, id, signal())).toThrow('unavailable')
-  await expect(h.controller.create(h.agent, request, signal())).rejects.toThrow('closed in this Session')
+  await expect(h.controller.create(h.agent, request, signal())).rejects.toThrow('closed in this owner')
 })
 
 it('reclaims confirmed idle processes and preserves closed identity exclusion after removing their screens', async () => {
@@ -668,7 +671,7 @@ it('reclaims confirmed idle processes and preserves closed identity exclusion af
     await vi.advanceTimersByTimeAsync(110)
     expect(h.handle.terminate).toHaveBeenCalledOnce()
     expect(h.controller.list(h.agent.id)).toEqual([])
-    await expect(h.controller.create(h.agent, request, signal())).rejects.toThrow('closed in this Session')
+    await expect(h.controller.create(h.agent, request, signal())).rejects.toThrow('closed in this owner')
     expect(h.subprocess.spawnTerminal).toHaveBeenCalledOnce()
   } finally {
     await h.ctx.fiber.dispose()

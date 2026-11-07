@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import { PluginArtworkTerminal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { TerminalGuide, type TerminalGuideInjected } from './TerminalGuide.tsx'
-import { LazyTerminalBody } from './LazyTerminalBody.tsx'
+import { LazyTerminalBody, LazyTerminalSurface } from './LazyTerminalBody.tsx'
 import { TerminalTitle } from './TerminalTitle.tsx'
 // import { TerminalRecovery, type TerminalRecoveryInjected } from './TerminalRecovery.tsx'
 // import { TerminalCleanup, type TerminalCleanupInjected } from './TerminalCleanup.tsx'
@@ -20,6 +20,8 @@ import type { TerminalBodyInjected, TerminalInjected } from './face.ts'
 import { en, ja, es, fr, de, ru, pt, zh } from './locales.ts'
 
 /** Services needed by the terminal's two sidebar seats. */
+export type { TerminalSurfaceOwner, TerminalSurfaceProps } from './face.ts'
+
 export const inject = ['slots', 'locale', 'sidebarRight', 'sidebarRightTabs', 'webTerminals', 'theme', 'shortcuts']
 
 /**
@@ -83,6 +85,7 @@ export function apply(ctx: Context): void {
     getSnapshot: () => ctx.theme.getTheme(),
     subscribe: listener => ctx.on('theme/change', listener),
   }
+  ctx.slots.registerFactory({ name: 'terminal.content', scope: 'root', locale: namespace, inject: () => ({ hooks: { theme } }) }, LazyTerminalSurface)
   ctx.effect(() => ctx.slots.inject('sidebar.right.tab.guide.entry', () => ctx.slots.register({
     name: 'sidebar.right.tab.guide.entry', key: id, locale: namespace,
     inject: (sessionId): TerminalGuideInjected => ({

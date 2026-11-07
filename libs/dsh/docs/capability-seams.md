@@ -10,6 +10,9 @@ flowchart LR
   pkg_convax_plugin_host["convax-plugin-host"]
   svc_convax["ctx.convax<br/>Convax canvas Host"]
   pkg_convax_plugin_renderer["convax-plugin-renderer"]
+  pkg_convax_plugin_inernal_nodes_host["convax-plugin-inernal-nodes-host"]
+  svc_convaxTerminal["ctx.convaxTerminal<br/>Canvas interactive terminal Remote controller"]
+  pkg_convax_plugin_inernal_nodes_renderer["convax-plugin-inernal-nodes-renderer"]
   pkg_action_cards["action-cards"]
   svc_actionCards["ctx.actionCards<br/>Optional action cards"]
   pkg_creation_recommendations["creation-recommendations"]
@@ -345,6 +348,7 @@ flowchart LR
   pkg_computer_use --> svc_computerUse
   pkg_config_editor --> svc_configEditor
   pkg_convax_plugin_host --> svc_convax
+  pkg_convax_plugin_inernal_nodes_host --> svc_convaxTerminal
   pkg_cordis_host_runner --> svc_cordisInspect
   pkg_cordis_host_runner --> svc_dynamicCordisRunner
   pkg_credentials --> svc_credentials
@@ -500,6 +504,7 @@ flowchart LR
   svc_connection --> pkg_api_gateway
   svc_connection --> pkg_host_frontend_static
   svc_convax --> pkg_convax_plugin_renderer
+  svc_convaxTerminal --> pkg_convax_plugin_inernal_nodes_renderer
   svc_cordisInspect --> pkg_tool_cordis
   svc_credentials --> pkg_api_settings_controller
   svc_credentials --> pkg_llm_deepseek
@@ -637,6 +642,7 @@ flowchart LR
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ctx.convax` | `core` | [`convax-plugin-host`](../../../packages/plugin-host) | - | [`convax-plugin-renderer`](../../../packages/plugin-renderer) | - | Owns revisioned canvases, Chat bindings, thread operations and resource reads independently of its optional renderer. |
+| `ctx.convaxTerminal` | `core` | [`convax-plugin-inernal-nodes-host`](../../../packages/plugin-inernal-nodes-host) | - | [`convax-plugin-inernal-nodes-renderer`](../../../packages/plugin-inernal-nodes-renderer) | - | Adapts shared user terminals to committed canvas cards and their resource directories. |
 | `ctx.actionCards` | `service` | [`action-cards`](../packages/experimental/action-cards) | - | [`creation-recommendations`](../packages/experimental/creation-recommendations), [`client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | Owns the card tool, card state, user actions and status notices; card kinds register their actions and handlers. |
 | `ctx.pluginRecommendations` | `service` | [`plugin-recommendations`](../packages/experimental/plugin-recommendations) | - | [`client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | - | Reads the current catalog text of an official plugin card and enables the plugin through the profile plugin manager after a click. |
 | `ctx.headlessStartup` | `core` | [`headless`](../packages/bundle/headless) | - | [`headless`](../packages/bundle/headless) | - | Supplies parsed task and run options to the headless runner and its sandbox-policy configuration. |

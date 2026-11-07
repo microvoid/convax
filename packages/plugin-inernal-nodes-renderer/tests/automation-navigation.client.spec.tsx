@@ -1,7 +1,7 @@
 import { defaultNodeActions, defaultNodeCreations, defaultNodePresentation } from '../src/client/node-presets.ts'
 // @vitest-environment jsdom
 /** Global automation actions navigate saved canvas bindings and initialize native drafts without submitting them. */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { SlotFactoryMap } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-schedule/client'
@@ -122,10 +122,10 @@ describe('Convax automation navigation', () => {
     expect(typeof owner.onOpenSession).toBe('function')
     expect(owner.close?.label).toBe('Close automation tasks')
     expect({
-      launcher: screen.getByRole('button', { name: 'Automation' }).textContent,
+      launcher: screen.getByRole('button', { name: 'Automation' }).getAttribute('aria-label'),
       title: dialog.getAttribute('aria-label'),
       portal: dialog.closest('[data-convax-workspace]') === null,
-      canvas: screen.getByLabelText('Active canvas').textContent,
+      canvas: screen.getByRole('status', { name: 'Active canvas' }).textContent,
     }).toMatchSnapshot('global manager modal')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close automation tasks' }))
     expect(screen.queryByRole('dialog', { name: 'Automation tasks' })).toBeNull()
@@ -172,6 +172,10 @@ describe('Convax automation navigation', () => {
   })
 
   it('reopens a closed canvas and focuses an existing automation Session without creating another Chat', () => {
+    const tabWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.querySelector(':scope > [role="tablist"]') !== null ? 400 : 0
+    })
+    onTestFinished(() => { tabWidth.mockRestore() })
     const b = fixture()
     b.store.actions.open(other)
     b.store.actions.close(other)
@@ -181,10 +185,10 @@ describe('Convax automation navigation', () => {
       activeCanvasId: other, tabs: [home, other], closedTabs: [],
       threadFocus: { nodeId: boundChat, sessionId: boundSession },
     })
-    expect(screen.getByLabelText('Active canvas').textContent).toBe('Another board')
+    expect(screen.getByRole('status', { name: 'Active canvas' }).textContent).toBe('Another board')
     expect(screen.queryByRole('dialog', { name: 'Automation tasks' })).toBeNull()
     expect({
-      canvas: screen.getByLabelText('Active canvas').textContent,
+      canvas: screen.getByRole('status', { name: 'Active canvas' }).textContent,
       tabs: screen.getAllByRole('tab').map(tab => ({ title: tab.textContent, selected: tab.getAttribute('aria-selected') })),
       managerClosed: screen.queryByRole('dialog', { name: 'Automation tasks' }) === null,
     }).toMatchSnapshot('existing task opens its saved canvas')

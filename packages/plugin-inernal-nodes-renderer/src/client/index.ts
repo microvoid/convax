@@ -32,6 +32,13 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { CanvasInitialThreads } from './initial-threads.ts'
 import { CanvasWindowMirrors, desktopWindowCapture } from './window-mirrors.ts'
 import { WindowMirror, WindowNode } from './WindowNode.tsx'
+import { TerminalNode, TerminalCard, type TerminalCardInjected } from './TerminalNode.tsx'
+import { CanvasTerminalCards } from './terminal-cards.ts'
+import { BrowserNode, BrowserCard, type BrowserCardInjected } from './BrowserNode.tsx'
+import { CanvasBrowserCards } from './browser-cards.ts'
+import terminalContribution from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-host/remote'
+import type {} from '@deepseek-ai/dsh-api-terminal-controller/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar-browser/client'
 import { WindowPicker } from './WindowPicker.tsx'
 import { ResourcePreview } from './ResourcePreview.tsx'
 import type { WindowMirrorInjected } from './window-contract.ts'
@@ -236,6 +243,52 @@ export function apply(ctx: Context): void {
     scope.slots.registerFactory({ name: 'convax.window.content', scope: 'root', locale: NS,
       inject: () => mirrorActions,
     }, WindowMirror)
+    scope.inject(['webTerminals'], async (terminalsScope) => {
+      await terminalsScope.effect(async () => await terminalsScope.remote.$mount(terminalContribution), 'convax terminal: Remote contribution')
+      terminalsScope.inject(['remote.convaxTerminal'], (terminalScope) => {
+        const cards = new CanvasTerminalCards(terminalScope.webTerminals, terminalScope.remote)
+        const observe = (): void => {
+          const workspace = renderer.workspace.getSnapshot()
+          if (workspace !== undefined) cards.observe(workspace)
+        }
+        terminalScope.effect(() => renderer.workspace.subscribe(observe), 'convax terminal: graph membership')
+        terminalScope.effect(() => async () => { await cards.dispose() }, 'convax terminal: Client lifetime')
+        observe()
+        terminalScope.slots.registerFactory({ name: 'convax.terminal.content', scope: 'root', locale: NS,
+          inject: (): TerminalCardInjected => ({ terminalModel: id => cards.model(id), restartTerminal: id => cards.restart(id),
+            keyedHooks: { canvasTerminal: id => cards.state(id) } }),
+        }, TerminalCard)
+      })
+    })
+    scope.inject(['browserViews'], (browserScope) => {
+      const cards = new CanvasBrowserCards(browserScope.browserViews, async (canvasId, signal) => {
+        const result = await convex.ensureCanvasDirectory(canvasId, signal)
+        if (!result.ok) throw result.error
+        return result.value
+      }, (canvasId, sourceId, url) => {
+        const canvas = renderer.workspace.getSnapshot()?.canvases.find(item => item.id === canvasId)
+        const source = canvas?.nodes.find(item => item.id === sourceId)
+        if (canvas === undefined || source === undefined) return
+        void convex.execute({ canvasId, expectedRevision: canvas.revision, operationId: randomUUID() as CanvasOperationId,
+          command: { kind: 'add-node', node: { id: randomUUID() as CanvasNodeId, typeId: 'convax.browser' as CanvasNodeTypeId,
+            dataVersion: 1, data: { url }, revision: 0,
+            position: { x: source.position.x + 48, y: source.position.y + 48 } } },
+        }).then((result) => {
+          if (!result.ok) throw result.error
+          observeWorkspace(result.value.workspace)
+        }).catch((error: unknown) => { browserScope.logger.warn('Browser page could not be opened on the canvas', error) })
+      })
+      const observe = (): void => {
+        const workspace = renderer.workspace.getSnapshot()
+        if (workspace !== undefined) cards.reconcile(workspace)
+      }
+      browserScope.effect(() => renderer.workspace.subscribe(observe), 'convax browser: graph membership')
+      browserScope.effect(() => () => { cards.dispose() }, 'convax browser: Client lifetime')
+      observe()
+      browserScope.slots.registerFactory({ name: 'convax.browser.content', scope: 'root', locale: NS,
+        inject: (): BrowserCardInjected => ({ ensureBrowser: (canvasId, nodeId) => { cards.ensure(canvasId, nodeId) } }),
+      }, BrowserCard)
+    })
     scope.slots.registerFactory({
       name: 'convax.chat.content', scope: 'root', locale: NS, store: chatStore,
       children: {
@@ -268,6 +321,8 @@ export function apply(ctx: Context): void {
       dataVersion: 1, component: ResourceNode, ...defaultNodePresentation[typeId as 'convax.file' | 'convax.folder'],
     })
     renderer.registerNodeRenderer('convax.chat' as CanvasNodeTypeId, { dataVersion: 1, component: ChatNode, ...defaultNodePresentation['convax.chat'] })
+    renderer.registerNodeRenderer('convax.terminal' as CanvasNodeTypeId, { dataVersion: 1, component: TerminalNode, ...defaultNodePresentation['convax.terminal'] })
+    renderer.registerNodeRenderer('convax.browser' as CanvasNodeTypeId, { dataVersion: 1, component: BrowserNode, ...defaultNodePresentation['convax.browser'] })
     renderer.registerNodeRenderer('convax.window' as CanvasNodeTypeId, { dataVersion: 1, component: WindowNode, ...defaultNodePresentation['convax.window'] })
     scope.effect(() => renderer.registerWorkspaceActions({
       windowsAvailable: mirrors.available,

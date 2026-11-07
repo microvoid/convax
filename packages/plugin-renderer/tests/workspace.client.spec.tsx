@@ -21,15 +21,17 @@ import type { SlotFactoryMap } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-schedule/client'
 import type { DesktopWindowSourceId } from '@deepseek-ai/dsh-util-desktop-capture'
 
-const graphProbe = vi.hoisted(() => ({ current: undefined as CanvasGraphProps | undefined }))
+const graphProbe = vi.hoisted(() => ({ current: undefined as CanvasGraphProps | undefined,
+  byId: new Map<CanvasId, CanvasGraphProps>() }))
 
 vi.mock('../src/client/CanvasGraph.tsx', () => ({
   CanvasGraph: (props: CanvasGraphProps) => {
-    graphProbe.current = props
+    graphProbe.byId.set(props.document.id, props)
+    if (props.active !== false) graphProbe.current = props
     const { document, addResources, addProject, createChat, command, openResource, openSource } = props
     return <>
       <button type="button" onClick={() => { createChat(undefined, undefined, { x: 240, y: 180 }) }}>New chat</button>
-      <button type="button" onClick={() => { addProject({ x: 240, y: 180 }) }}>Add project</button>
+      <button type="button" onClick={() => { addProject({ x: 240, y: 180 }) }}>Add folder</button>
       <button type="button" onClick={() => { openResource({ kind: 'folder', path: '/project/folder', name: 'folder', size: null }) }}>Open folder</button>
       <button type="button" onClick={() => { openSource('/project/clip.mp4') }}>Show source</button>
       <div data-testid="canvas">{document.title}</div>
@@ -62,7 +64,7 @@ vi.mock('../src/client/CanvasGraph.tsx', () => ({
   },
 }))
 
-afterEach(() => { cleanup(); localStorage.clear(); graphProbe.current = undefined })
+afterEach(() => { cleanup(); localStorage.clear(); graphProbe.current = undefined; graphProbe.byId.clear() })
 
 function currentGraph(): CanvasGraphProps {
   if (graphProbe.current === undefined) throw new Error('Canvas graph was not rendered')
@@ -103,8 +105,9 @@ function fixture(workspace: CanvasWorkspace, readWorkspace: () => CanvasWorkspac
   const picker: { path: string; owner?: DirectoryFlowOwnerProps } = { path: '/selected/project' }
   const renderFactorySlot = vi.fn<WorkspaceProps['renderFactorySlot']>((name, owner) => {
     if (name === 'convax.graph') {
+      const { ensureCanvasDirectory: _ensureCanvasDirectory, ...frameworkProps } = props
       const surfaceProps: CanvasGraphSurfaceProps = {
-        ...props, ...owner as CanvasGraphOwner,
+        ...frameworkProps, ...owner as CanvasGraphOwner,
         useStore: selector => selector(chatStore.getSnapshot()), actions: chatStore.actions,
         renderSlot: () => null,
         useFactorySlot: () => { throw new Error('The graph probe does not render nested Factories') },
@@ -236,6 +239,56 @@ function tabWorkspace(): CanvasWorkspace {
   }
 }
 
+it('retains visited canvas content through tab switches and closing without retargeting its commands', async () => {
+  let workspace = tabWorkspace()
+  const b = fixture(workspace, () => workspace)
+  const alpha = workspace.canvases[0]!.id
+  const beta = workspace.canvases[1]!.id
+  b.store.actions.open(alpha)
+  const view = render(<ConvaxWorkspace {...b.props} />)
+  const alphaSurface = view.container.querySelector<HTMLElement>(`[data-convax-canvas="${alpha}"]`)!
+  const alphaContent = within(alphaSurface).getByTestId('canvas')
+  const alphaCommand = currentGraph().command
+  b.store.actions.open(beta)
+  view.rerender(<ConvaxWorkspace {...b.props} />)
+  expect(alphaSurface.hidden).toBe(true)
+  expect(alphaSurface.hasAttribute('inert')).toBe(true)
+  expect(within(alphaSurface).getByTestId('canvas')).toBe(alphaContent)
+  expect(graphProbe.byId.get(alpha)?.active).toBe(false)
+  expect(currentGraph().document.id).toBe(beta)
+  workspace = { ...workspace, revision: 9, canvases: workspace.canvases.map(canvas =>
+    canvas.id === alpha ? { ...canvas, revision: 9 } : canvas) }
+  view.rerender(<ConvaxWorkspace {...b.props} />)
+  await act(async () => { await alphaCommand({ kind: 'rename', title: 'Updated Alpha' }) })
+  expect(b.execute).toHaveBeenLastCalledWith(expect.objectContaining({ canvasId: alpha, expectedRevision: 9 }))
+  b.store.actions.close(alpha)
+  view.rerender(<ConvaxWorkspace {...b.props} />)
+  expect(within(alphaSurface).getByTestId('canvas')).toBe(alphaContent)
+  b.store.actions.open(alpha)
+  view.rerender(<ConvaxWorkspace {...b.props} />)
+  expect(alphaSurface.hidden).toBe(false)
+  expect(alphaSurface.hasAttribute('inert')).toBe(false)
+  expect(within(alphaSurface).getByTestId('canvas')).toBe(alphaContent)
+})
+
+it('binds creation directory and node reads to the graph that supplied them', async () => {
+  const workspace = inputWorkspace()
+  const second = { ...workspace.canvases[0]!, id: 'other-canvas' as CanvasId, nodes: [], connections: [] }
+  workspace.canvases.push(second)
+  const b = fixture(workspace)
+  b.props.describe = vi.fn<WorkspaceProps['describe']>(async path => ({ kind: 'folder', path, name: 'folder', size: null }))
+  const first = workspace.canvases[0]!
+  b.store.actions.open(first.id)
+  const view = render(<ConvaxWorkspace {...b.props} />)
+  const graph = currentGraph()
+  b.store.actions.open(second.id)
+  view.rerender(<ConvaxWorkspace {...b.props} />)
+  expect(graph.getNode?.('folder-node' as CanvasNodeId)?.data.path).toBe('/project/folder')
+  await expect(graph.inputDirectory?.('folder-node' as CanvasNodeId)).resolves.toBe('/project/folder')
+  await expect(graph.ensureCanvasDirectory?.()).resolves.toBe(`/documents/convax/${first.id}`)
+  expect(b.props.ensureCanvasDirectory).toHaveBeenLastCalledWith(first.id)
+})
+
 function openCanvasManager(): void {
   fireEvent.click(screen.getByRole('button', { name: 'Workspace actions' }))
   fireEvent.click(screen.getByRole('menuitem', { name: 'All canvases' }))
@@ -275,6 +328,13 @@ function prepareTabPointer(target: HTMLElement) {
     })
   }
   return methods
+}
+
+function allowFullTabStrip(): void {
+  const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+    return this.querySelector(':scope > [role="tablist"]') !== null ? 400 : 0
+  })
+  onTestFinished(() => { width.mockRestore() })
 }
 
 function measureTabStrip(): void {
@@ -334,6 +394,7 @@ describe('Convax workspace presentation', () => {
   })
 
   it('moves canvas tabs in either direction on release and retains the selected canvas', () => {
+    allowFullTabStrip()
     const workspace = tabWorkspace()
     const b = fixture(workspace)
     workspace.canvases.forEach((canvas) => { b.store.actions.open(canvas.id) })
@@ -360,6 +421,7 @@ describe('Convax workspace presentation', () => {
   })
 
   it('keeps canvas order when the pointer drag is cancelled, escaped, or never started', () => {
+    allowFullTabStrip()
     const workspace = tabWorkspace()
     const b = fixture(workspace)
     workspace.canvases.forEach((canvas) => { b.store.actions.open(canvas.id) })
@@ -383,6 +445,7 @@ describe('Convax workspace presentation', () => {
   })
 
   it('keeps a short pointer movement as a normal tab selection', () => {
+    allowFullTabStrip()
     const workspace = tabWorkspace()
     const b = fixture(workspace)
     workspace.canvases.forEach((canvas) => { b.store.actions.open(canvas.id) })
@@ -399,6 +462,7 @@ describe('Convax workspace presentation', () => {
   })
 
   it('keeps keyboard tab activation available after cancelling a drag with Escape', () => {
+    allowFullTabStrip()
     const workspace = tabWorkspace()
     const b = fixture(workspace)
     workspace.canvases.forEach((canvas) => { b.store.actions.open(canvas.id) })
@@ -415,6 +479,7 @@ describe('Convax workspace presentation', () => {
   })
 
   it('moves the focused canvas tab with Alt and the arrow keys without switching the active canvas', () => {
+    allowFullTabStrip()
     const workspace = tabWorkspace()
     const b = fixture(workspace)
     workspace.canvases.forEach((canvas) => { b.store.actions.open(canvas.id) })
@@ -937,6 +1002,47 @@ describe('Convax workspace presentation', () => {
     expect(screen.queryByRole('dialog', { name: 'Permanently delete Board?' })).toBeNull()
   })
 
+  it('keeps activity closed after resizing from its wide trigger through the compact menu and back', () => {
+    let change: (() => void) | undefined
+    const query = {
+      matches: false,
+      addEventListener: (_type: string, listener: () => void) => { change = listener },
+      removeEventListener: vi.fn(),
+    }
+    vi.stubGlobal('matchMedia', () => query)
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    const b = fixture(inputWorkspace())
+    render(<ConvaxWorkspace {...b.props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Activity' }))
+    expect(screen.getByRole('dialog', { name: 'Activity' })).toBeDefined()
+    query.matches = true
+    act(() => { change?.() })
+    expect(screen.queryByRole('dialog', { name: 'Activity' })).toBeNull()
+    query.matches = false
+    act(() => { change?.() })
+    expect(screen.queryByRole('dialog', { name: 'Activity' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Activity' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('opens activity and automation from the compact workspace menu', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    const b = fixture(inputWorkspace())
+    render(<ConvaxWorkspace {...b.props} />)
+    expect(screen.queryByRole('button', { name: 'Activity' })).toBeNull()
+    const anchor = screen.getByRole('button', { name: 'Workspace actions' })
+    anchor.focus()
+    fireEvent.click(anchor)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Activity' }))
+    expect(screen.getByRole('dialog', { name: 'Activity' })).toBeDefined()
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Activity' })).toBeNull()
+    expect(document.activeElement).toBe(anchor)
+    fireEvent.click(anchor)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Automation' }))
+    expect(screen.getByRole('dialog', { name: 'Automation tasks' })).toBeDefined()
+  })
+
   it('opens the exact thread from the activity menu for a closed canvas', async () => {
     const canvas = { id: 'closed-canvas' as CanvasId, title: 'Closed board', revision: 4, nodes: [], connections: [] }
     const sessionId = 'finished-thread' as SessionId
@@ -1032,7 +1138,7 @@ describe('Convax workspace presentation', () => {
     render(<ConvaxWorkspace {...b.props} />)
     expect(screen.queryByRole('complementary', { name: 'Project files' })).toBeNull()
     expect(screen.queryByRole('textbox', { name: 'Project folder' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Add project' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
     fireEvent.click(screen.getByRole('button', { name: 'Pick directory' }))
     await waitFor(() => { expect(b.execute).toHaveBeenCalledOnce() })
     expect(b.execute.mock.calls[0]?.[0].command).toMatchObject({
@@ -1053,7 +1159,7 @@ describe('Convax workspace presentation', () => {
     const b = fixture({ revision: 0, canvases: [canvas], nodeTypes: [], nodeIssues: [], chats: [] })
     b.store.actions.open(canvas.id)
     render(<ConvaxWorkspace {...b.props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Add project' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel directory' }))
     await waitFor(() => { expect(screen.queryByRole('dialog', { name: 'Directory interaction' })).toBeNull() })
     expect(b.execute).not.toHaveBeenCalled()
@@ -1065,7 +1171,7 @@ describe('Convax workspace presentation', () => {
     const b = fixture({ revision: 0, canvases: [canvas], nodeTypes: [], nodeIssues: [], chats: [] })
     b.store.actions.open(canvas.id)
     render(<ConvaxWorkspace {...b.props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Add project' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
     fireEvent.click(screen.getByRole('button', { name: 'Fail directory' }))
     await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain(en['operation.failed']) })
     expect(b.execute).not.toHaveBeenCalled()
@@ -1076,11 +1182,11 @@ describe('Convax workspace presentation', () => {
     const b = fixture({ revision: 0, canvases: [canvas], nodeTypes: [], nodeIssues: [], chats: [] })
     b.store.actions.open(canvas.id)
     const view = render(<ConvaxWorkspace {...b.props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Add project' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
     const cancel = await screen.findByRole('button', { name: 'Cancel directory' })
     const first = b.picker.owner!
     fireEvent.click(cancel)
-    fireEvent.click(screen.getByRole('button', { name: 'Add project' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
     await screen.findByRole('button', { name: 'Cancel directory' })
     await act(async () => { first.onPicked('/old/project') })
     expect(screen.getByRole('dialog', { name: 'Directory interaction' })).toBeDefined()

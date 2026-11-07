@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Preview files and folders, work in native DSH conversations with multiple threads, and connect selected application-window mirrors to Chats. The canvas remains available when these displays are disabled. Saved cards become placeholders with their positions and connections intact.
+Preview files and folders, work in native DSH conversations with multiple threads, run terminal and browser cards, and connect selected application-window mirrors to Chats. The canvas remains available when these displays are disabled. Saved cards become placeholders with their positions and connections intact.
 
 ## Table of Contents
 
@@ -28,6 +28,8 @@ The [Convax product composition](../plugin-renderer/cordis.patch.yml) mounts thi
 - id: convax-inernal-nodes-renderer
   name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer'
 ```
+
+Terminal and browser cards reuse DSH content and controls. Terminals start in the canvas directory, or the directory of an incoming folder/file resource. Switching canvases and closing canvas tabs retain running terminals and mounted browser pages. Deleting a card uses the native terminal or browser close path; undo restores configuration without reviving the closed instance.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

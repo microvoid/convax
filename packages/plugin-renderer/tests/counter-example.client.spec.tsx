@@ -64,7 +64,7 @@ function owner(command: (command: CanvasCommand) => Promise<boolean>, value = 2)
   return {
     node: { id: nodeId, typeId, dataVersion: 1, data: { value }, revision: 0, position: { x: 160, y: 120 } },
     canvasId, canvasRevision: 4, definition: { id: typeId, dataVersion: 1, ports: [] },
-    ports: [], selected: false, busy: false, chat: undefined, command, remove: vi.fn(),
+    ports: [], active: true, selected: false, busy: false, chat: undefined, command, remove: vi.fn(),
     openResource: vi.fn(), openSource: vi.fn(), createChat: vi.fn(),
     focusSessionId: undefined, consumeFocus: vi.fn(), inputs: [], focusNode: vi.fn(),
     resourceExpanded: false, setResourceExpanded: vi.fn(), setResourcePreviewSize: vi.fn(),

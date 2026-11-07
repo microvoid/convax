@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-为当前 Web 会话或未来会话选择权限预设。通用设置行只更改之后创建会话所用的默认值；composer 与 `/permission` 选择器切换当前会话。默认 Web 提供仅可查看、工作区内修改与完全权限。显式加载实验 Auto integration 后，当前会话选择器会增加带 `EXP` 标记的自动审查。通过可见选项选择完全权限或 Auto 时，需要分别确认对应风险；完整的 `/permission <preset>` 命令直接执行。宿主通过 Session 投影确认每次变更。
+为当前 Web 会话和未来会话选择权限预设。通用设置行更改之后创建会话所用的默认值；composer 与 `/permission` 选择器还会切换当前会话。配置表中的选项会成为未来默认值；自动审查只影响当前会话。默认 Web 提供仅可查看、工作区内修改与完全权限。加载实验 Auto integration 后会增加带 `EXP` 标记的自动审查。通过可见选项选择完全权限或 Auto 时需要确认风险；完整的 `/permission <preset>` 命令直接执行。宿主通过 Session 投影确认当前会话的变更。
 
 ## 目录
 
@@ -31,7 +31,7 @@ kind: "package-reference"
 
 ### 选择器
 
-选中即提交 `/permission <preset>` 命令行。带参形式（直接键入 `/permission <preset>`）仍直接切换；装饰只替换裸调用。内置标签在英文界面中是 `Read Only`、`Workspace Write`、`Full access` 和 `Auto review`，在中文界面中是「仅可查看」「工作区内修改」「完全权限」和「自动审查」。显式 host 标签保持原样，未知 kebab-case 名称渲染为 Title Case；`auto` 在菜单选项中带有 `EXP` 标记，并在可见选择时要求实验风险确认。选中后的 composer 控件显示模式，不展示该标记。`custom` 只是显示状态，绝非目标。
+选中即提交 `/permission <preset>` 命令行，成功后将配置表中的预设保存为后续会话的默认值。保存失败时，当前会话的权限保持已切换状态，选择器显示失败；可再次选择同一预设以重试。带参形式（直接键入 `/permission <preset>`）仍直接切换；装饰只替换裸调用。内置标签在英文界面中是 `Read Only`、`Workspace Write`、`Full access` 和 `Auto review`，在中文界面中是「仅可查看」「工作区内修改」「完全权限」和「自动审查」。显式 host 标签保持原样，未知 kebab-case 名称渲染为 Title Case；`auto` 在菜单选项中带有 `EXP` 标记，并在可见选择时要求实验风险确认。选中后的 composer 控件显示模式，不展示该标记。`custom` 只是显示状态，绝非目标。
 
 实时目录撤销某个预设时，composer 关闭对应的待确认对话框，并用 Session 的当前值替代已不可用的乐观选择。每次目录失效（无 payload 的通知或连接代际变更）会关闭已打开的 slash 选择器或其确认对话框，不消费草稿；而发布某个 picker 正在等待的读取结果时，该 picker 保持打开并保留失败与重试状态；重新打开时读取当前目录。已经提交的命令在响应结束前继续保持忙碌状态。
 

@@ -76,7 +76,7 @@ describe('Convax embedded Conversation compatibility', () => {
       read: () => undefined,
     })
     const selectPreset = vi.fn(async (_id: SessionId, agentPreset: string) => ({ ok: true as const, value: agentPreset }))
-    const updateSettings = vi.fn()
+    const updateSettings = vi.fn(async () => ({ ok: true as const, value: {} }))
     runtime.remote.provideNamespaces({
       session: { openWorkspacePath: vi.fn() },
       agentPresets: {
@@ -145,7 +145,7 @@ describe('Convax embedded Conversation compatibility', () => {
             position: { x: 0, y: 0 }, revision: 1,
           },
           definition, canvasId: chat.canvasId, ports: definition.ports,
-          selected: false, busy: false, focusSessionId: undefined,
+          active: true, selected: false, busy: false, focusSessionId: undefined,
           resourceExpanded: false, setResourceExpanded: () => {}, setResourcePreviewSize: () => {},
           command: async () => true, openResource: () => {}, openSource: () => {}, createChat: () => {},
         }, { entryKey: definition.id })}</div>)}
@@ -239,7 +239,7 @@ describe('Convax embedded Conversation compatibility', () => {
     await within(blankBody).findByRole('button', { name: 'Agent mode: PTC mode' })
     expect(within(firstChat).getByRole('button', { name: 'Agent mode: Standard mode' })).toBeDefined()
     expect(blankInput.state.getSnapshot().draft).toBe('blank thread draft')
-    expect(updateSettings).not.toHaveBeenCalled()
+    await waitFor(() => { expect(updateSettings).toHaveBeenCalledExactlyOnceWith('agent-preset-registry', { selectedDefault: 'ptc' }, undefined) })
     const titleRow = firstChat.querySelector<HTMLElement>('[data-convax-chat-drag]')!
     expect(titleRow.querySelector('[data-conversation-header-toolbar]')).not.toBeNull()
     expect(titleRow.querySelectorAll('[role="tablist"]')).toHaveLength(1)
@@ -289,7 +289,7 @@ describe('Convax embedded Conversation compatibility', () => {
     expect(selectPreset).toHaveBeenCalledExactlyOnceWith(blankId, 'ptc')
     expect(firstChat.querySelector(`[data-conversation-session="${sessionId}"] [data-composer-input]`)).toBe(originalEditor)
     expect(firstInput.state.getSnapshot().draft).toBe('first thread draft')
-    expect(updateSettings).not.toHaveBeenCalled()
+    expect(updateSettings).toHaveBeenCalledOnce()
     view.unmount()
     await waitFor(() => { expect(runtime.sessions.retainInfo(sessionId).getSnapshot().retainedBy.convaxChat).toBeUndefined() })
     expect(runtime.sessions.retainInfo(secondId).getSnapshot().retainedBy.convaxChat).toBeUndefined()

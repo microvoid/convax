@@ -23,7 +23,7 @@ const PICKER = fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.m
 const REPLAY = fileURLToPath(new URL('../../../snapshots/web/live-interactions/session.v4.jsonl', import.meta.url))
 const EXPECTED = fileURLToPath(new URL('./expected/convax-internal-nodes/', import.meta.url))
 const ARTIFACTS = fileURLToPath(new URL('../../../../../.artifacts/convax-internal-nodes/', import.meta.url))
-const NODE_TYPES = ['convax.chat', 'convax.file', 'convax.folder', 'convax.window']
+const NODE_TYPES = ['convax.browser', 'convax.chat', 'convax.file', 'convax.folder', 'convax.terminal', 'convax.window']
 const DRAFT = 'An unsent draft belongs to the DSH composer.'
 const PROMPT = 'Keep this native turn running while the node plugins reload.'
 

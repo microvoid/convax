@@ -1,0 +1,7 @@
+- button "Canvas input mode"
+- button "Zoom out"
+- button "Reset zoom to 100%"
+- button "Zoom in"
+- button "Fit canvas"
+- button "Undo" [disabled]
+- button "Redo" [disabled]

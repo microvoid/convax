@@ -82,9 +82,10 @@ async function openCanvas(browser: Browser, scaffold: WebScaffold, id: CanvasId)
   await page.getByRole('button', { name: 'Workspace actions', exact: true }).click()
   await page.getByRole('menuitem', { name: 'All canvases', exact: true }).click()
   await page.locator('[data-canvas-manager-row="' + id + '"] button').first().click()
-  await page.locator('[data-convax-graph]').waitFor()
-  await expect.poll(() => page.locator('.react-flow__node').count()).toBe(canvas(scaffold, id).nodes.length)
-  await page.getByRole('combobox', { name: 'Canvas input mode', exact: true }).selectOption('touchpad')
+  await page.locator('[data-convax-graph]:visible').waitFor()
+  await expect.poll(() => page.locator('.react-flow__node:visible').count()).toBe(canvas(scaffold, id).nodes.length)
+  await page.getByRole('button', { name: 'Canvas input mode', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Touchpad mode', exact: true }).click()
   expect(startup.pageErrors).toEqual([])
   return page
 }
@@ -98,7 +99,7 @@ function positions(scaffold: WebScaffold, id: CanvasId) {
 }
 
 async function zoom(page: Page): Promise<number> {
-  return page.locator('.react-flow__viewport').evaluate(element => new DOMMatrixReadOnly(getComputedStyle(element).transform).a)
+  return page.locator('.react-flow__viewport:visible').evaluate(element => new DOMMatrixReadOnly(getComputedStyle(element).transform).a)
 }
 
 async function beginDrag(page: Page, item: CanvasNode, target: { x: number; y: number }): Promise<void> {
@@ -120,7 +121,7 @@ async function resetZoom(page: Page): Promise<void> {
 }
 
 async function worldPoint(page: Page, point: { x: number; y: number }) {
-  return page.locator('[data-convax-graph]').evaluate((element, screen) => {
+  return page.locator('[data-convax-graph]:visible').evaluate((element, screen) => {
     const bounds = element.getBoundingClientRect()
     const viewport = element.querySelector('.react-flow__viewport')
     if (viewport === null) throw new Error('The real graph has no rendered viewport')
@@ -130,7 +131,7 @@ async function worldPoint(page: Page, point: { x: number; y: number }) {
 }
 
 async function selectedIds(page: Page): Promise<string[]> {
-  return page.locator('.react-flow__node.selected').evaluateAll(elements => elements.map(element => element.getAttribute('data-id')!).sort())
+  return page.locator('.react-flow__node.selected:visible').evaluateAll(elements => elements.map(element => element.getAttribute('data-id')!).sort())
 }
 
 async function addFolder(scaffold: WebScaffold, id: CanvasId, name: string, position = { x: 80, y: 350 }): Promise<CanvasNode> {
@@ -245,11 +246,11 @@ async function allowClipboard(page: Page, scaffold: WebScaffold): Promise<void> 
 }
 
 async function clipboardSettled(page: Page): Promise<void> {
-  await expect.poll(() => page.locator('[data-convax-graph]').getAttribute('data-convax-clipboard-pending')).not.toBe('true')
+  await expect.poll(() => page.locator('[data-convax-graph]:visible').getAttribute('data-convax-clipboard-pending')).not.toBe('true')
 }
 
 async function historySettled(page: Page): Promise<void> {
-  await expect.poll(() => page.locator('[data-convax-graph]').getAttribute('data-convax-history-pending')).not.toBe('true')
+  await expect.poll(() => page.locator('[data-convax-graph]:visible').getAttribute('data-convax-history-pending')).not.toBe('true')
 }
 
 async function resourcePresentation(page: Page, id: CanvasNodeId) {
@@ -329,7 +330,7 @@ describe('web e2e: Convax canvas interactions', () => {
       return { left: rect.left, right: rect.right, y: rect.top + rect.height / 2 }
     })
     const before = positions(scaffold, fixture.id)
-    const viewport = () => page.locator('.react-flow__viewport').getAttribute('style')
+    const viewport = () => page.locator('.react-flow__viewport:visible').getAttribute('style')
     const camera = await viewport()
     await page.mouse.move(bounds.left + 1, bounds.y)
     await page.mouse.down()
@@ -348,7 +349,7 @@ describe('web e2e: Convax canvas interactions', () => {
     const console = watchConsole(page)
     await node(page, first.id).locator('[data-convax-resource-header]').click()
     await page.keyboard.press('ControlOrMeta+A')
-    await expect.poll(() => page.locator('.react-flow__node.selected').count()).toBe(2)
+    await expect.poll(() => page.locator('.react-flow__node.selected:visible').count()).toBe(2)
 
     await page.keyboard.press('ArrowRight')
     await expect.poll(() => positions(scaffold, fixture.id)).toEqual(fixture.resources.map(item => ({
@@ -369,7 +370,7 @@ describe('web e2e: Convax canvas interactions', () => {
 
     await node(page, first.id).locator('[data-convax-resource-header]').click()
     await page.keyboard.press('Escape')
-    await expect.poll(() => page.locator('.react-flow__node.selected').count()).toBe(0)
+    await expect.poll(() => page.locator('.react-flow__node.selected:visible').count()).toBe(0)
     const revision = canvas(scaffold, fixture.id).revision
     await page.keyboard.press('Delete')
     expect(canvas(scaffold, fixture.id).revision).toBe(revision)
@@ -382,7 +383,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.keyboard.press('Escape')
     await mkdir(EXPECTED, { recursive: true })
     await compareOrRefreshGolden(join(EXPECTED, 'keyboard.expected.md'),
-      await captureStableAria(page, '[data-convax-graph]', scaffold.workspaceCwd), webSnapshotMode())
+      await captureStableAria(page, '[data-convax-graph]:visible', scaffold.workspaceCwd), webSnapshotMode())
     expect(console.pageErrors).toEqual([])
   })
 
@@ -407,7 +408,7 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(canvas(scaffold, fixture.id).nodes).toHaveLength(3)
 
     await node(page, fixture.resources[0]!.id).locator('[data-convax-resource-header]').click()
-    const compositionWasNotClaimed = await page.locator('[data-convax-graph]').evaluate(element => element.dispatchEvent(
+    const compositionWasNotClaimed = await page.locator('[data-convax-graph]:visible').evaluate(element => element.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Delete', isComposing: true, bubbles: true, cancelable: true }),
     ))
     expect(compositionWasNotClaimed).toBe(true)
@@ -489,7 +490,7 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(positions(scaffold, fixture.id)).toEqual(committed)
     await mkdir(EXPECTED, { recursive: true })
     await compareOrRefreshGolden(join(EXPECTED, 'snapping.expected.md'),
-      await captureStableAria(page, '[data-convax-graph]', scaffold.workspaceCwd), webSnapshotMode())
+      await captureStableAria(page, '[data-convax-graph]:visible', scaffold.workspaceCwd), webSnapshotMode())
     expect(console.pageErrors).toEqual([])
   })
 
@@ -506,7 +507,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.keyboard.down('ControlOrMeta')
     await node(page, second.id).locator('[data-convax-resource-header]').click()
     await page.keyboard.up('ControlOrMeta')
-    await expect.poll(() => page.locator('.react-flow__node.selected').count()).toBe(2)
+    await expect.poll(() => page.locator('.react-flow__node.selected:visible').count()).toBe(2)
 
     await beginDrag(page, first, { x: 83, y: 230 })
     await expect.poll(() => page.locator('[data-convax-snap-guide="x"]').count()).toBeGreaterThan(0)
@@ -548,13 +549,13 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.mouse.click(point.x, point.y, { button: 'right' })
     const menu = page.getByRole('menu')
     await menu.waitFor()
-    for (const label of ['Add project', 'Add files', 'New chat', 'Select all', 'Fit canvas']) {
+    for (const label of ['Add folder', 'Add files', 'New chat', 'Select all', 'Fit canvas']) {
       expect(await menu.getByRole('menuitem', { name: label, exact: true }).count()).toBe(1)
     }
     await mkdir(EXPECTED, { recursive: true })
     await compareOrRefreshGolden(join(EXPECTED, 'context.expected.md'),
       await captureStableAria(page, '[role="menu"]', scaffold.workspaceCwd), webSnapshotMode())
-    await menu.getByRole('menuitem', { name: 'Add project', exact: true }).click()
+    await menu.getByRole('menuitem', { name: 'Add folder', exact: true }).click()
     const picker = page.getByRole('dialog', { name: 'Select Workspace Directory', exact: true })
     await picker.waitFor()
     await picker.getByRole('button', { name: 'Edit path', exact: true }).click()
@@ -631,7 +632,7 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(await selectedIds(page)).toEqual(selection)
     await menu.getByRole('menuitem', { name: 'Remove selected references', exact: true }).click()
     await expect.poll(() => canvas(scaffold, fixture.id).nodes).toHaveLength(0)
-    await expect.poll(() => page.locator('.react-flow__node').count()).toBe(0)
+    await expect.poll(() => page.locator('.react-flow__node:visible').count()).toBe(0)
     expect(console.pageErrors).toEqual([])
   })
 
@@ -751,7 +752,7 @@ describe('web e2e: Convax canvas interactions', () => {
     const observations = observeCanvas(scaffold, fixture.id)
     await connectToPoint(page, chatNode.id, 'target', { x: 1450, y: 200 })
     await page.locator('[data-convax-connection-preview]').waitFor()
-    await page.getByRole('menu').getByRole('menuitem', { name: 'Add project', exact: true }).click()
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Add folder', exact: true }).click()
     const picker = page.getByRole('dialog', { name: 'Select Workspace Directory', exact: true })
     await picker.waitFor()
     await picker.getByRole('button', { name: 'Edit path', exact: true }).click()
@@ -836,7 +837,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.screenshot({ path: join(ARTIFACTS, 'convax-interactions-connection-create.png') })
     await mkdir(EXPECTED, { recursive: true })
     await compareOrRefreshGolden(join(EXPECTED, 'connection-create.expected.md'),
-      await captureStableAria(page, '[data-convax-graph]', scaffold.workspaceCwd), webSnapshotMode())
+      await captureStableAria(page, '[data-convax-graph]:visible', scaffold.workspaceCwd), webSnapshotMode())
     expect(console.pageErrors).toEqual([])
   })
 
@@ -887,7 +888,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.getByRole('button', { name: 'Workspace actions', exact: true }).click()
     await page.getByRole('menuitem', { name: 'All canvases', exact: true }).click()
     await page.locator('[data-canvas-manager-row="' + targetId + '"] button').first().click()
-    await expect.poll(() => page.locator('.react-flow__node').count()).toBe(0)
+    await expect.poll(() => page.locator('.react-flow__node:visible').count()).toBe(0)
     await page.mouse.click(840, 420)
     await page.keyboard.press('ControlOrMeta+V')
     await expect.poll(() => canvas(scaffold, targetId).nodes.length).toBe(2)
@@ -914,7 +915,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await clipboardSettled(page)
     expect(canvas(scaffold, targetId).connections).toHaveLength(2)
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(copied)
-    const rectangles = new Map(await page.locator('.react-flow__node').evaluateAll(elements => elements.map((element) => {
+    const rectangles = new Map(await page.locator('.react-flow__node:visible').evaluateAll(elements => elements.map((element) => {
       const bounds = element.getBoundingClientRect()
       return [element.getAttribute('data-id')!, { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }] as const
     })))
@@ -934,7 +935,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.screenshot({ path: join(ARTIFACTS, 'convax-interactions-clipboard.png') })
     await mkdir(EXPECTED, { recursive: true })
     await compareOrRefreshGolden(join(EXPECTED, 'clipboard.expected.md'),
-      await captureStableAria(page, '[data-convax-graph]', scaffold.workspaceCwd), webSnapshotMode())
+      await captureStableAria(page, '[data-convax-graph]:visible', scaffold.workspaceCwd), webSnapshotMode())
     expect(console.pageErrors).toEqual([])
   })
 
@@ -1110,7 +1111,7 @@ describe('web e2e: Convax canvas interactions', () => {
       .flatMap(chat => chat.threads.map(thread => thread.sessionId))
     expect(new Set([...sessions, ...copiedSessions]).size).toBe(4)
     for (const original of before.nodes) expect(canvas(scaffold, id).nodes.find(item => item.id === original.id)).toEqual(original)
-    const rectangles = new Map(await page.locator('.react-flow__node').evaluateAll(elements => elements.map((element) => {
+    const rectangles = new Map(await page.locator('.react-flow__node:visible').evaluateAll(elements => elements.map((element) => {
       const bounds = element.getBoundingClientRect()
       return [element.getAttribute('data-id')!, { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }] as const
     })))
@@ -1298,7 +1299,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.screenshot({ path: join(ARTIFACTS, 'convax-interactions-history.png') })
     await mkdir(EXPECTED, { recursive: true })
     await compareOrRefreshGolden(join(EXPECTED, 'history.expected.md'),
-      await captureStableAria(page, '[data-convax-graph]', scaffold.workspaceCwd), webSnapshotMode())
+      await captureStableAria(page, '[data-convax-graph]:visible', scaffold.workspaceCwd), webSnapshotMode())
     expect(console.pageErrors).toEqual([])
   })
 })

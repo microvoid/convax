@@ -234,4 +234,90 @@ close(): Promise<void>
 Types: [CanvasCommitRequest](convax-graph-tools.md)
 
 Source: [`../../packages/plugin-host/src/index.ts`](../../../../packages/plugin-host/src/index.ts)
+
+<a id="ctxconvaxterminal--canvasterminalcontroller"></a>
+
+### `ctx.convaxTerminal` — `CanvasTerminalController`
+
+Typed terminal operations using committed canvas nodes as their resource owner.
+
+```ts cordis-catalog
+/**
+ * Read the card's launch directory and shared terminal limits.
+ * @param canvasId - Owning canvas identity.
+ * @param nodeId - Terminal card identity.
+ * @param signal - Request cancellation.
+ * @returns Current launch directory and terminal limits; running shells retain their own directory.
+ */
+@Remote async environment(canvasId: CanvasId, nodeId: CanvasNodeId, signal: AbortSignal): Promise<TerminalEnvironment>
+
+/**
+ * Discover shells without allocating a terminal process.
+ * @param canvasId - Owning canvas identity.
+ * @param nodeId - Terminal card identity.
+ * @param signal - Request cancellation.
+ * @returns Installed shell choices in the canvas execution environment.
+ */
+@Remote shells(canvasId: CanvasId, nodeId: CanvasNodeId, signal: AbortSignal): Promise<TerminalShell[]>
+
+/**
+ * List the card's retained process without creating a Session or shell.
+ * @param canvasId - Owning canvas identity.
+ * @param nodeId - Terminal card identity.
+ * @returns At most one retained process, including its exited screen.
+ */
+@Remote list(canvasId: CanvasId, nodeId: CanvasNodeId): WebTerminalInfo[]
+
+/**
+ * Start a shell for this card, sharing the current instance across windows and retries.
+ * @param canvasId - Owning canvas identity.
+ * @param nodeId - Terminal card identity.
+ * @param request - New runtime identity, shell choice and initial dimensions.
+ * @param signal - Cancellation before allocation commits.
+ * @returns Existing or newly committed process metadata; its id may belong to another window's first create.
+ */
+@Remote async create(canvasId: CanvasId, nodeId: CanvasNodeId, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo>
+
+/**
+ * Hold an existing process without taking input control; cards also retain their process on the Host.
+ * @param canvasId - Owning canvas identity.
+ * @param nodeId - Terminal card identity.
+ * @param id - Retained runtime identity.
+ * @param signal - Physical stream lifetime.
+ * @returns Hold acknowledgement followed by its lifetime stream.
+ */
+@Remote({ mode: 'stream' }) retain(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId, signal: AbortSignal): AsyncIterable<TerminalRetentionFrame>
+
+/**
+ * Attach screen and input to the card's current process.
+ * @param canvasId - Owning canvas identity.
+ * @param nodeId - Terminal card identity.
+ * @param id - Retained runtime identity.
+ * @param signal - Attachment cancellation, which preserves the process.
+ * @returns Screen recovery, output, writable state and command acknowledgements.
+ */
+@Remote({ mode: 'stream' }) attach(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId, signal: AbortSignal): RemoteStream<TerminalFrame, TerminalInput>
+
+/**
+ * Rename the running instance without changing its launch configuration.
+ * @param canvasId - Owning canvas identity.
+ * @param nodeId - Terminal card identity.
+ * @param id - Retained runtime identity.
+ * @param title - Nonempty display title.
+ */
+@Remote rename(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId, title: string): void
+
+/**
+ * Terminate the runtime identity using the shared terminal close path, including after card deletion.
+ * @param canvasId - Original owning canvas identity.
+ * @param nodeId - Original terminal card identity.
+ * @param id - Runtime identity to close; a later replacement remains independent.
+ * @returns After provider process cleanup and output drainage settle.
+ */
+@Remote async close(canvasId: CanvasId, nodeId: CanvasNodeId, id: WebTerminalId): Promise<void>
+```
+
+Types: [RemoteStream](typert.md)
+
+Source: [`../../packages/plugin-inernal-nodes-host/src/terminals.ts`](../../../../packages/plugin-inernal-nodes-host/src/terminals.ts)
 <!-- END GENERATED cordis-surface -->

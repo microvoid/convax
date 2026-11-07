@@ -66,6 +66,12 @@
       "path": "../../libs/dsh/packages/preset/agent-preset-registry"
     },
     {
+      "path": "../../libs/dsh/packages/interaction/permission-presets"
+    },
+    {
+      "path": "../../libs/dsh/packages/sandbox/sandbox-policy"
+    },
+    {
       "path": "../../libs/dsh/packages/jobs/jobs"
     },
     {
@@ -76,6 +82,12 @@
     },
     {
       "path": "../plugin-host"
+    },
+    {
+      "path": "../../libs/dsh/packages/api/terminal-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../libs/dsh/packages/subprocess/subprocess"
     }
   ]
 }

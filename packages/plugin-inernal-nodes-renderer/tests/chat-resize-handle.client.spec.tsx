@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChatResizeHandle } from '../src/client/ChatResizeHandle.tsx'
 import type { ChatResizeControls } from '@deepseek-ai/dsh-convax-plugin-renderer/client'
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 function fixture(options: { useContainer?: boolean; collapsedHeight?: number } = {}) {
   const observers: FixtureResizeObserver[] = []
@@ -109,16 +109,64 @@ describe('Convax Chat resize gestures', () => {
     expect(b.pointerCapture.setPointerCapture).toHaveBeenCalledExactlyOnceWith(7)
   })
 
-  it.each(['pointercancel', 'lostpointercapture'])('restores the saved dimensions after %s without committing', (event) => {
+  it('continues on the canvas after capture loss and commits its final release coordinates once', () => {
+    const b = fixture()
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointermove', 120, 130)
+    b.grip.releasePointerCapture(7)
+    pointer(b.grip, 'lostpointercapture', 120, 130)
+    expect(b.grip.hasAttribute('data-resizing')).toBe(true)
+    expect(b.actions.commit).not.toHaveBeenCalled()
+    pointer(document.body, 'pointermove', 140, 150)
+    expect(b.actions.preview).toHaveBeenLastCalledWith({ width: 700, height: 460 })
+    pointer(document.body, 'pointerup', 160, 170)
+    expect(b.actions.commit).toHaveBeenCalledExactlyOnceWith({ width: 740, height: 500 })
+    expect(b.actions.preview).toHaveBeenLastCalledWith(null)
+    expect(b.grip.hasAttribute('data-resizing')).toBe(false)
+    pointer(b.grip, 'pointerup', 180, 190)
+    expect(b.actions.commit).toHaveBeenCalledOnce()
+  })
+
+  it('restores the saved dimensions after pointercancel without committing', () => {
     const b = fixture()
     pointer(b.grip, 'pointerdown', 100, 100)
     pointer(b.grip, 'pointermove', 120, 130)
     expect(b.actions.preview).toHaveBeenLastCalledWith({ width: 660, height: 420 })
-    pointer(b.grip, event, 120, 130)
+    pointer(b.grip, 'pointercancel', 120, 130)
     expect(b.grip.hasAttribute('data-resizing')).toBe(false)
     expect(b.actions.preview).toHaveBeenLastCalledWith(null)
     pointer(b.grip, 'pointerup', 120, 130)
     expect(b.actions.commit).not.toHaveBeenCalled()
+  })
+
+  it.each(['release', 'pointercancel', 'blur', 'window blur', 'Escape', 'unmount'])('removes document gesture listeners after capture loss and %s', (ending) => {
+    const b = fixture()
+    const listen = vi.spyOn(document, 'addEventListener')
+    const unlisten = vi.spyOn(document, 'removeEventListener')
+    const listenWindow = vi.spyOn(window, 'addEventListener')
+    const unlistenWindow = vi.spyOn(window, 'removeEventListener')
+    pointer(b.grip, 'pointerdown', 100, 100)
+    pointer(b.grip, 'pointermove', 120, 130)
+    b.grip.releasePointerCapture(7)
+    pointer(b.grip, 'lostpointercapture', 120, 130)
+    const listeners = listen.mock.calls.filter(([type]) => ['pointermove', 'pointerup', 'pointercancel'].includes(type))
+    expect(listeners).toHaveLength(3)
+    const blur = listenWindow.mock.calls.find(([type]) => type === 'blur')
+    expect(blur).toBeDefined()
+    if (ending === 'release') pointer(document.body, 'pointerup', 140, 150)
+    else if (ending === 'pointercancel') pointer(document.body, 'pointercancel', 140, 150)
+    else if (ending === 'blur') fireEvent.blur(b.grip)
+    else if (ending === 'window blur') fireEvent(window, new Event('blur'))
+    else if (ending === 'Escape') fireEvent.keyDown(b.grip, { key: 'Escape' })
+    else b.unmount()
+    for (const listener of listeners) expect(unlisten).toHaveBeenCalledWith(...listener)
+    expect(unlistenWindow).toHaveBeenCalledWith(...blur!)
+    const previews = b.actions.preview.mock.calls.length
+    pointer(document.body, 'pointermove', 180, 190)
+    pointer(document.body, 'pointerup', 180, 190)
+    expect(b.actions.preview).toHaveBeenCalledTimes(previews)
+    expect(b.actions.preview).toHaveBeenLastCalledWith(null)
+    expect(b.actions.commit).toHaveBeenCalledTimes(ending === 'release' ? 1 : 0)
   })
 
   it('resizes an initial, loading or failed placeholder without a transcript', () => {

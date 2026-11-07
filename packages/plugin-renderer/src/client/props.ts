@@ -141,6 +141,8 @@ export type CanvasGraphSurfaceProps = FactoryComponentPropsOf<'convax.graph'>
 
 /** Plain node data and revision-bound callbacks supplied by its canvas. */
 export interface CanvasNodeOwner {
+  /** Whether the owning canvas is visible and accepts interaction. */
+  active: boolean
   /** Complete provider payload; supplied only after Host compatibility checks. */
   node: CanvasNode
   /** Owning canvas identity. */
@@ -191,6 +193,7 @@ export interface CanvasNodeOwner {
 
 /** Window-local Chat navigation inputs, separate from its retained Session. */
 export interface CanvasChatOwner {
+  active?: boolean
   chat: CanvasChat
   canvasRevision: number
   remove: () => void

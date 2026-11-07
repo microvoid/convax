@@ -1,0 +1,5 @@
+- article:
+  - text: Terminal
+  - alert: This terminal no longer exists. Open a new terminal.
+  - button "New terminal"
+  - button "Resize preview"

@@ -84,6 +84,29 @@ async function fixture() {
 }
 
 describe('Connection creation in blank canvas space', () => {
+  it('creates an input-only terminal from an output origin with the captured source connection', async () => {
+    const b = await fixture()
+    b.start('output')
+    b.drop('output')
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Terminal' }))
+    expect(b.props.command).toHaveBeenCalledOnce()
+    const command = vi.mocked(b.props.command).mock.calls[0]![0]
+    if (command.kind !== 'add-node') throw new Error('Expected terminal node creation')
+    expect(command.node.typeId).toBe('convax.terminal')
+    expect(command.initialConnections).toEqual([expect.objectContaining({
+      source: SOURCE, sourcePort: 'output', target: command.node.id, targetPort: 'input', purpose: 'input',
+    })])
+  })
+
+  it('keeps input-only creations out of an input-origin menu while retaining compatible entries', async () => {
+    const b = await fixture()
+    b.start('input')
+    b.drop('input')
+    expect(b.view.queryByRole('menuitem', { name: 'Terminal' })).toBeNull()
+    expect(b.view.getByRole('menuitem', { name: 'Add files' })).toBeDefined()
+    expect(b.props.command).not.toHaveBeenCalled()
+  })
+
   it('retains an output line and forwards the captured origin when creating Chat', async () => {
     const b = await fixture()
     const origin = b.start()
@@ -166,6 +189,6 @@ describe('Connection creation in blank canvas space', () => {
     const b = await fixture()
     expect(connectionDropPoint(new MouseEvent('mouseup', { clientX: 72, clientY: 91 }))).toEqual({ x: 72, y: 91 })
     expect(isBlankConnectionTarget(b.view.container.querySelector('[data-convax-graph]')!, b.pane)).toBe(true)
-    expect(isBlankConnectionTarget(b.view.container.querySelector('[data-convax-graph]')!, b.view.getByRole('button', { name: 'Add files' }))).toBe(false)
+    expect(isBlankConnectionTarget(b.view.container.querySelector('[data-convax-graph]')!, b.view.getByRole('button', { name: 'Add folder or files' }))).toBe(false)
   })
 })

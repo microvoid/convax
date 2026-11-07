@@ -65,7 +65,7 @@ chip 标识应用和窗口，并提示发送时采集新图。它保存源绑定
 
 ### 现有能力与所需扩展
 
-[节点注册表](../../../../../../packages/plugin-host/src/registry.ts)和 [renderer 注册表](../../../../../../packages/plugin-renderer/src/client/node-renderers.tsx)提供节点贡献。当前[资源准备](../../../../../../packages/plugin-host/src/index.ts)校验文件或文件夹路径，[草稿插入](../../../../../../packages/plugin-renderer/src/client/draft-references.ts)创建原生文件 reference。实时窗口绑定需要明确的 reference 协议。
+[节点注册表](../../../../../../packages/plugin-host/src/registry.ts)和 [renderer 注册表](../../../../../../packages/plugin-renderer/src/client/node-renderers.tsx)提供节点贡献。当前[资源准备](../../../../../../packages/plugin-host/src/index.ts)校验文件或文件夹路径，[草稿插入](../../../../../../packages/plugin-inernal-nodes-renderer/src/client/draft-references.ts)创建原生文件 reference。实时窗口绑定需要明确的 reference 协议。
 
 [原生 CUA 代码](../../../../packages/experimental/cua-macos/native/Sources/CuaNative/)实现逐窗单次截图和局部指针操作，没有连续镜像。键盘操作跟随应用焦点；hover 可能要求原窗口置前。[Computer Use 注册表](../../../../packages/computer-use/computer-use/src/index.ts)仅注册 provider 身份，没有公开截图或输入分发接口。不能虚构 `ctx.computerUse.capture`、使用私有 Agent 闭包，也不能为人工路由伪造 Agent。
 

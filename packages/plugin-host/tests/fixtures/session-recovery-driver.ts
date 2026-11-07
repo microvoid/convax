@@ -95,7 +95,9 @@ try {
         const original = request.kind === 'create'
           ? { kind: request.kind, cwd: intent.cwd, ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }) }
           : { kind: request.kind, sessionId: request.sourceSessionId, ...(request.atSeq === undefined ? {} : { atSeq: request.atSeq }) }
-        legacy.prepare('INSERT INTO u_session_operations_operations VALUES(?,?)').run(request.operationId, JSON.stringify({ request: original, ...session }))
+        const legacySession = { ...session }
+        delete legacySession.permission
+        legacy.prepare('INSERT INTO u_session_operations_operations VALUES(?,?)').run(request.operationId, JSON.stringify({ request: original, ...legacySession }))
         owned.prepare('UPDATE u_convax_thread_operations SET value=? WHERE key=?').run(JSON.stringify(intent), request.operationId)
       }
       owned.exec(`

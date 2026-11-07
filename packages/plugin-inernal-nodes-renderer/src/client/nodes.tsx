@@ -55,7 +55,7 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
     <NodePorts nodeId={node.id} ports={ports} connectable={!busy} />
     <div className={css.resourceHeader} data-convax-resource-header="">
       <div className={css.resourceHeading}>
-        <Tooltip label={t(expanded ? 'files.collapse' : 'files.expand', { name })} portal>
+        <Tooltip label={t(expanded ? 'files.collapse' : 'files.expand', { name })} side="bottom" portal>
           <Button size="sm" className={`${css.resourceToggle} nodrag nopan`}
             aria-label={t(expanded ? 'files.collapse' : 'files.expand', { name })}
             aria-expanded={expanded} aria-controls={contentsId} onClick={() => { setPreview(null); props.setResourceExpanded(!expanded) }}>
@@ -64,10 +64,10 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
         </Tooltip>
         {folder ? <FileIcon kind="folder" size={16} /> : <FileIcon path={path || name} size={16} />}
         <div className={css.resourceIdentity}>
-          <Tooltip label={`${name} · ${metadata}`} portal><span className={css.nodeTitle}>{name}</span></Tooltip>
+          <Tooltip label={`${name} · ${metadata}`} side="bottom" portal><span className={css.nodeTitle}>{name}</span></Tooltip>
         </div>
         <div className={css.resourceMetadata}>
-          {media === undefined ? <Tooltip label={metadata} portal><span className={css.resourceMeta}>{metadata}</span></Tooltip>
+          {media === undefined ? <Tooltip label={metadata} side="bottom" portal><span className={css.resourceMeta}>{metadata}</span></Tooltip>
             : props.renderFactorySlot('convax.media.preview', {
               path, presentation: audio && !expanded ? 'compact' : 'metadata', metadataFallback: metadata,
             }, { fallback: <span className={css.resourceMeta}>{metadata}</span> })}
@@ -101,7 +101,7 @@ export function ResourceNode(props: CanvasNodeRendererProps) {
  */
 export function ChatNode(props: CanvasNodeRendererProps) {
   return props.chat === undefined ? <NodePlaceholder {...props} reason="incompatible" /> : props.renderFactorySlot('convax.chat.content', {
-    chat: props.chat, canvasRevision: props.canvasRevision, remove: props.remove, consumeFocus: props.consumeFocus,
+    active: props.active, chat: props.chat, canvasRevision: props.canvasRevision, remove: props.remove, consumeFocus: props.consumeFocus,
     focusNode: props.focusNode,
     ...(props.focusSessionId === undefined ? {} : { focusSessionId: props.focusSessionId }),
   })

@@ -1,0 +1,25 @@
+- id: convax-host
+  config:
+    databasePath: !!js dshHomePath('storages', 'convax-canvas.sqlite')
+    canvasDirectoryRoot: !!js dshHomePath('canvas-workspaces')
+
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: session-telemetry-otel
+  disabled: true
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd()
+
+- insert:
+    - id: terminal-controller
+      name: '@deepseek-ai/dsh-api-terminal-controller'
+      config:
+        shell: !!js "process.platform === 'win32' ? { path: 'cmd.exe', name: 'cmd', args: ['/Q'] } : { path: '/bin/sh', name: 'sh', args: ['-i'] }"

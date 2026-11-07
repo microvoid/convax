@@ -154,6 +154,10 @@ export const sessionReservationSchema = z.object({
   phase: z.enum(['reserved', 'completed']), sessionId,
   createdAt: z.number().int().nonnegative(), cwd: z.string().refine(isAbsolute, 'An absolute project directory is required'),
   agentPreset: z.string().optional(), boundary: z.number().int().nonnegative().optional(),
+  permission: z.object({
+    preset: z.string().min(1), sandbox: z.enum(['read-only', 'workspace-write', 'danger-full-access']),
+    approval: z.enum(['ask', 'never']),
+  }).optional(),
 })
 
 /** Intent precedes every external Session creation or fork. */

@@ -1,4 +1,25 @@
 # Install over a base-backed Web or Desktop profile; native UI rows stay enabled.
+- id: agent-preset-registry
+  config:
+    default: ptc
+
+- id: permission
+  config:
+    defaultPreset: workspace-write
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+
+- id: ui-sidebar-browser
+  disabled: false
+
 - insert:
     - id: convax-host
       name: '@deepseek-ai/dsh-convax-plugin-host'

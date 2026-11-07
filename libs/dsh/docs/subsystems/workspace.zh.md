@@ -300,6 +300,15 @@ Typed Remote control of transient Session-owned terminal processes.
  * @returns after provider cleanup succeeds. A failure retains the terminal for retry.
  */
 @Remote async close(agent: Agent, id: WebTerminalId): Promise<void>
+
+/**
+ * Construct a view-independent terminal owner for an application resource.
+ * The caller owns disposal; zero unattendedTimeoutMs retains processes until explicit resource cleanup.
+ * @param execution - Provider and validated directory resolver for this resource.
+ * @param unattendedTimeoutMs - Owner retention interval, or zero for resource-owned retention.
+ * @returns A new owner using the controller's shell and screen configuration.
+ */
+createOwner(execution: () => UserTerminalExecution, unattendedTimeoutMs: number): UserTerminalOwner
 ```
 
 Types: [Agent](core.zh.md) · [RemoteStream](typert.zh.md) · [SessionId](core.zh.md)

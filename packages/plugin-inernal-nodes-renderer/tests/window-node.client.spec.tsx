@@ -30,7 +30,7 @@ function fixture(available: boolean, live: boolean) {
   const props: WindowMirrorProps = {
     node: { id: nodeId, typeId: 'convax.window' as CanvasNodeTypeId, dataVersion: 1,
       data: { bindingId, name: 'Test document' }, revision: 0, position: { x: 0, y: 0 } },
-    ports: [], selected: false, busy: false, resourceExpanded: true,
+    ports: [], active: true, selected: false, busy: false, resourceExpanded: true,
     useWindowMirrors: selector => selector(live ? {
       [bindingId]: { nodeId, name: 'Test document', status: 'live' },
     } : {}),
@@ -130,7 +130,7 @@ it('assembles the real window Factory without passing framework hooks as duplica
   await runtime.declare({ 'convax.node': { kind: 'keyed', scope: 'root' } })
   const owner: CanvasNodeOwner = {
     node: b.props.node, canvasId: b.props.canvasId, canvasRevision: b.props.canvasRevision,
-    definition: b.props.definition, ports: b.props.ports, selected: false, busy: false, chat: undefined,
+    definition: b.props.definition, ports: b.props.ports, active: true, selected: false, busy: false, chat: undefined,
     remove: b.props.remove, command: b.props.command, openResource: b.props.openResource, openSource: b.props.openSource,
     createChat: b.props.createChat, chooseWindow: b.props.chooseWindow, focusSessionId: undefined,
     consumeFocus: b.props.consumeFocus, inputs: [], focusNode: b.props.focusNode,

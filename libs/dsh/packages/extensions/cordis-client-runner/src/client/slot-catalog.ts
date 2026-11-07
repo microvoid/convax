@@ -111,13 +111,13 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     keyDomain: '',
     hookContext: '',
     slotInject: '',
-    declaredBy: 'factory \'convax.chat.content\' (convax-plugin-renderer), so it exists while that definition is registered',
+    declaredBy: 'factory \'convax.chat.content\' (convax-plugin-inernal-nodes-renderer), so it exists while that definition is registered',
     occupants: [
-      'convax-plugin-renderer ChatHeader',
+      'convax-plugin-inernal-nodes-renderer ChatHeader',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'convax.chat.header\', () => ctx.slots.register(\n      { name: \'convax.chat.header\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: '../../packages/plugin-renderer/src/client/props.ts:53',
+    source: '../../packages/plugin-renderer/src/client/props.ts:54',
   },
   {
     key: 'convax.chat.session',
@@ -155,13 +155,13 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     keyDomain: '',
     hookContext: '',
     slotInject: '',
-    declaredBy: 'factory \'convax.chat.thread\' (convax-plugin-renderer), so it exists while that definition is registered',
+    declaredBy: 'factory \'convax.chat.thread\' (convax-plugin-inernal-nodes-renderer), so it exists while that definition is registered',
     occupants: [
-      'convax-plugin-renderer ChatSession',
+      'convax-plugin-inernal-nodes-renderer ChatSession',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'convax.chat.session\', () => ctx.slots.register(\n      { name: \'convax.chat.session\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: '../../packages/plugin-renderer/src/client/props.ts:41',
+    source: '../../packages/plugin-renderer/src/client/props.ts:42',
   },
   {
     key: 'convax.chat.tools',
@@ -199,13 +199,13 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     keyDomain: '',
     hookContext: '',
     slotInject: '',
-    declaredBy: 'factory \'convax.chat.thread\' (convax-plugin-renderer), so it exists while that definition is registered',
+    declaredBy: 'factory \'convax.chat.thread\' (convax-plugin-inernal-nodes-renderer), so it exists while that definition is registered',
     occupants: [
-      'convax-plugin-renderer ChatTools',
+      'convax-plugin-inernal-nodes-renderer ChatTools',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'convax.chat.tools\', () => ctx.slots.register(\n      { name: \'convax.chat.tools\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: '../../packages/plugin-renderer/src/client/props.ts:64',
+    source: '../../packages/plugin-renderer/src/client/props.ts:65',
   },
   {
     key: 'convax.chat.views',
@@ -239,13 +239,13 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     keyDomain: '',
     hookContext: '',
     slotInject: '',
-    declaredBy: 'factory \'convax.chat.content\' (convax-plugin-renderer), so it exists while that definition is registered',
+    declaredBy: 'factory \'convax.chat.content\' (convax-plugin-inernal-nodes-renderer), so it exists while that definition is registered',
     occupants: [
-      'convax-plugin-renderer ChatViews',
+      'convax-plugin-inernal-nodes-renderer ChatViews',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'convax.chat.views\', () => ctx.slots.register(\n      { name: \'convax.chat.views\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: '../../packages/plugin-renderer/src/client/props.ts:58',
+    source: '../../packages/plugin-renderer/src/client/props.ts:59',
   },
   {
     key: 'convax.node',
@@ -262,7 +262,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/** Plain node data and revision-bound callbacks supplied by its canvas. */\nexport interface CanvasNodeOwner {\n  /** Complete provider payload; supplied only after Host compatibility checks. */\n  node: CanvasNode\n  /** Owning canvas identity. */\n  canvasId: CanvasId\n  /** Current committed canvas revision. */\n  canvasRevision: number\n  /** Available and version-compatible Host definition. */\n  definition: CanvasNodeTypeInfo\n  /** Declared ports plus retained connection endpoints. */\n  ports: readonly CanvasPort[]\n  /** Whether the graph selected this node. */\n  selected: boolean\n  /** Whether a mutation prevents new graph gestures. */\n  busy: boolean\n  /** Associated Chat, independent of its renderer\'s presence. */\n  chat: CanvasChat | undefined\n  /** Remove this node through the owning canvas command. */\n  remove: () => void\n  /** Submit one command against the owning canvas revision. */\n  command: (command: CanvasCommand) => Promise<boolean>\n  /** Open a folder in the system file manager or preview a file. */\n  openResource: (resource: CanvasResource) => void\n  /** Open the original file or folder in its system application. */\n  openSource: (path: string) => void\n  /** Create a C /* …truncated — full shape in source */',
+      '/** Plain node data and revision-bound callbacks supplied by its canvas. */\nexport interface CanvasNodeOwner {\n  /** Whether the owning canvas is visible and accepts interaction. */\n  active: boolean\n  /** Complete provider payload; supplied only after Host compatibility checks. */\n  node: CanvasNode\n  /** Owning canvas identity. */\n  canvasId: CanvasId\n  /** Current committed canvas revision. */\n  canvasRevision: number\n  /** Available and version-compatible Host definition. */\n  definition: CanvasNodeTypeInfo\n  /** Declared ports plus retained connection endpoints. */\n  ports: readonly CanvasPort[]\n  /** Whether the graph selected this node. */\n  selected: boolean\n  /** Whether a mutation prevents new graph gestures. */\n  busy: boolean\n  /** Associated Chat, independent of its renderer\'s presence. */\n  chat: CanvasChat | undefined\n  /** Remove this node through the owning canvas command. */\n  remove: () => void\n  /** Submit one command against the owning canvas revision. */\n  command: (command: CanvasCommand) => Promise<boolean>\n  /** Open a folder in the system file manager or preview a file. */\n  openResource: (resource: CanvasResource) => void\n  /** Open the original file or f /* …truncated — full shape in source */',
     ],
     ownerPropsReferences: [
       'CanvasChat',
@@ -296,7 +296,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'convax.node\', () => ctx.slots.register(\n      { name: \'convax.node\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: '../../packages/plugin-renderer/src/client/props.ts:35',
+    source: '../../packages/plugin-renderer/src/client/props.ts:36',
   },
   {
     key: 'conversation.approval.detail',
@@ -3843,7 +3843,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'root\' (client-ui-layout), so it exists while that entry is mounted',
     occupants: [
-      'convax-plugin-renderer MediaPlaybackDock id \'convax-media-playback\'',
+      'convax-plugin-inernal-nodes-renderer MediaPlaybackDock id \'convax-media-playback\'',
       'client-ui-chat QuotaNoticeHost id \'chat.quota-notice\'',
       'client-ui-file-drag FileDragFeedback id \'file-drag.feedback\'',
       'client-ui-plugin-manager PluginRefreshToast id \'plugin-manager.refresh-toast\'',
@@ -3854,6 +3854,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-general HostReleasePrompt id \'host-release-change\'',
       'client-ui-settings-session-log UploadToast id \'session-log-upload-toast\'',
       'client-ui-shortcuts ShortcutReference id \'shortcuts\'',
+      'client-ui-sidebar-browser BrowserStateHost id \'browser-view-checkpoints\'',
       'client-ui-workspace SessionRenameDialog id \'workspace.session-rename\'',
       'client-ui-workspace SessionArchiveConfirmDialog id \'workspace.session-archive\'',
       'client-ui-workspace RowActionToast id \'workspace.row-toast\'',

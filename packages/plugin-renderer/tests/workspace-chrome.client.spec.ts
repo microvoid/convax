@@ -6,7 +6,7 @@ const css = readFileSync(new URL('../src/client/Workspace.module.css', import.me
 const markup = readFileSync(new URL('../src/client/Workspace.tsx', import.meta.url), 'utf8')
 
 describe('Convax window titlebar', () => {
-  it('opts its 48px navigation row into integrated chrome while preserving its own padding', () => {
+  it('overlays a transparent 48px navigation row on the canvas while preserving native window clearance', () => {
     const navigation = markup.match(/<nav\s[^>]*className=\{css\.tabbar\}[^>]*>/)?.[0]
     expect(navigation).toContain('data-workspace-titlebar="integrated"')
     expect(navigation).toContain('data-window-drag')
@@ -14,6 +14,9 @@ describe('Convax window titlebar', () => {
     expect(row).toContain('box-sizing: border-box')
     expect(row).toContain('min-height: 48px')
     expect(row).toContain('padding: 4px 12px')
+    expect(row).toContain('position: absolute')
+    expect(row).toContain('background: transparent')
+    expect(row).toContain('border: 0')
     const native = css.match(/:global\(\[data-platform='darwin'\]\) \.tabbar\s*\{([^}]+)\}/)?.[1]
     expect(native).toContain('padding-inline-start: var(--dsh-frame-leading-clearance)')
     expect(native).not.toContain('--dsh-frame-top-clearance:')

@@ -119,6 +119,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns revisioned canvases, Chat bindings, thread operations and resource reads independently of its optional renderer.',
   },
   {
+    key: 'convaxTerminal',
+    pkg: 'convax-plugin-inernal-nodes-host',
+    title: 'Canvas interactive terminal Remote controller',
+    mode: 'core',
+    consumers: ['convax-plugin-inernal-nodes-renderer'],
+    note: 'Adapts shared user terminals to committed canvas cards and their resource directories.',
+  },
+  {
     key: 'actionCards',
     pkg: 'action-cards',
     title: 'Optional action cards',

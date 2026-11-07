@@ -1,5 +1,5 @@
 /** Pointer-captured resize grip outside the native transcript's lower-right corner. */
-import { useEffect, useRef, useState, type RefObject, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatResizeControls } from '@deepseek-ai/dsh-convax-plugin-renderer/client'
 import { resizeChat, type ChatSize } from '@deepseek-ai/dsh-convax-plugin-renderer/client'
@@ -12,6 +12,8 @@ interface Gesture {
   readonly y: number
   readonly scale: number
   readonly size: ChatSize
+  readonly collapsedHeight: number | undefined
+  readonly detach: () => void
 }
 
 /**
@@ -54,6 +56,7 @@ export function ChatResizeHandle({ container, actions, label, help, useContainer
     const active = gesture.current
     gesture.current = null
     if (active !== null) {
+      active.detach()
       controls.current.preview(null)
       if (active.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
     }
@@ -68,25 +71,26 @@ export function ChatResizeHandle({ container, actions, label, help, useContainer
     return { size: { width: root.offsetWidth, height: collapsedHeight ?? scroll.offsetHeight }, scale }
   }
   const resize = (active: Gesture, x: number, y: number): ChatSize =>
-    resizeChat(active.size, x - active.x, collapsedHeight === undefined ? y - active.y : 0, active.scale)
+    resizeChat(active.size, x - active.x, active.collapsedHeight === undefined ? y - active.y : 0, active.scale)
   const cancel = (): void => {
     const active = gesture.current
     if (active === null) return
     gesture.current = null
     setResizing(false)
-    actions.preview(null)
+    active.detach()
+    controls.current.preview(null)
     if (active.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
   }
-  const end = (event: ReactPointerEvent<HTMLButtonElement>, commit: boolean): void => {
+  const end = (event: PointerEvent, commit: boolean): void => {
     const active = gesture.current
     if (active === null || active.pointerId !== event.pointerId) return
     cancel()
     const next = resize(active, event.clientX, event.clientY)
     if (commit && (next.width !== active.size.width || next.height !== active.size.height)) {
-      actions.commit(next)
+      controls.current.commit(next)
     }
   }
-  return <Tooltip label={help} portal>
+  return <Tooltip label={help} side="top" portal>
     <button type="button" className={`${css.chatResize} nodrag nopan nowheel`} aria-label={label}
       data-convax-chat-resize="" data-resizing={resizing || undefined} hidden={bottom === null} style={{ bottom: bottom ?? 0 }}
       onPointerDown={(event) => {
@@ -97,19 +101,33 @@ export function ChatResizeHandle({ container, actions, label, help, useContainer
         event.stopPropagation()
         event.currentTarget.focus({ preventScroll: true })
         event.currentTarget.setPointerCapture(event.pointerId)
-        gesture.current = { ...current, pointerId: event.pointerId, element: event.currentTarget, x: event.clientX, y: event.clientY }
+        const owner = event.currentTarget.ownerDocument
+        const ownerWindow = owner.defaultView
+        const move = (event: PointerEvent): void => {
+          const active = gesture.current
+          if (active === null || active.pointerId !== event.pointerId) return
+          event.preventDefault()
+          event.stopPropagation()
+          controls.current.preview(resize(active, event.clientX, event.clientY))
+        }
+        const up = (event: PointerEvent): void => { end(event, true) }
+        const abort = (event: PointerEvent): void => { end(event, false) }
+        // Capture may be released before pointerup; the document still owns the gesture.
+        owner.addEventListener('pointermove', move, true)
+        owner.addEventListener('pointerup', up, true)
+        owner.addEventListener('pointercancel', abort, true)
+        ownerWindow?.addEventListener('blur', cancel)
+        gesture.current = {
+          ...current, pointerId: event.pointerId, element: event.currentTarget, x: event.clientX, y: event.clientY, collapsedHeight,
+          detach: () => {
+            owner.removeEventListener('pointermove', move, true)
+            owner.removeEventListener('pointerup', up, true)
+            owner.removeEventListener('pointercancel', abort, true)
+            ownerWindow?.removeEventListener('blur', cancel)
+          },
+        }
         setResizing(true)
       }}
-      onPointerMove={(event) => {
-        const active = gesture.current
-        if (active === null || active.pointerId !== event.pointerId) return
-        event.preventDefault()
-        event.stopPropagation()
-        actions.preview(resize(active, event.clientX, event.clientY))
-      }}
-      onPointerUp={(event) => { end(event, true) }}
-      onPointerCancel={(event) => { end(event, false) }}
-      onLostPointerCapture={(event) => { end(event, false) }}
       onBlur={cancel}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && gesture.current !== null) {

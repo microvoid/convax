@@ -42,7 +42,7 @@ export function CardToolbar({ nodeId, name, actions, t }: {
       const Icon = ICONS[action.id]
       return <Fragment key={action.id}>
         {action.id === 'remove' && index > 0 && <span className={css.separator} role="separator" />}
-        <Tooltip label={action.label} portal>
+        <Tooltip label={action.label} side="top" portal>
           <Button size="sm" aria-label={action.label} disabled={action.disabled} onClick={action.onClick}
             aria-haspopup={action.id === 'conversation' ? 'dialog' : undefined} aria-expanded={action.expanded}>
             <Icon size={16} aria-hidden />

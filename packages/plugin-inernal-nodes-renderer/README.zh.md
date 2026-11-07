@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## Summary
 
-预览文件和文件夹，使用包含多个 thread 的原生 DSH 对话，将所选应用窗口镜像连到 Chat。停用这些界面后画布仍然可用。已保存卡片以占位保留位置及连线。
+预览文件和文件夹，使用包含多个 thread 的原生 DSH 对话，运行终端和浏览器卡片，将所选应用窗口镜像连到 Chat。停用这些界面后画布仍然可用。已保存卡片以占位保留位置及连线。
 
 ## Table of Contents
 
@@ -28,6 +28,8 @@ kind: "package-reference"
 - id: convax-inernal-nodes-renderer
   name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer'
 ```
+
+终端和浏览器卡片复用 DSH 内容与控件。终端使用画布目录，或输入文件夹、文件资源对应的目录启动。切换画布和关闭画布标签保留运行中的终端及已挂载网页。删除卡片使用原生终端或浏览器关闭链路；撤销恢复配置，不复活已关闭的实例。
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

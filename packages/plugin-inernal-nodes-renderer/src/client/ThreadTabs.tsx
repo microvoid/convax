@@ -45,7 +45,7 @@ export function ThreadTabs(props: ThreadTabsProps) {
       data-reordering={reorder.dragging || undefined}>
       {tabs.map(thread => <div key={thread.id} className={`${css.threadTab} ${reorderCss.tab}`} data-thread-tab={thread.id}
         data-active={thread.id === activeId || undefined} {...reorder.item(thread.id)}>
-        <Tooltip label={thread.title} disabled={reorder.dragging} portal>
+        <Tooltip label={thread.title} disabled={reorder.dragging} side="bottom" portal>
           <button {...reorder.button(thread.id)} className={`${css.threadButton} nodrag nopan`} type="button" role="tab"
             aria-selected={thread.id === activeId} onClick={() => { props.select(thread.id) }}>
             <span className={css.threadTitle}>{thread.title}</span>
@@ -80,7 +80,7 @@ export function ThreadTabs(props: ThreadTabsProps) {
         </SessionProvider>}
       </div>)}
     </div>
-    <Tooltip label={t('chat.newThread')} portal>
+    <Tooltip label={t('chat.newThread')} side="bottom" portal>
       <Button size="sm" className="nodrag nopan nowheel" aria-label={t('chat.newThread')} disabled={props.disabled} onClick={props.create}>
         <Plus size={16} aria-hidden />
       </Button>

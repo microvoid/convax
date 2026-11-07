@@ -14,7 +14,7 @@
  * geometry itself is the browser lane's claim — ui-theme cannot see layout.
  */
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { packageFiles, packageStylesheets, parseRules, type CssRule } from './stylesheet-scan.ts'
@@ -74,9 +74,9 @@ const CHROME_ROWS: readonly ChromeRow[] = [
     inset: ['inset', '0 0 auto'],
   },
   {
-    file: 'convax/plugin-renderer/src/client/Workspace.module.css',
+    file: '../../../packages/plugin-renderer/src/client/Workspace.module.css',
     selector: '.tabbar',
-    markup: 'convax/plugin-renderer/src/client/Workspace.tsx',
+    markup: '../../../packages/plugin-renderer/src/client/Workspace.tsx',
     height: ['min-height', '48px'],
     inset: ['padding', '4px 12px'],
   },
@@ -162,7 +162,7 @@ function dragSelectors(css: string): string[] {
  * @returns one entry per declaring sheet, sorted by path, selectors in source order.
  */
 function dragOwners(): { file: string; selectors: string[] }[] {
-  return packageStylesheets()
+  return packageStylesheets(true)
     .flatMap((file) => {
       const selectors = dragSelectors(readFileSync(file, 'utf8'))
       return selectors.length === 0 ? [] : [{ file: underPackages(file), selectors }]
@@ -236,10 +236,7 @@ function underPackages(file: string): string {
  * @returns the value text, or undefined when the rule or declaration is absent.
  */
 function declaredValue(file: string, selector: string, property: string): string | undefined {
-  const path = packageStylesheets().find(candidate => candidate.endsWith(`/${file}`))
-  /* v8 ignore next -- the manifest names shipped stylesheets; a missing one is reported by the height assertion below. */
-  if (path === undefined) return undefined
-  const rule = parseRules(readFileSync(path, 'utf8')).find(candidate => candidate.selectors.includes(selector))
+  const rule = parseRules(readFileSync(resolve(PACKAGES_DIR, file), 'utf8')).find(candidate => candidate.selectors.includes(selector))
   return rule?.declarations.find(([name]) => name === property)?.[1]
 }
 
@@ -277,7 +274,7 @@ describe('window drag-region ownership', () => {
 
   it('marks its own window drag in every chrome row’s markup', () => {
     for (const row of CHROME_ROWS) {
-      const marked = openingTags(readFileSync(join(PACKAGES_DIR, row.markup), 'utf8'))
+      const marked = openingTags(readFileSync(resolve(PACKAGES_DIR, row.markup), 'utf8'))
         .filter(tag => DRAG_MARK_PATTERN.test(tag) && referencesRow(tag, row))
       expect(marked, `${row.markup} ${row.selector}`).toHaveLength(1)
     }
@@ -288,11 +285,11 @@ describe('window drag-region ownership', () => {
     // has no manifest entry — would drag the window over something that is not
     // window chrome, so the two lists must match exactly.
     const found: string[] = []
-    for (const file of packageFiles(name => name.endsWith('.tsx'))) {
+    for (const file of packageFiles(name => name.endsWith('.tsx'), true)) {
       if (!file.includes('/src/')) continue
       for (const tag of openingTags(readFileSync(file, 'utf8'))) {
         if (!DRAG_MARK_PATTERN.test(tag)) continue
-        const row = CHROME_ROWS.find(candidate => file.endsWith(`/${candidate.markup}`) && referencesRow(tag, candidate))
+        const row = CHROME_ROWS.find(candidate => file === resolve(PACKAGES_DIR, candidate.markup).replaceAll('\\', '/') && referencesRow(tag, candidate))
         found.push(row === undefined ? `${underPackages(file)} <unmatched ${DRAG_MARK} tag>` : `${row.markup} ${row.selector}`)
       }
     }

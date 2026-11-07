@@ -17936,15 +17936,36 @@ importers:
       '@deepseek-ai/dsh-agent-preset-registry':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/preset/agent-preset-registry
+      '@deepseek-ai/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/api/gateway
+      '@deepseek-ai/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/api/remote-access
+      '@deepseek-ai/dsh-api-terminal-controller':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/api/terminal-controller
+      '@deepseek-ai/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/client/connection
       '@deepseek-ai/dsh-fs':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/fs/fs
+      '@deepseek-ai/dsh-fs-local':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/fs/fs-local
       '@deepseek-ai/dsh-jobs':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/jobs/jobs
       '@deepseek-ai/dsh-loader-smoke':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/test-support/loader-smoke
+      '@deepseek-ai/dsh-permission-presets':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/interaction/permission-presets
+      '@deepseek-ai/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/sandbox/sandbox-policy
       '@deepseek-ai/dsh-session':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/core/session
@@ -17957,18 +17978,20 @@ importers:
       '@deepseek-ai/dsh-session-query':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/session-query/session-query
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/subprocess/subprocess
       '@deepseek-ai/dsh-tool-present':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/deliverables/tool-present
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/typert/protocol
       '@deepseek-ai/dsh-workspace':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/workspace/workspace
 
   packages/plugin-inernal-nodes-renderer:
-    dependencies:
-      '@deepseek-ai/dsh-convax-plugin-host':
-        specifier: workspace:*
-        version: link:../plugin-host
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -17982,6 +18005,9 @@ importers:
       '@deepseek-ai/dsh-api-session-controller':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/api/session-controller
+      '@deepseek-ai/dsh-api-terminal-controller':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/api/terminal-controller
       '@deepseek-ai/dsh-api-workspace-controller':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/api/workspace-controller
@@ -18033,24 +18059,39 @@ importers:
       '@deepseek-ai/dsh-client-ui-settings-general':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/client/ui-settings-general
+      '@deepseek-ai/dsh-client-ui-sidebar-browser':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/client/ui-sidebar-browser
       '@deepseek-ai/dsh-client-ui-sidebar-documentpreview':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/client/ui-sidebar-documentpreview
       '@deepseek-ai/dsh-client-ui-sidebar-right':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/client/ui-sidebar-right
+      '@deepseek-ai/dsh-client-ui-sidebar-terminal':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/client/ui-sidebar-terminal
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/client/ui-slots
       '@deepseek-ai/dsh-client-ui-workspace':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/client/ui-workspace
+      '@deepseek-ai/dsh-convax-plugin-host':
+        specifier: workspace:*
+        version: link:../plugin-host
+      '@deepseek-ai/dsh-convax-plugin-inernal-nodes-host':
+        specifier: workspace:*
+        version: link:../plugin-inernal-nodes-host
       '@deepseek-ai/dsh-convax-plugin-renderer':
         specifier: workspace:*
         version: link:../plugin-renderer
       '@deepseek-ai/dsh-file-reference':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/context/file-reference
+      '@deepseek-ai/dsh-remote-mock':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/test-support/remote-mock
       '@deepseek-ai/dsh-session':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/core/session

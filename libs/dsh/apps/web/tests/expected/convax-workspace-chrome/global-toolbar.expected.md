@@ -1,0 +1,3 @@
+- button "Activity"
+- button "Automation"
+- button "Workspace actions"

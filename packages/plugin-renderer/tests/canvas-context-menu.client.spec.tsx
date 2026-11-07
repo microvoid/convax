@@ -28,7 +28,7 @@ function fixture(targetCount = 0, busy = false) {
     return <><button>Outside</button>{open && <CanvasContextMenu point={{ x: window.innerWidth - 1, y: window.innerHeight - 1 }}
       targetCount={targetCount} busy={busy} history={{ canUndo: true, canRedo: false, pending: false }}
       t={t} close={() => { setOpen(false) }} {...actions} creations={[
-        { id: 'project', label: 'Add project', create: actions.addProject }, { id: 'files', label: 'Add files', create: actions.addFiles },
+        { id: 'project', label: 'Add folder', create: actions.addProject }, { id: 'files', label: 'Add files', create: actions.addFiles },
         { id: 'chat', label: 'New chat', create: actions.newChat },
       ]} />}</>
   }
@@ -76,7 +76,7 @@ describe('Canvas context menu', () => {
     expect(b.view.container.contains(menu)).toBe(false)
     expect(Number.parseFloat(menu.style.left)).toBeLessThanOrEqual(window.innerWidth - 220 - 12)
     expect(Number.parseFloat(menu.style.top)).toBeLessThanOrEqual(window.innerHeight - 240 - 12)
-    expect(document.activeElement).toBe(b.view.getByRole('menuitem', { name: 'Add project' }))
+    expect(document.activeElement).toBe(b.view.getByRole('menuitem', { name: 'Add folder' }))
     expect(b.view.queryByRole('menuitem', { name: 'Remove selected references' })).toBeNull()
     fireEvent.click(b.view.getByRole('menuitem', { name: 'Add files' }))
     expect(b.actions.addFiles).toHaveBeenCalledOnce()
@@ -95,7 +95,7 @@ describe('Canvas context menu', () => {
 
   it.each(['Escape', 'outside'] as const)('closes with %s while invoking no graph action', (method) => {
     const b = fixture()
-    if (method === 'Escape') fireEvent.keyDown(b.view.getByRole('menuitem', { name: 'Add project' }), { key: 'Escape' })
+    if (method === 'Escape') fireEvent.keyDown(b.view.getByRole('menuitem', { name: 'Add folder' }), { key: 'Escape' })
     else fireEvent.pointerDown(b.view.getByRole('button', { name: 'Outside' }))
     expect(b.view.queryByRole('menu')).toBeNull()
     for (const action of Object.values(b.actions)) expect(action).not.toHaveBeenCalled()

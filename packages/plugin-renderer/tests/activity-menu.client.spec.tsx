@@ -80,7 +80,7 @@ describe('Convax activity menu', () => {
     expect(attention.getAttribute('data-unread')).toBeNull()
     expect(within(dialog).getByRole('button', { name: 'Project summary, Finished' }).getAttribute('data-unread')).toBeNull()
     expect(b.trigger.getAttribute('aria-label')).toBe('Activity')
-    expect(b.trigger.textContent).toBe('Activity')
+    expect(b.trigger.textContent).toBe('')
     expect(b.select).not.toHaveBeenCalled()
     fireEvent.keyDown(attention, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()

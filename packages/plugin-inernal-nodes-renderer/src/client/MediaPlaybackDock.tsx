@@ -16,7 +16,7 @@ export function MediaPlaybackDock({ useMediaPlayback, toggleMedia, t }: DockProp
   if (playing.length === 0) return null
   return <aside className={css.dock} aria-label={t('media.background')}>
     {playing.map(([path]) => <div key={path} className={css.player}>
-      <Tooltip label={path} portal><span className={css.name}>{path.split(/[\\/]/).at(-1) ?? path}</span></Tooltip>
+      <Tooltip label={path} side="top" portal><span className={css.name}>{path.split(/[\\/]/).at(-1) ?? path}</span></Tooltip>
       <Button size="sm" aria-label={t('media.pauseName', { name: path.split(/[\\/]/).at(-1) ?? path })}
         onClick={() => { toggleMedia(path) }}><CirclePause size={16} aria-hidden /></Button>
     </div>)}

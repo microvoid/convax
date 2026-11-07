@@ -92,9 +92,9 @@ describe('PermissionSelect', () => {
     expect(trigger().disabled).toBe(false)
   })
 
-  it('preserves host labels and ignores the already-current row', () => {
+  it('preserves host labels and saves an already-current permission when the default differs', async () => {
     const catalog: PermissionCatalog = {
-      defaultPreset: 'read-only', defaultOptions: [{ value: 'read-only', name: 'read-only' }, { value: 'workspace-write', name: 'workspace-write' }, { value: 'danger-full-access', name: 'danger-full-access' }],
+      defaultPreset: 'danger-full-access', defaultOptions: [{ value: 'read-only', name: 'read-only' }, { value: 'workspace-write', name: 'workspace-write' }, { value: 'danger-full-access', name: 'danger-full-access' }],
       options: [
         { value: 'workspace-write', name: 'Project Files' },
         { value: 'danger-full-access', name: 'Operator Mode' },
@@ -108,7 +108,20 @@ describe('PermissionSelect', () => {
     expect(screen.getAllByRole('menuitem').map(item => item.textContent))
       .toEqual(['Project Files', 'Operator Mode', 'Custom Mode', '__proto__'])
     fireEvent.click(screen.getByRole('menuitem', { name: 'Project Files' }))
+    expect(select).toHaveBeenCalledExactlyOnceWith('workspace-write')
+    await act(async () => {})
+  })
+
+  it('requires acknowledgement when saving Full access as the already-current permission', async () => {
+    const { select } = setup({ selection: { currentValue: 'danger-full-access' } })
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: '完全权限' }))
+    expect(screen.getByRole('dialog', { name: '确认启用完全权限？' })).toBeDefined()
     expect(select).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: '启用完全权限' }))
+    expect(select).toHaveBeenCalledExactlyOnceWith('danger-full-access')
+    await act(async () => {})
   })
 
   it('closes an open menu on an outside pointer', () => {
@@ -235,7 +248,24 @@ describe('PermissionSelect', () => {
     expect(trigger().textContent).toBe('工作区内修改')
     await act(async () => {})
     expect(trigger().textContent).toBe('Custom')
+    expect(screen.getByRole('alert').textContent).toBe('rejected')
     act(() => { selection.set({ value: { currentValue: 'workspace-write' } }) })
     expect(trigger().textContent).toBe('工作区内修改')
+  })
+
+  it('keeps a failed default save visible and retries an already-current permission', async () => {
+    const select = vi.fn()
+      .mockRejectedValueOnce(new Error('未能保存默认值'))
+      .mockResolvedValue(true)
+    setup({ selection: { currentValue: 'workspace-write' }, select })
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: '仅可查看' }))
+    await act(async () => {})
+    expect(screen.getByRole('alert').textContent).toBe('未能保存默认值')
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: '工作区内修改' }))
+    await act(async () => {})
+    expect(select.mock.calls).toEqual([['read-only'], ['workspace-write']])
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

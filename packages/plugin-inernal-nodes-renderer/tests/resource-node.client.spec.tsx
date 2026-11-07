@@ -435,7 +435,7 @@ describe('Convax resource card actions', () => {
     expect(b.setResourcePreviewSize).not.toHaveBeenCalled()
     for (const cancel of [
       () => { fireEvent.keyDown(grip, { key: 'Escape' }) },
-      () => { pointer('lostpointercapture', 140, 140) },
+      () => { fireEvent(window, new Event('blur')) },
       () => { fireEvent.blur(grip) },
     ]) {
       pointer('pointerdown', 100, 100)

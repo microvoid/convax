@@ -20,6 +20,7 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
 import { presetOptions, readRoster } from './settings-store.ts'
 import type { AgentPresetOption, RosterRead } from './settings-store.ts'
+import { AgentPresetDefaultController } from './default-store.ts'
 
 /** Hero-chip snapshot. */
 export interface AgentPresetSeatState {
@@ -87,6 +88,7 @@ export class AgentPresetSeatController {
       'id' | 'blank' | 'projectionValues'
     > | undefined,
     private readonly staged: AgentPresetStage = { id: undefined, introduce: false },
+    private readonly defaults: AgentPresetDefaultController = new AgentPresetDefaultController(ctx),
   ) {}
 
   private set(patch: Partial<AgentPresetSeatState>): void {
@@ -151,6 +153,36 @@ export class AgentPresetSeatController {
     if (this.store.getSnapshot().busy) return UNCHANGED
     this.stage(id)
     return await this.apply()
+  }
+
+  /**
+   * Select a composer's mode and remember an accepted choice for future Sessions.
+   * @param id - Preset chosen in the composer.
+   * @returns The selection outcome; save failures remain in the shared default feedback.
+   */
+  async selectDefault(id: string): Promise<AgentPresetApplyOutcome> {
+    if (this.store.getSnapshot().busy) return UNCHANGED
+    return (await this.defaults.change(async (save) => {
+      const outcome = await this.select(id)
+      const session = this.currentSession()
+      if (outcome.kind === 'applied' || outcome.kind === 'staged'
+        || (outcome.kind === 'unchanged' && session?.blank === true && presetOf(session) === id)) {
+        await save(id)
+      }
+      return outcome
+    })) ?? UNCHANGED
+  }
+
+  /**
+   * Create a separate Session before remembering its mode; a refused creation saves nothing.
+   * @param id - Preset to use for the new Session and subsequent defaults.
+   * @param create - Owner's Session creation action; rejection leaves the default unchanged.
+   */
+  async startSession(id: string, create: (id: string) => Promise<void>): Promise<void> {
+    await this.defaults.change(async (save) => {
+      await create(id)
+      await save(id)
+    })
   }
 
   /**

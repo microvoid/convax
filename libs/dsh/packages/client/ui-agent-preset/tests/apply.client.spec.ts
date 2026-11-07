@@ -1637,6 +1637,32 @@ describe('AgentPresetSeatController apply outcomes', () => {
 })
 
 describe('embedded composer preset controllers', () => {
+  it('shares a failed default save with the composer for the Session just created', async () => {
+    const b = await bench({ presets: ANALYTICS_ROSTER, failSettingsUpdate: true })
+    declareRoot(b.slots)
+    declareConversation(b.slots)
+    const state = { byId: {
+      old: { id: 'old', blank: false, projectionValues: { agentPreset: 'standard' } },
+      next: { id: 'next', blank: true, projectionValues: { agentPreset: 'ptc' } },
+    } }
+    b.ctx.provide('sessions', sessionsDouble(b.ctx, state) as never)
+    b.ctx.provide('conversation', {} as never)
+    b.ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    try {
+      const inputInject = b.slots.entries('conversation.input.agentPreset')[0]!.inject as (sessionId: SessionId) => AgentPresetInputInjected
+      const old = inputInject(SessionId('old'))
+      let receiving: AgentPresetInputInjected | undefined
+      await old.startSession('ptc', async () => { receiving = inputInject(SessionId('next')) })
+      expect(receiving?.hooks.presetDefault.getSnapshot()).toEqual({ saving: false, error: 'settings write disconnected' })
+      expect(receiving?.hooks.presetDefault).toBe(old.hooks.presetDefault)
+      await expect(old.startSession('ptc', async () => { throw new Error('Creation failed') })).rejects.toThrow('Creation failed')
+      expect(receiving?.hooks.presetDefault.getSnapshot().error).toBeNull()
+    } finally {
+      await b.ctx.fiber.dispose()
+    }
+  })
+
   it('keeps selections separate across canvas bindings and the native staged choice', async () => {
     const b = await bench({ presets: ANALYTICS_ROSTER })
     declareRoot(b.slots)
@@ -1672,7 +1698,7 @@ describe('embedded composer preset controllers', () => {
       expect(other.hooks.agentPresetSeat.getSnapshot().current).toBe('standard')
       expect(hero.hooks.agentPresetSeat.getSnapshot().current).toBe('cordis')
       expect(b.calls.filter(call => call.startsWith('select:'))).toEqual(['select:ptc'])
-      expect(b.calls.filter(call => call.startsWith('settings:'))).toEqual([])
+      expect(b.calls.filter(call => call.startsWith('settings:'))).toEqual(['settings:{"selectedDefault":"ptc"}'])
       expect(analytics.track).toHaveBeenCalledWith('agent_preset_switch', {
         switch_from: 'standard', switch_to: 'ptc', code_work_view_enabled: true,
       })

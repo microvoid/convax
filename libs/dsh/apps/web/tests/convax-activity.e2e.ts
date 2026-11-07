@@ -176,7 +176,7 @@ it('keeps unread activity in the titlebar and reveals the correct closed canvas 
   await page.locator(`[data-convax-chat="${foreground.nodeId}"] [data-composer-input]`).waitFor()
 
   expect(completed.status).toBe('running')
-  await activity().getByText('Activity', { exact: true }).waitFor()
+  await activity().waitFor()
   adapter.complete()
   await completed.whenIdle()
   await page.getByRole('button', { name: 'Activity, 1 unread', exact: true }).waitFor()
@@ -229,7 +229,7 @@ it('keeps unread activity in the titlebar and reveals the correct closed canvas 
   await backgroundChat().getByRole('tab', { name: 'Completed review', exact: true, selected: true }).waitFor()
   expect(await backgroundChat().getAttribute('data-collapsed')).toBeNull()
   await page.locator(`[data-id="${background.nodeId}"][data-convax-activity-highlight="true"]`).waitFor()
-  const card = await backgroundChat().boundingBox(), graph = await page.locator('[data-convax-graph]').boundingBox()
+  const card = await backgroundChat().boundingBox(), graph = await page.locator('[data-convax-graph]:visible').boundingBox()
   if (card === null || graph === null) throw new Error('Activity target Chat or canvas is not visible')
   expect(card.x + card.width / 2).toBeGreaterThanOrEqual(graph.x)
   expect(card.x + card.width / 2).toBeLessThanOrEqual(graph.x + graph.width)
@@ -237,7 +237,8 @@ it('keeps unread activity in the titlebar and reveals the correct closed canvas 
   expect(card.y + card.height / 2).toBeLessThanOrEqual(graph.y + graph.height)
 
   await page.setViewportSize({ width: 400, height: 650 })
-  await activity().click()
+  await page.getByRole('button', { name: 'Workspace actions', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Activity', exact: true }).click()
   await panel().waitFor()
   const narrow = await panel().boundingBox()
   if (narrow === null) throw new Error('Activity panel did not open at a narrow viewport')

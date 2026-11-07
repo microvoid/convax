@@ -23,6 +23,8 @@ import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import { FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
 import { DatabaseSync } from 'node:sqlite'
 import type { CanvasThreadSessions, CanvasSessionReceipt } from '../../plugin-inernal-nodes-host/src/session-materializer.ts'
+import { CanvasSessionMaterializer } from '../../plugin-inernal-nodes-host/src/session-materializer.ts'
+import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import type { OfficeToPdfRequest, OfficeToPdfResult } from '@deepseek-ai/dsh-office-to-pdf'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import type { CanvasCommand, CanvasCommandRequest, CanvasConnectionId, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasOperationId, CanvasThreadRequest } from '../src/types.ts'
@@ -506,6 +508,69 @@ async function chatFixture() {
   const create: CanvasThreadRequest = { kind: 'create', canvasId, nodeId: chat.id, expectedRevision: 2, operationId: 'thread-a' as CanvasOperationId }
   return { ...value, chat, create }
 }
+
+describe('Canvas Session permission materialization', () => {
+  async function setup() {
+    const f = await chatFixture()
+    cleanup.push(() => f.ctx.fiber.dispose())
+    await f.ctx.plugin(SessionStore)
+    await f.ctx.plugin(JsonlSessionPersistence, { root: join(dirname(f.path), 'sessions'), compression: 'none' })
+    let permission = 'danger-full-access'
+    f.ctx.provide('permissionPresets', {
+      get defaultPreset() { return permission },
+      resolve: (preset: string) => preset === 'danger-full-access'
+        ? { sandbox: 'danger-full-access', approval: 'never' }
+        : { sandbox: 'workspace-write', approval: 'ask' },
+    } as never)
+    f.ctx.provide('workspaceRegistry', { create: async () => ({ attachSession: async () => {} }) } as never)
+    await f.repository.coordination.reserveThread(f.create, dirname(f.path))
+    return { ...f, setPermission: (value: string) => { permission = value } }
+  }
+
+  it('recovers a partially written permission seed from its reserved defaults after reopening the canvas store', async () => {
+    const f = await setup()
+    const create = f.ctx.sessionPersistence.create.bind(f.ctx.sessionPersistence)
+    const fault = vi.spyOn(f.ctx.sessionPersistence, 'create').mockImplementationOnce(async (...args) => {
+      const handle = await create(...args)
+      const append = handle.append.bind(handle)
+      vi.spyOn(handle, 'append').mockImplementationOnce(async (events) => {
+        await append(events.slice(0, 1))
+        throw new Error('Permission seed append interrupted')
+      })
+      return handle
+    })
+    await expect(new CanvasSessionMaterializer(f.ctx, f.repository).materialize(f.create.operationId))
+      .rejects.toThrow('Permission seed append interrupted')
+    fault.mockRestore()
+    const reserved = f.repository.coordination.thread(f.create.operationId)!.session!
+    expect(reserved.permission).toEqual({ preset: 'danger-full-access', sandbox: 'danger-full-access', approval: 'never' })
+    f.setPermission('workspace-write')
+    await f.close()
+    const reopened = await f.open()
+    expect(reopened.repository.coordination.thread(f.create.operationId)?.session).toEqual(reserved)
+    const result = await new CanvasSessionMaterializer(f.ctx, reopened.repository).materialize(f.create.operationId)
+    expect(result).toEqual({ sessionId: reserved.sessionId, inheritedEventCount: 0 })
+    await using stored = await f.ctx.sessionPersistence.open(reserved.sessionId, 'read')
+    expect((await stored.read()).events).toEqual([
+      { type: 'permission/preset', seq: 0, time: reserved.createdAt, data: { preset: 'danger-full-access' } },
+      { type: 'sandbox/mode', seq: 1, time: reserved.createdAt, data: { mode: 'danger-full-access' } },
+      { type: 'approval/policy', seq: 2, time: reserved.createdAt, data: { policy: 'never' } },
+    ])
+    expect(stored.header.isSeeded).toBe(false)
+    expect(reopened.repository.coordination.thread(f.create.operationId)?.session?.phase).toBe('completed')
+  })
+
+  it('retains the empty seed of a reservation created before permission defaults were captured', async () => {
+    const f = await setup()
+    const reserved = await f.repository.coordination.reserveSession(f.create.operationId, {
+      phase: 'reserved', sessionId: SessionId('legacy-empty-permission'), createdAt: 1, cwd: dirname(f.path),
+    })
+    await new CanvasSessionMaterializer(f.ctx, f.repository).materialize(f.create.operationId)
+    await using stored = await f.ctx.sessionPersistence.open(reserved.sessionId, 'read')
+    expect((await stored.read()).events).toEqual([])
+    expect(f.repository.coordination.thread(f.create.operationId)?.session?.permission).toBeUndefined()
+  })
+})
 
 function historyArchives(ctx: Context, archived: Set<SessionId>, headers: SessionHeader[] = []) {
   const archiveSession = vi.fn(async (id: SessionId) => { archived.add(id) })

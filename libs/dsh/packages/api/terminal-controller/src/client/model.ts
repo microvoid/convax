@@ -15,6 +15,15 @@ import type {
 /** The generated terminal namespace's browser-facing operations. */
 export type TerminalRemote = ClientRemote['terminal']
 
+/** Infer the existing transport with an explicit owner supplied by its adapter. */
+export type TerminalRemoteFor<Owner> = {
+  [Key in keyof TerminalRemote]: TerminalRemote[Key] extends (owner: SessionId, ...args: infer Args) => infer Result
+    ? (owner: Owner, ...args: Args) => Result : never
+}
+
+/** Commands consumed by the shared terminal surface. */
+export type TerminalControls = Pick<TerminalView, 'mount' | 'refresh' | 'connect' | 'write' | 'resize' | 'acknowledge'>
+
 /** Product error identifiers translated by the terminal UI. */
 export type TerminalViewIssue = 'missingTerminal' | 'inputFull' | 'attachmentEnded' | 'invalidOutput' | 'terminalLimit'
 
@@ -66,7 +75,7 @@ interface TerminalInputAttachment {
 }
 
 /** A view survives DOM unmount; its process only ends on explicit close. */
-export class TerminalView {
+export class TerminalView<Owner = SessionId> {
   /** Observable controls, process metadata and the next screen update awaiting acknowledgement. */
   readonly state: SnapshotStore<TerminalViewState> = createSnapshotStore<TerminalViewState>({ phase: 'idle', writable: false })
   private readonly lifetime = new AbortController()
@@ -91,15 +100,18 @@ export class TerminalView {
    * @param retain - window hold acknowledgement required before output attachment.
    */
   constructor(
-    private readonly sessionId: SessionId,
-    private readonly remote: TerminalRemote,
+    private readonly sessionId: Owner,
+    private readonly remote: TerminalRemoteFor<Owner>,
     private readonly gateway: Pick<ClientRemote, '$stream'>,
     private readonly inventory: TerminalInventory,
-    readonly id: WebTerminalId,
+    private identity: WebTerminalId,
     private createWhenMissing = true,
     private readonly shellPath?: string,
     private readonly retain?: (signal: AbortSignal) => Promise<void>,
   ) {}
+
+  /** Current Host identity, including an instance adopted from the owner. */
+  get id(): WebTerminalId { return this.identity }
 
   /**
    * Attach the DOM lifetime, starting the chosen shell or reconnecting the saved process.
@@ -170,6 +182,7 @@ export class TerminalView {
   }
 
   private adopt(info: WebTerminalInfo): void {
+    this.identity = info.id
     this.createWhenMissing = false
     this.patch({ info, title: info.title })
     if (this.retain === undefined) { if (this.mounted && this.closing === undefined) this.connect(); return }
@@ -185,7 +198,7 @@ export class TerminalView {
     this.detach()
     const stream = this.gateway.$stream<TerminalFrame>({
       name: 'Browser terminal output',
-      open: async function* (this: TerminalView, signal: AbortSignal) {
+      open: async function* (this: TerminalView<Owner>, signal: AbortSignal) {
         await this.retain?.(signal)
         signal.throwIfAborted()
         const handle = this.remote.attach(this.sessionId, info.id, signal)

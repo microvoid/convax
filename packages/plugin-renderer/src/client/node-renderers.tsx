@@ -27,6 +27,8 @@ export interface CanvasNodeRendererDefinition {
   dragHandle?: string
   /** Reuse compatible retained panel or preview preferences without a type-id branch. */
   presentation?: 'chat' | 'resource' | 'default'
+  /** Initial inline content visibility before a saved preference exists. */
+  defaultExpanded?: boolean
   /** Limit copied feature payloads while retaining ordinary provider data by default. */
   clipboardData?: (node: CanvasNode) => CanvasData
 }

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## Summary
 
-在已有画布上使用文件、文件夹、Chat 和所选窗口节点。Chat thread 保留原生 DSH Session、执行和持久化。停用此插件会保留节点、连线及 Session 绑定。重新启用兼容提供方后恢复可用性。
+在已有画布上使用文件、文件夹、Chat、终端、浏览器和所选窗口节点。Chat thread 保留原生 DSH Session、执行和持久化。停用此插件会保留节点、连线及 Session 绑定。重新启用兼容提供方后恢复可用性。
 
 ## Table of Contents
 
@@ -35,9 +35,15 @@ kind: "package-reference"
 <details>
 <summary>注册与生命周期</summary>
 
-四个版本化定义沿用 `convax.file`、`convax.folder`、`convax.chat` 和 `convax.window` 身份及数据格式。提供方使用与其他节点插件相同的公开注册 API。画布 Host 拥有图事务、历史、迁移及持久归属记录。本插件拥有节点校验、DSH Session 和交付适配。消息、草稿和 Agent 执行继续归属 DSH。
+版本化定义提供 `convax.file`、`convax.folder`、`convax.chat`、`convax.terminal`、`convax.browser` 和 `convax.window` 节点。提供方使用与其他节点插件相同的公开注册 API。画布 Host 拥有图事务、历史、迁移及持久归属记录。本插件拥有节点校验、DSH Session 和交付适配。消息、草稿和 Agent 执行继续归属 DSH。
 
 这些节点不新增数据库。停用本插件会取消并等待自身适配操作结束，不停止 DSH Agent，也不删除其日志。依赖提供方的新操作在重新启用前不可用。明确确认的删除操作继续使用独立的停止与归档语义。
+
+`remote.convaxTerminal` 按画布与卡片身份访问终端。每张卡片通过共享的[终端控制器](../../libs/dsh/packages/api/terminal-controller/README.zh.md)拥有一个用户 shell，不创建或跟随 Chat Session。创建时读取最新提交的文件或文件夹输入连线：文件夹使用自身目录，文件使用父目录；没有资源输入时使用画布目录。目录变化配置后续启动，运行中的 shell 保留自身进程状态。并发创建共享该卡片最先提交的运行身份。
+
+切换画布、关闭画布标签和卸载屏幕视图都保留 shell。删除卡片或所属画布使用共享终端关闭流程，终止进程范围并等待最后输出；清理失败可重试。撤销恢复卡片配置，不复活已关闭进程。Host 或提供方卸载会结束所属进程；重新打开卡片后可以重新启动，不重放命令。终端屏幕和原始输出不进入 Session 历史。
+
+新建 Chat thread 在恢复 Agent 前持久化预留的权限预设、沙箱模式和审批策略。即使用户随后修改默认值，重试创建仍保留这些值。分叉会话保留来源会话的权限历史。
 
 </details>
 

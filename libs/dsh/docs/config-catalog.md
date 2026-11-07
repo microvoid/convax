@@ -781,8 +781,8 @@ export interface ToolResultPruneConfig {
 
 ## `@deepseek-ai/dsh-convax-plugin-host`
 
-- `inject`: `fs` · `agents` · `sessions` · `sessionPersistence` · `sessionProjections` · `tools` · `remoteAccess`
-- `source`: [`../../packages/plugin-host/src/index.ts:60`](../../../packages/plugin-host/src/index.ts)
+- `inject`: `fs` · `tools` · `remoteAccess`
+- `source`: [`../../packages/plugin-host/src/index.ts:63`](../../../packages/plugin-host/src/index.ts)
 
 ```ts config-catalog
 /** Deployment limits for one resource preview. */
@@ -4792,6 +4792,8 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-compaction-image-offload` | `agents` · `sessions` | [`packages/compaction/compaction-image-offload/src/index.ts`](../packages/compaction/compaction-image-offload/src/index.ts) |
 | `@deepseek-ai/dsh-computer-use` | — | [`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts) |
 | `@deepseek-ai/dsh-config-editor` | `loader` · `profileContext` | [`packages/boot/config-editor/src/index.ts`](../packages/boot/config-editor/src/index.ts) |
+| `@deepseek-ai/dsh-convax-plugin-inernal-nodes-host` | `convax` · `fs` · `agents` · `sessions` · `sessionPersistence` · `sessionProjections` | [`../../packages/plugin-inernal-nodes-host/src/index.ts`](../../../packages/plugin-inernal-nodes-host/src/index.ts) |
+| `@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer` | — | [`../../packages/plugin-inernal-nodes-renderer/src/index.ts`](../../../packages/plugin-inernal-nodes-renderer/src/index.ts) |
 | `@deepseek-ai/dsh-convax-plugin-renderer` | — | [`../../packages/plugin-renderer/src/index.ts`](../../../packages/plugin-renderer/src/index.ts) |
 | `@deepseek-ai/dsh-cordis-client-runner` | — | [`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts) |
 | `@deepseek-ai/dsh-creation-recommendations` | `tools` · `pluginManager` · `agents` · `subagents` · `profileContext` · `skills` · `actionCards` | [`packages/experimental/creation-recommendations/src/index.ts`](../packages/experimental/creation-recommendations/src/index.ts) |
