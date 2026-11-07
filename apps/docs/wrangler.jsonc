@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "convax-docs",
+  "main": "./worker.mjs",
+  "compatibility_date": "2026-11-03",
+  "workers_dev": false,
+  "preview_urls": false,
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "routes": [
+    { "pattern": "microvoid.io/convax/docs", "zone_name": "microvoid.io" },
+    { "pattern": "microvoid.io/convax/docs/*", "zone_name": "microvoid.io" }
+  ],
+  "assets": {
+    "directory": "./.cloudflare",
+    "binding": "ASSETS",
+    "run_worker_first": ["/convax/docs/demos/*.mp4"],
+    "not_found_handling": "404-page"
+  }
+}

@@ -20,10 +20,11 @@ function workspacePatterns() {
   return [...list.matchAll(/^\s+-\s+([^\n#]+)\s*$/gm)].map(match => match[1].trim())
 }
 
-test('one workspace discovers the flattened Convax packages and retained DSH packages', () => {
+test('one workspace discovers the documentation app, Convax packages and retained DSH packages', () => {
   const patterns = workspacePatterns()
   assert.deepEqual(patterns, manifest.workspaces)
   const manifests = globSync(patterns.map(pattern => `${pattern}/package.json`), { cwd: root }).sort()
+  assert.ok(manifests.includes('apps/docs/package.json'))
   assert.ok(manifests.includes('packages/plugin-host/package.json'))
   assert.ok(manifests.includes('packages/plugin-renderer/package.json'))
   assert.ok(manifests.includes('libs/dsh/apps/cli/package.json'))
@@ -35,9 +36,13 @@ test('one workspace discovers the flattened Convax packages and retained DSH pac
   assert.equal(readJson('packages/plugin-renderer/package.json').name, '@deepseek-ai/dsh-convax-plugin-renderer')
 })
 
-test('dependency installation has one root lockfile and no nested DSH workspace', () => {
-  assert.deepEqual(globSync(['pnpm-lock.yaml', 'libs/*/pnpm-lock.yaml', 'packages/*/pnpm-lock.yaml'], { cwd: root }), ['pnpm-lock.yaml'])
+test('dependency installation has one root lockfile and no nested workspace', () => {
+  const lockfiles = globSync([
+    'pnpm-lock.yaml', 'apps/*/pnpm-lock.yaml', 'libs/*/pnpm-lock.yaml', 'packages/*/pnpm-lock.yaml',
+  ], { cwd: root })
+  assert.deepEqual(lockfiles, ['pnpm-lock.yaml'])
   assert.ok(!existsSync(join(root, 'libs/dsh/pnpm-workspace.yaml')))
+  assert.ok(!existsSync(join(root, 'apps/docs/pnpm-workspace.yaml')))
   assert.match(manifest.packageManager, /^pnpm@/)
   const solution = readJson('tsconfig.json')
   assert.deepEqual(solution.files, [])
@@ -70,12 +75,45 @@ test('the default Convax composition mounts independently switchable node provid
 
 test('Turbo root tasks delegate to registered DSH and Convax commands', () => {
   const turbo = readJson('turbo.json')
-  for (const script of ['build', 'build:artifacts', 'build:check', 'typecheck', 'lint', 'test']) {
-    const command = manifest.scripts[script]
-    const task = command.match(/^turbo run (\S+)$/)?.[1]
-    assert.ok(task, `${script} is orchestrated by Turbo`)
-    assert.ok(turbo.tasks[`//#${task}`], `${script} has a registered root task`)
-    assert.match(manifest.scripts[task], /scripts\/dsh\.mjs/)
+  const docs = readJson('apps/docs/package.json')
+  const commands = {
+    build: ['dsh:build', '@convax/docs#build', '@convax/docs#typecheck'],
+    'build:artifacts': ['dsh:build:artifacts', '@convax/docs#build'],
+    'build:check': ['dsh:build:check', '@convax/docs#typecheck'],
+    typecheck: ['dsh:typecheck', '@convax/docs#typecheck'],
+    lint: ['dsh:lint', '@convax/docs#lint:docs'],
+    test: ['convax:test'],
+    'dev:docs': ['@convax/docs#dev'],
+    'build:docs': ['@convax/docs#build'],
+    'check:docs': ['@convax/docs#check'],
+    'preview:docs': ['@convax/docs#preview'],
+  }
+  for (const [script, expected] of Object.entries(commands)) {
+    const tasks = manifest.scripts[script].match(/^turbo run (.+)$/)?.[1]?.split(' ')
+    assert.deepEqual(tasks, expected, `${script} preserves its validation owners`)
+    for (const task of tasks) {
+      if (task.startsWith('@convax/docs#')) {
+        assert.ok(turbo.tasks[task], `${script} has a registered documentation task`)
+        assert.equal(typeof docs.scripts[task.split('#')[1]], 'string')
+      } else {
+        assert.ok(turbo.tasks[`//#${task}`], `${script} has a registered root task`)
+        assert.match(manifest.scripts[task], /scripts\/dsh\.mjs/)
+      }
+    }
+  }
+  assert.equal(docs.name, '@convax/docs')
+  assert.equal(docs.private, true)
+  assert.deepEqual(turbo.tasks['@convax/docs#build'].outputs, ['dist/**'])
+  assert.deepEqual(turbo.tasks['@convax/docs#build'].inputs, [
+    '$TURBO_DEFAULT$', '$TURBO_ROOT$/docs/assets/convax-demos/**',
+  ])
+  for (const task of ['typecheck', 'lint:docs', 'check']) {
+    assert.deepEqual(turbo.tasks[`@convax/docs#${task}`].dependsOn, ['@convax/docs#build'])
+  }
+  assert.deepEqual(turbo.tasks['@convax/docs#preview'].dependsOn, ['@convax/docs#build'])
+  for (const task of ['dev', 'preview']) {
+    assert.equal(turbo.tasks[`@convax/docs#${task}`].cache, false)
+    assert.equal(turbo.tasks[`@convax/docs#${task}`].persistent, true)
   }
   assert.match(manifest.scripts['test:web:built'], /scripts\/dsh\.mjs test:web:built$/)
   assert.match(manifest.scripts.dsh, /libs\/dsh\/apps\/cli\/src\/bin\.ts$/)

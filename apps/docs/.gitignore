@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+.cloudflare/
+.nimbus/
+
+.env
+.env.local
+.env.*.local
+.env.production
+.dev.vars
+.dev.vars.*
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Copied from the repository-owned demo assets before dev/build.
+/public/demos/

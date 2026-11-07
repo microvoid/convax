@@ -1,0 +1,35 @@
+---
+title: "Chats and references"
+description: "Choose working directories, create threads, and decide what a message includes."
+sidebar:
+  order: 4
+---
+
+A Chat card groups DSH conversation threads. It reuses the native conversation stream and composer, including model selection, permission controls, tools, and approval interactions. One Session supports one editable composer per Client; use separate threads for independent editors.
+
+## Choose a working directory
+
+**New chat** in the creation dock uses the current canvas's working directory. Choosing **New chat** on a folder card uses that folder instead and connects it to the new Chat. Existing Chats retain their project directories.
+
+Each canvas prepares a stable directory beneath `~/Documents/convax` by default. Renaming the canvas does not move it. A later file or folder connection adds a reference; it does not change the Chat's working directory or expand its writable roots.
+
+## Keep threads independent
+
+Use the Chat header to create a thread, switch threads, or fork a conversation. Each thread has its own history and draft. Visited threads retain their mounted editors and tools while you switch; the native tool pane opens to the right of that Chat.
+
+The composer mode selector uses installed DSH agent presets. You can change a blank thread's mode. A started thread keeps its mode; create another thread in the same Chat to use a different preset. The default for new tasks belongs to Settings.
+
+Archiving a thread hides its tab while retaining its binding and graph connections. Restoring it returns the tab. If all threads are archived, the Chat prepares a new thread and composer.
+
+## Control message references
+
+Connect a resource's output to the Chat's input. The connection gesture adds one removable reference to the thread selected when that connection starts. Inspect the reference rail above the input text before sending.
+
+- Removing a reference leaves the connection intact.
+- Sending uses the references currently retained in that draft.
+- A successful send consumes submitted references with the draft.
+- Existing connections do not recreate consumed or removed references, including after reload.
+
+Browser-owned attachment objects are not persisted across page reload or application exit; be prepared to add unsent attachments again. Agent-created graph edges do not insert references or send prompts automatically.
+
+Collapsing a Chat preserves its draft and running work. Deleting it requires confirmation before its threads are stopped and archived. For screenshot references, continue with [window mirrors](/en/guides/windows/).

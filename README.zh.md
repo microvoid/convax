@@ -13,13 +13,9 @@
 
 ### 在画布上并行处理多个项目
 
-[English video · 34 seconds](docs/assets/convax-demos/projects-en.mp4)
-
 [![在画布上并行处理多个项目 — 中文，34 秒](docs/assets/convax-demos/projects-zh.gif)](docs/assets/convax-demos/projects-zh.mp4)
 
 ### 在画布上，通过对话操作 Chrome 和 Excel
-
-[English video · 36 seconds](docs/assets/convax-demos/apps-en.mp4)
 
 [![在画布上，通过对话操作 Chrome 和 Excel — 中文，36 秒](docs/assets/convax-demos/apps-zh.gif)](docs/assets/convax-demos/apps-zh.mp4)
 
@@ -30,20 +26,23 @@
 |---|---|
 | 无限画布 | 平移、缩放、多选卡片、吸附对齐、节点连线，以及图编辑的撤销和重做。支持触控板与鼠标导航模式。 |
 | 文件与文件夹 | 将本地资源拖入 Desktop，浏览文件夹卡片，展开预览文本、代码、Markdown、图片、PDF、表格、音频和视频。 |
+| 终端与浏览器卡片 | 在画布中运行交互式 Shell 和浏览网页。切换画布或关闭画布标签保留运行，删除卡片关闭对应资源。 |
 | AI 对话 | Chat 卡片支持多个 thread、对话分叉，以及 DSH 原有的输入框、模型选择、权限和工具。 |
 | 显式引用 | 连接资源到 Chat，将可删除的 reference 加入输入框。发送以当前草稿中的引用为准，删除引用保留画布连线。 |
 | 窗口镜像 | 在 macOS Desktop 中镜像一个具体应用窗口，连到 Chat 后，在发送时采集最新截图。 |
 | 多画布 | 像浏览器一样切换和拖拽排序标签页，支持搜索、重命名、归档、恢复、复制和永久删除已保存画布。 |
-| 默认工作目录 | 每张画布拥有独立工作目录，新建 Chat 直接使用；从文件夹创建 Chat 时使用该文件夹。 |
+| 默认工作目录 | 每张画布拥有独立工作目录，新建 Chat 和终端直接使用。终端从文件夹连线时使用该文件夹，从文件连线时使用其所在目录。 |
 
 窗口镜像为只读预览。智能体 Computer Use 是独立的可选 DSH 能力，使用 PTC 模式及原有的应用授权和 macOS 系统权限。
 
 <a id="repository-layout"></a>
 ## 仓库结构
 
-根目录使用一个 pnpm workspace 和 lockfile，Turborepo 编排构建、类型检查、lint 和 Convax 测试。DSH 源码保留在 `libs/dsh/`，Convax Host 与 renderer 直接位于 `packages/`；包名和运行时入口保持不变。
+根目录使用一个 pnpm workspace 和 lockfile，Turborepo 编排构建、类型检查、lint 和 Convax 测试，包含 `apps/docs/` 中的文档站。DSH 源码保留在 `libs/dsh/`，Convax Host 与 renderer 直接位于 `packages/`；包名和运行时入口保持不变。
 
 ```text
+apps/
+  docs/
 packages/
   plugin-host/
   plugin-renderer/
@@ -81,13 +80,17 @@ pnpm run build
 
 | 命令 | 用途 |
 |---|---|
-| `pnpm run build` | 构建运行时与客户端产物，并检查聚合类型。 |
+| `pnpm run build` | 构建运行时、客户端与文档产物，并检查 DSH 和文档类型。 |
 | `pnpm run test` | 运行 Convax Host、renderer 和工作区回归测试。 |
 | `pnpm run test:workspace` | 验证 workspace、Turbo 任务和启动器的数据目录。 |
-| `pnpm run typecheck` | 检查 DSH 与 Convax 类型。 |
-| `pnpm run lint` | 运行代码 lint。 |
+| `pnpm run typecheck` | 检查 DSH、Convax 与文档站类型。 |
+| `pnpm run lint` | 运行代码及文档内容 lint。 |
 | `pnpm run start:desktop` | 使用已有产物启动 Desktop。 |
 | `pnpm run dev:desktop` | 重新构建并启动 Desktop。 |
+| `pnpm run dev:docs` | 启动 Nimbus 文档开发服务器。 |
+| `pnpm run build:docs` | 将静态文档站构建到 `apps/docs/dist/`。 |
+| `pnpm run check:docs` | 检查文档配置、内容与类型。 |
+| `pnpm run preview:docs` | 构建并预览静态文档站。 |
 
 <a id="desktop"></a>
 ### Desktop 桌面端
@@ -138,6 +141,7 @@ pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
 <a id="development-and-documentation"></a>
 ## 开发与文档
 
+- [文档站](apps/docs/README.zh.md)：使用 Nimbus 编写中英文指南及静态构建。运行 `pnpm run dev:docs` 后，打开 `http://localhost:4321/convax/docs/` 进行本地预览。
 - [Convax 包说明](packages/README.zh.md)：Host 持久化与可独立停用的 renderer。
 - [画布界面](packages/plugin-renderer/README.zh.md)：交互、预览、Chat 卡片及当前限制。
 - [插件开发](libs/dsh/docs/cookbook/convax-plugin-development.zh.md)：扩展自定义画布节点与工具。

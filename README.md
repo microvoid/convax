@@ -15,13 +15,9 @@ Watch the interface demos on the [Convax website](https://microvoid.io/convax/),
 
 [![Run multiple projects in parallel on one canvas — English, 34 seconds](docs/assets/convax-demos/projects-en.gif)](docs/assets/convax-demos/projects-en.mp4)
 
-[中文版视频 · 34 秒](docs/assets/convax-demos/projects-zh.mp4)
-
 ### Control Chrome and Excel through chat
 
 [![Control Chrome and Excel through chat — English, 36 seconds](docs/assets/convax-demos/apps-en.gif)](docs/assets/convax-demos/apps-en.mp4)
-
-[中文版视频 · 36 秒](docs/assets/convax-demos/apps-zh.mp4)
 
 <a id="features"></a>
 ## Features
@@ -30,20 +26,23 @@ Watch the interface demos on the [Convax website](https://microvoid.io/convax/),
 |---|---|
 | Infinite canvas | Pan, zoom, select multiple cards, snap them into alignment, connect nodes, and undo or redo graph edits. Choose trackpad or mouse navigation. |
 | Files and folders | Drag local resources into Desktop, browse folder cards, and expand previews for text, code, Markdown, images, PDF, spreadsheets, audio, and video. |
+| Terminal and browser cards | Run interactive shells and browse pages directly on the canvas. Switching canvases or closing a canvas tab preserves them; deleting a card closes its resource. |
 | AI conversations | Create Chat cards with multiple threads, fork conversations, and use the existing DSH composer, model controls, permissions, and tools. |
 | Explicit references | Connect resources to a Chat to add removable references to its input. Sending uses the references in that draft; removing a reference keeps its canvas connection. |
 | Window mirrors | Mirror a specific application window on macOS Desktop. Connect it to a Chat to capture a fresh screenshot when you send. |
 | Multiple canvases | Switch and reorder browser-style tabs; search, rename, archive, restore, duplicate, or permanently delete saved canvases. |
-| Default workspaces | Each canvas gets its own working directory. New Chats use it immediately; Chats created from a folder use that folder instead. |
+| Default workspaces | Each canvas gets its own working directory. New Chats and terminals use it immediately. A terminal connected from a folder uses that folder; a file connection uses its parent directory. |
 
 Window mirrors are read-only. Agent Computer Use is a separate, optional DSH capability that uses PTC mode and its existing application and macOS permissions.
 
 <a id="repository-layout"></a>
 ## Repository layout
 
-One root pnpm workspace and lockfile cover the repository. Turborepo coordinates builds, type checks, lint, and Convax tests. DSH source stays in `libs/dsh/`; the Convax Host and renderer live directly in `packages/`, keeping their package names and runtime entry points.
+One root pnpm workspace and lockfile cover the repository. Turborepo coordinates builds, type checks, lint, and Convax tests, including the documentation site in `apps/docs/`. DSH source stays in `libs/dsh/`; the Convax Host and renderer live directly in `packages/`, keeping their package names and runtime entry points.
 
 ```text
+apps/
+  docs/
 packages/
   plugin-host/
   plugin-renderer/
@@ -81,13 +80,17 @@ Run these commands from the repository root. Turbo tasks reuse DSH's build order
 
 | Command | Purpose |
 |---|---|
-| `pnpm run build` | Build runtime and client artifacts, then check aggregate types. |
+| `pnpm run build` | Build runtime, client, and documentation artifacts, then check DSH and documentation types. |
 | `pnpm run test` | Run the Convax Host, renderer, and workspace regression tests. |
 | `pnpm run test:workspace` | Check workspace discovery, Turbo tasks, and launcher data paths. |
-| `pnpm run typecheck` | Check DSH and Convax types. |
-| `pnpm run lint` | Run code lint. |
+| `pnpm run typecheck` | Check DSH, Convax, and documentation site types. |
+| `pnpm run lint` | Run code and documentation authoring lint. |
 | `pnpm run start:desktop` | Start Desktop with existing artifacts. |
 | `pnpm run dev:desktop` | Rebuild and start Desktop. |
+| `pnpm run dev:docs` | Start the Nimbus documentation development server. |
+| `pnpm run build:docs` | Build the static documentation site in `apps/docs/dist/`. |
+| `pnpm run check:docs` | Check documentation configuration, content, and types. |
+| `pnpm run preview:docs` | Build and preview the static documentation site. |
 
 <a id="desktop"></a>
 ### Desktop
@@ -138,6 +141,7 @@ Open the complete local access URL printed in the terminal; the server defaults 
 <a id="development-and-documentation"></a>
 ## Development and documentation
 
+- [Documentation site](apps/docs/README.md): bilingual guides and static builds with Nimbus. Run `pnpm run dev:docs` and open `http://localhost:4321/convax/docs/` for a local preview.
 - [Convax packages](packages/README.md): Host persistence and the independently switchable renderer.
 - [Canvas UI](packages/plugin-renderer/README.md): interactions, previews, Chat cards, and current limitations.
 - [Plugin development](libs/dsh/docs/cookbook/convax-plugin-development.md): add custom canvas nodes and tools.

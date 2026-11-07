@@ -1,0 +1,36 @@
+---
+title: "开发画布插件"
+description: "通过 DSH 插件系统和 Convax 扩展 API 添加节点。"
+sidebar:
+  order: 6
+---
+
+Convax 扩展本身是 DSH 插件或 bundle。一个节点由 Host 定义与可选的 Client 展示组成。已有业务数据应按需要保留在原业务服务中，由画布节点引用对应实体。
+
+## 从可运行示例开始
+
+先在检出的仓库中[启用 Convax](/zh/getting-started/)。
+
+使用[画布便签 bundle](https://github.com/microvoid/convax/blob/main/packages/plugin-host/templates/canvas-note/README.zh.md)：复制到工作区，修改包名、节点类型、工具和 locale 标识，再通过插件管理器安装其绝对目录。示例使用普通 JavaScript Client factory，不需要构建步骤。
+
+没有 Convax 时，示例仍能加载；只有可选的 Convax 服务可用后，才添加画布展示和创建工具。安装示例不会自动启用 Convax 产品 bundle。
+
+## 注册 Host 与展示
+
+Host 侧通过 `ctx.convax.registerNodeType` 定义类型标识、数据版本、解析器、可选迁移及命名端口。同时提供描述和 JSON Schema，让图工具能够向智能体说明有效数据。
+
+Client 侧通过 `ctx.convaxRenderer.registerNodeRenderer` 注册相同类型及数据版本。使用传入的图回调保存修改。贡献应注册在对应 Cordis scope 中，并保留释放函数；不要从组件直接写 SQLite，也不要维护另一份权威图状态。
+
+以 [Host registry](https://github.com/microvoid/convax/blob/main/packages/plugin-host/src/registry.ts) 与 [Client 节点 props](https://github.com/microvoid/convax/blob/main/packages/plugin-renderer/src/client/props.ts) 的公开定义为准，不另造一套嵌入 API。
+
+## 使用图工具
+
+`convax_graph` 读取已保存状态和提供方 schema。`convax_commit` 按顺序应用语义操作，包括自定义提供方的 `node.add` 和 `node.set`。新节点不需要专用创建工具；便签示例中的便捷工具是可选的。
+
+编辑前先读取实际标识和修订号。同一请求重试时保留操作标识；冲突后刷新状态，并为调整后的请求使用新标识。一个批次只操作一张画布，也是一个撤销单元。源文件和 Session 写入不属于图的 SQLite 事务。
+
+连线保存有类型的关系，不会运行下游工作，也不会插入隐藏对话上下文。智能体创建的边不会重放 renderer 向输入框添加引用的手势。
+
+## 验证生命周期
+
+测试保存与冲突反馈、重启、停用和重新启用恢复，以及翻译后的元数据。提供方或展示缺失时应保留占位卡片，不丢弃已保存的数据。具体语义见[图工具参考](https://github.com/microvoid/convax/blob/main/libs/dsh/docs/subsystems/convax-graph-tools.zh.md)与[架构指南](/zh/development/architecture/)。

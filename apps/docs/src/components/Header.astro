@@ -1,0 +1,67 @@
+---
+/** Convax navigation, same-document language switching and the native Nimbus controls. */
+import Logo from "./Logo.astro";
+import { getEntry } from "astro:content";
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { Button } from "./ui/button";
+import { LinkButton } from "./ui/link-button";
+import { ThemeToggle } from "./ui/theme-toggle";
+import SearchTrigger from "./ui/search/SearchTrigger.astro";
+import { config } from "virtual:nimbus/config";
+import { stripBase, withBase } from "@cloudflare/nimbus-docs/runtime";
+import { docsCopy, docsLocale, localizedEntryId, localizedPath } from "@/lib/locale";
+
+interface Props {
+  collection?: string;
+  entryId?: string;
+  showSidebar?: boolean;
+}
+const { showSidebar = true, entryId } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const pathname = stripBase(Astro.url.pathname, base);
+const locale = docsLocale(pathname);
+const text = docsCopy(locale);
+const homeHref = withBase(`/${locale}/`, base);
+const languageLinks = await Promise.all((["zh", "en"] as const).map(async (language) => {
+  const counterpart = localizedEntryId(entryId, language);
+  const page = counterpart ? await getEntry("docs", counterpart) : undefined;
+  const path = page && !page.data.draft ? localizedPath(pathname, language) : `/${language}/`;
+  return { language, href: withBase(path, base) };
+}));
+---
+
+<header class="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-lg">
+  <div class="mx-auto flex h-14 items-center justify-between gap-2 px-4 lg:px-6">
+    <a href={homeHref} class="shrink-0 text-foreground transition-opacity hover:opacity-70" aria-label="Convax">
+      <Logo class="text-base font-semibold tracking-tight" />
+    </a>
+    <nav aria-label={text.language} class="flex shrink-0 items-center gap-0.5 rounded-lg border border-border p-0.5 text-xs">
+      {languageLinks.map(({ language, href }) => (
+        <a
+          href={href}
+          lang={docsCopy(language).htmlLang}
+          hreflang={docsCopy(language).htmlLang}
+          data-astro-reload
+          aria-current={locale === language ? "page" : undefined}
+          class:list={[
+            "rounded-md px-2 py-1.5 no-underline transition-colors",
+            locale === language ? "bg-accent font-medium text-primary" : "text-muted-foreground hover:text-foreground",
+          ]}
+        >{language === "zh" ? "中文" : "English"}</a>
+      ))}
+    </nav>
+    <div class="flex shrink-0 items-center gap-1.5">
+      <slot name="actions" />
+      {config.search !== false && <SearchTrigger />}
+      {config.github && (
+        <LinkButton href={config.github} variant="minimal" shape="square" size="sm" aria-label="GitHub"
+          target="_blank" rel="noopener" class="hidden text-muted-foreground sm:inline-flex">
+          <Icon name="ph:github-logo" class="h-4 w-4" />
+        </LinkButton>
+      )}
+      <ThemeToggle />
+      {showSidebar && <Button variant="ghost" shape="square" size="sm" icon="ph:list"
+        aria-label={text.openNavigation} data-menu-btn class="md:hidden" />}
+    </div>
+  </div>
+</header>

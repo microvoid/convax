@@ -60,6 +60,31 @@ function fixtureSignature(
   )
 }
 
+describe('localized MP4 structural links', () => {
+  it.each([
+    { name: 'matching local video siblings', en: 'demo-en.mp4?view=full#t=1', zh: 'demo-zh.mp4?view=full#t=1', equal: true },
+    { name: 'different queries', en: 'demo-en.mp4?view=full', zh: 'demo-zh.mp4?view=compact', equal: false },
+    { name: 'different fragments', en: 'demo-en.mp4#t=1', zh: 'demo-zh.mp4#t=2', equal: false },
+    { name: 'different video stems', en: 'demo-en.mp4', zh: 'other-zh.mp4', equal: false },
+    { name: 'a missing counterpart', en: 'unpaired-en.mp4', zh: 'unpaired-zh.mp4', equal: false },
+    { name: 'external videos', en: 'https://example.test/demo-en.mp4', zh: 'https://example.test/demo-zh.mp4', equal: false },
+  ])('compares $name', ({ en, zh, equal }) => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-translation-video-'))
+    try {
+      for (const name of ['demo-en', 'demo-zh', 'other-en', 'other-zh', 'unpaired-en']) {
+        writeFileSync(join(root, `${name}.mp4`), '')
+      }
+      const source = fixtureSignature(root, 'guide.md', `[Demo](${en})\n`, 'guide.zh.md')
+      const counterpart = fixtureSignature(root, 'guide.zh.md', `[演示](${zh})\n`, 'guide.md')
+      expect(translationStructureDiff(source, counterpart)).toEqual(equal
+        ? []
+        : [expect.stringContaining('link target #1 diverges between the pair')])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('translation pairing index reads', () => {
   it('reads staged bytes independently of the working tree', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-translation-pairing-index-'))

@@ -1,0 +1,50 @@
+---
+title: "Architecture and upgrades"
+description: "Understand package ownership, local data, validation, and the retained DSH baseline."
+sidebar:
+  order: 7
+---
+
+The repository is one pnpm workspace with a root lockfile, coordinated by Turborepo. Convax product packages stay separate from the retained DeepSeek Harness source.
+
+## Know the owners
+
+```text
+apps/docs/                Documentation site
+packages/plugin-host/    Saved graphs, providers, Chat coordination, graph tools
+packages/plugin-renderer/ Canvas interaction and embedded DSH UI
+libs/dsh/                 Retained DeepSeek Harness source
+libs/DSH_UPGRADE.md        Upstream baseline and local adaptations
+```
+
+The Host owns durable graphs and coordinates their DSH Session bindings. The renderer owns the canvas view and native UI embedding. It can be disabled independently while the Host continues to save state and expose graph tools. Unknown node types retain their payloads and connections as placeholders until compatible implementations return.
+
+Conversation messages, model execution, permissions, tools, and native composers remain DSH responsibilities. Canvas edges do not become an implicit model prompt.
+
+## Preserve user data
+
+The Convax Desktop launcher selects the repository's `.convax` as `DSH_HOME`, with Electron preferences under `.convax/electron-user-data`. The product composition stores its graph database at `storages/convax-canvas.sqlite` within that home; DSH keeps its existing Session storage ownership.
+
+Canvas working directories default to `~/Documents/convax/canvas-<canvas-id>/`. Their identity is stable across renames. Deleting resource references preserves source files, and canvas deletion retains Session history.
+
+The repository's `.env` supplies credentials for environment-backed use and real-API tests. Both `.env` and `.convax` are ignored by Git. Never copy their values or contents into documentation, screenshots, fixtures, or source control.
+
+## Validate a change
+
+Run commands from the repository root:
+
+```sh
+pnpm run build:artifacts
+pnpm run build:check
+pnpm run test
+pnpm run test:workspace
+pnpm run lint
+```
+
+The artifact build must precede aggregate checking. Root tests focus on Convax; relevant DSH tests, browser workflows, and real-provider checks depend on the changed behavior. Replay browser tests do not establish that a real provider or native operating-system permission works.
+
+## Upgrade DSH deliberately
+
+`libs/dsh` is tracked source, not a Git submodule. The [upgrade notes](https://github.com/microvoid/convax/blob/main/libs/DSH_UPGRADE.md) own the pinned upstream commit, tree evidence, adaptation list, and upgrade steps. Compare a chosen target against that baseline, preserve or replace each local integration, and update the notes with executed validation.
+
+Keep the root workspace and lockfile authoritative. Do not overwrite Convax packages, discard migration generations, or change Computer Use defaults as a side effect of an upstream upgrade.

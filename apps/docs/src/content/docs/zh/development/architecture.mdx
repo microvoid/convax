@@ -1,0 +1,50 @@
+---
+title: "架构与升级"
+description: "了解包的职责、本地数据、验证方式与 DSH 上游基线。"
+sidebar:
+  order: 7
+---
+
+整个仓库由 Turborepo 编排，使用一个 pnpm workspace 和根 lockfile。Convax 产品包与保留的 DeepSeek Harness 源码分别管理。
+
+## 认识各自职责
+
+```text
+apps/docs/                文档站
+packages/plugin-host/    已保存图、提供方、Chat 协调与图工具
+packages/plugin-renderer/ 画布交互与嵌入式 DSH 界面
+libs/dsh/                 保留的 DeepSeek Harness 源码
+libs/DSH_UPGRADE.md        上游基线与本地适配
+```
+
+Host 负责持久化图，并协调其 DSH Session 绑定。renderer 负责画布视图与原生界面嵌入，可以独立停用；Host 仍能保存状态并提供图工具。未知节点类型以占位卡片保留数据和连线，等待兼容实现恢复。
+
+对话消息、模型执行、权限、工具及原生输入框仍归 DSH 管理。画布连线不会变成隐式的模型提示。
+
+## 保留用户数据
+
+Convax Desktop 启动器把仓库 `.convax` 设为 `DSH_HOME`，Electron 偏好位于 `.convax/electron-user-data`。产品组合把图数据库保存在该 home 下的 `storages/convax-canvas.sqlite`，DSH 保留既有 Session 存储职责。
+
+画布工作目录默认是 `~/Documents/convax/canvas-<canvas-id>/`，重命名后标识仍然稳定。移除资源引用保留源文件，删除画布也保留 Session 历史。
+
+仓库 `.env` 提供环境凭据和真实 API 测试所需的 key。`.env` 和 `.convax` 都已被 Git 忽略，不要把它们的值或内容复制到文档、截图、fixture 或版本库中。
+
+## 验证改动
+
+在仓库根目录运行：
+
+```sh
+pnpm run build:artifacts
+pnpm run build:check
+pnpm run test
+pnpm run test:workspace
+pnpm run lint
+```
+
+先构建产物，再执行聚合检查。根测试聚焦 Convax；涉及 DSH、浏览器工作流或真实提供方时，根据变更行为补充对应检查。浏览器 replay 测试不能证明真实提供方或操作系统原生权限可用。
+
+## 明确地升级 DSH
+
+`libs/dsh` 是版本库直接管理的源码，不是 Git submodule。[升级记录](https://github.com/microvoid/convax/blob/main/libs/DSH_UPGRADE.md)保存固定上游 commit、tree 证据、适配清单及升级步骤。选择明确目标，与基线比较，逐项保留或替代本地集成，再用实际执行的验证结果更新记录。
+
+以根 workspace 和 lockfile 为准。上游升级不应覆盖 Convax 包、丢弃迁移世代，或顺带改变 Computer Use 默认规则。

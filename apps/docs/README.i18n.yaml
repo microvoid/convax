@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../apps/docs/README.md
+/convax-documentation:
+  en: 0518ec520a967ff1
+  zh: bc1d1465c8535a33
+/convax-documentation/develop:
+  en: ce15a45cb1795e51
+  zh: 9cddce903d719fdc
+/convax-documentation/deploy:
+  en: 7f409c070814c7e8
+  zh: 5f1c31467e04d6b5
+/convax-documentation/maintain-content-and-assets:
+  en: e93eac349ddeb96b
+  zh: 0bfbc8c2edb5df15
+/convax-documentation/upgrade-with-local-changes:
+  en: 594875a90fc740c4
+  zh: 58cbcddbb4cd4095

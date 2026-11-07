@@ -8,6 +8,7 @@
     "node": ">=24.9.0"
   },
   "workspaces": [
+    "apps/*",
     "packages/*",
     "libs/dsh/vendor/*",
     "libs/dsh/packages/*/*",
@@ -19,11 +20,11 @@
     "libs/dsh/python/sdk-runtime"
   ],
   "scripts": {
-    "build": "turbo run dsh:build",
-    "build:artifacts": "turbo run dsh:build:artifacts",
-    "build:check": "turbo run dsh:build:check",
-    "typecheck": "turbo run dsh:typecheck",
-    "lint": "turbo run dsh:lint",
+    "build": "turbo run dsh:build @convax/docs#build @convax/docs#typecheck",
+    "build:artifacts": "turbo run dsh:build:artifacts @convax/docs#build",
+    "build:check": "turbo run dsh:build:check @convax/docs#typecheck",
+    "typecheck": "turbo run dsh:typecheck @convax/docs#typecheck",
+    "lint": "turbo run dsh:lint @convax/docs#lint:docs",
     "test": "turbo run convax:test",
     "test:web:built": "node --env-file-if-exists=.env scripts/dsh.mjs test:web:built",
     "test:e2e": "node --env-file-if-exists=.env scripts/dsh.mjs test:e2e",
@@ -41,6 +42,11 @@
     "convax:test": "node --env-file-if-exists=.env scripts/dsh.mjs exec vitest run packages/plugin-host/tests packages/plugin-renderer/tests packages/plugin-inernal-nodes-host/tests packages/plugin-inernal-nodes-renderer/tests tests/convax-ci-workflow.spec.ts tests/convax-i18n-workflow.spec.ts tests/workspace-resolution.client.spec.ts && vitest run --config scripts/vitest.i18n.config.ts",
     "test:workspace": "node --test tests/workspace.test.mjs",
     "postinstall": "node libs/dsh/scripts/install-lefthook.mjs",
+    "dev:docs": "turbo run @convax/docs#dev",
+    "build:docs": "turbo run @convax/docs#build",
+    "check:docs": "turbo run @convax/docs#check",
+    "preview:docs": "turbo run @convax/docs#preview",
+    "deploy:docs": "pnpm --filter @convax/docs run deploy",
     "check:i18n": "tsx scripts/check-i18n.ts",
     "test:i18n:e2e": "vitest run --config vitest.i18n.config.ts"
   },
@@ -128,9 +134,11 @@
     "@deepseek-ai/dsh-experimental-cua-macos": "workspace:*",
     "@deepseek-ai/dsh-action-cards": "workspace:*",
     "turbo": "2.11.10",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "playwright": "^1.49.0",
     "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host": "workspace:*",
-    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*",
-    "playwright": "^1.49.0"
+    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*"
   },
   "type": "module"
 }

@@ -1,0 +1,32 @@
+{
+  "name": "@convax/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Convax bilingual product homepage",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "deploy": "pnpm run build && wrangler deploy --config wrangler.jsonc",
+    "typecheck": "tsc --noEmit",
+    "lint": "node --import tsx/esm ../../libs/dsh/scripts/run-oxlint.ts --config ../../.oxlintrc.json src",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "1.64.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "playwright": "^1.49.0",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.3",
+    "vite": "8.2.2",
+    "wrangler": "4.148.0"
+  }
+}

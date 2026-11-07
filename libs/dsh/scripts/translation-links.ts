@@ -26,7 +26,7 @@ export interface TranslationLinkContext {
   semanticRoot?: string
 }
 
-/** One relative document link whose target uses the wrong locale sibling. */
+/** One relative Markdown link whose target uses the wrong locale sibling. */
 export interface TranslationLinkLocaleViolation {
   sourcePath: string
   line: number
@@ -34,7 +34,7 @@ export interface TranslationLinkLocaleViolation {
   expectedUrl: string
 }
 
-/** Result of rewriting wrong-locale relative document links. */
+/** Result of rewriting wrong-locale relative links. */
 export interface TranslationLinkRewriteResult {
   content: string
   rewritten: number
@@ -138,6 +138,13 @@ function resolveRepositoryTarget(
 }
 
 function translationPairTarget(targetPath: string, context: TranslationLinkContext): TranslationPairTarget | undefined {
+  const videoStem = /^(.+)-(?:en|zh)\.mp4$/.exec(posix.basename(targetPath))?.[1]
+  if (videoStem !== undefined) {
+    const directory = posix.dirname(targetPath)
+    const source = posix.join(directory, `${videoStem}-en.mp4`)
+    const zh = posix.join(directory, `${videoStem}-zh.mp4`)
+    return repositoryFileExists(context, source) && repositoryFileExists(context, zh) ? { source, zh } : undefined
+  }
   const source = targetPath.endsWith('.zh.md')
     ? targetPath.replace(/\.zh\.md$/, '.md')
     : targetPath.endsWith('.md') ? targetPath : undefined
@@ -301,7 +308,7 @@ export function translationLinkLocaleViolations(
   return violations
 }
 
-/** Rewrite wrong-locale document links without reserializing surrounding Markdown. */
+/** Rewrite wrong-locale document and paired MP4 links without reserializing surrounding Markdown. */
 export function rewriteTranslationLinkLocales(
   markdown: string,
   context: TranslationLinkContext,
@@ -329,14 +336,14 @@ export interface TranslationLinkDestinationEdit {
 
 /** Normalized Markdown text and the destination edits that produced it. */
 export interface TranslationLinkNormalization {
-  /** Markdown with paired-document destinations replaced by semantic targets. */
+  /** Markdown with paired-document and localized MP4 destinations replaced by semantic targets. */
   content: string
   /** Applied edits in ascending source order; empty when `content` equals the input. */
   edits: TranslationLinkDestinationEdit[]
 }
 
 /**
- * Normalize only paired-document locale paths and report each replaced destination.
+ * Normalize paired-document and localized MP4 paths and report each replaced destination.
  * @param markdown - Exact authored Markdown text used for link offsets.
  * @param context - Repository and locale used to resolve relative links.
  * @param skipTargets - Accepted language-switcher destinations.
@@ -361,12 +368,12 @@ export function normalizeTranslationMarkdownLinkEdits(
 }
 
 /**
- * Normalize only paired-document locale paths while retaining every other byte and URL suffix.
+ * Normalize paired-document and localized MP4 paths while retaining every other byte and URL suffix.
  * @param markdown - Exact authored Markdown text used for link offsets.
  * @param context - Repository and locale used to resolve relative links.
  * @param skipTargets - Accepted language-switcher destinations.
  * @param tree - Optional GFM parse of this exact Markdown text; never a normalized or edited document.
- * @returns Markdown with paired-document destinations replaced by semantic targets.
+ * @returns Markdown with paired-document and localized MP4 destinations replaced by semantic targets.
  */
 export function normalizeTranslationMarkdownLinks(
   markdown: string,

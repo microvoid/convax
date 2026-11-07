@@ -1,0 +1,36 @@
+---
+title: "Develop a canvas plugin"
+description: "Add a node through the existing DSH plugin system and Convax extension APIs."
+sidebar:
+  order: 6
+---
+
+Convax extensions are DSH plugins or bundles. A node combines a Host definition with an optional Client display. Keep business data in its existing service when appropriate, and let the canvas node reference that entity.
+
+## Start from a runnable example
+
+First [enable Convax in your checkout](/en/getting-started/).
+
+Use the [canvas note bundle](https://github.com/microvoid/convax/blob/main/packages/plugin-host/templates/canvas-note/README.md). Copy it into a workspace, rename the package, node-type, tool, and locale identifiers, then install its absolute directory through Plugin Manager. Its plain JavaScript Client factory needs no build step.
+
+The example loads without Convax but adds no canvas view or creation tool until the optional Convax services are available. Installing the example does not enable the Convax product bundle itself.
+
+## Register the Host and display
+
+On the Host, `ctx.convax.registerNodeType` owns the type identifier, payload version, parser, optional migrations, and named ports. Publish a description and JSON Schema so graph tools can describe valid payloads to an agent.
+
+On the Client, `ctx.convaxRenderer.registerNodeRenderer` registers the matching type and data version. Use the supplied graph callbacks to save edits. Register contributions inside their Cordis scopes and retain their disposers; do not write SQLite from a component or create another authoritative copy of graph state.
+
+Use the public definitions in the [Host registry](https://github.com/microvoid/convax/blob/main/packages/plugin-host/src/registry.ts) and [Client owner props](https://github.com/microvoid/convax/blob/main/packages/plugin-renderer/src/client/props.ts) rather than inventing a parallel embedding API.
+
+## Use graph tools
+
+`convax_graph` reads saved state and provider schemas. `convax_commit` applies ordered semantic operations, including custom-provider `node.add` and `node.set`. New custom nodes do not require a dedicated creation tool; the note bundle's convenience tool is optional.
+
+Read actual identities and revisions before editing. Keep an operation identity for an identical retry; after a conflict, refresh state and create a new identity for the revised request. A batch targets one canvas and is one undo unit. Source files and Session writes are not part of the graph's SQLite transaction.
+
+An edge records a typed relationship. It does not run downstream work or insert hidden conversation context. Agent-created edges do not replay the renderer's composer-reference gesture.
+
+## Verify lifecycle behavior
+
+Test saves and conflict feedback, restart, disable/re-enable recovery, and translated metadata. Missing providers or displays retain placeholders instead of discarding saved payloads. Consult the [graph-tool reference](https://github.com/microvoid/convax/blob/main/libs/dsh/docs/subsystems/convax-graph-tools.md) and [architecture guide](/en/development/architecture/) for ownership and upgrade rules.

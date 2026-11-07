@@ -1,0 +1,35 @@
+---
+title: "Window mirrors and Computer Use"
+description: "Capture a specific application window and understand the separate app-control capability."
+sidebar:
+  order: 5
+---
+
+Window mirrors are available in macOS Desktop. They show one explicitly selected application window as a read-only card. The mirror does not forward clicks, keyboard input, or audio to or from the original window.
+
+## Add and reconnect a window
+
+1. Choose **Application window** in the creation dock.
+2. Find the exact window by its application icon and title.
+3. Select it and grant screen-recording access to the responsible Desktop application when macOS requires it.
+4. Arrange or resize the mirror like another resource card.
+
+A disconnected card offers **Reconnect** and **Choose another window**. During the current renderer lifetime, Reconnect retries the retained exact source and preserves the card and edges. It never substitutes a similarly titled window. Copies and client restarts require explicit reselection; Reconnect opens the picker when no runtime source identity remains.
+
+Removing or rebinding the card stops its capture. Folding it or switching canvases releases its view while retaining capture for unsent references.
+
+## Send a fresh screenshot
+
+Connect the mirror to a Chat, or choose **New chat** on its card. The Chat's input receives a removable window reference. Sending captures a new image and submits it through native DSH attachments; the selected model must accept image input.
+
+Queued messages retain their submission-time image. History keeps the submitted screenshot independently of the live window. Removing a reference leaves its connection. If capture fails, the native draft is retained instead of sending stale pixels.
+
+Restore a minimized or unavailable window, check screen-recording permission, and retry or reselect it. Source validation occurs at focus, visibility, pointer-entry, and send checkpoints; it is not a continuous window-change subscription.
+
+## Let an agent operate an application
+
+DSH **Computer Use** is separate from mirroring. Enable its plugin, use a thread with the **PTC** preset under the default composition, and grant the required macOS Accessibility, Screen Recording, and application access permissions.
+
+A started thread keeps its preset, so create a new PTC thread when necessary. Do not change the default tool-mounting rules merely to use a mirror. A locked desktop must be unlocked before native observation or input resumes.
+
+Windows and ordinary browser clients do not provide this native mirror feature. See [Chats and references](/en/guides/chats/) for mode selection, or the [DSH Computer Use documentation](https://github.com/microvoid/convax/blob/main/libs/dsh/packages/experimental/cua/README.md) for its separate authorization model.

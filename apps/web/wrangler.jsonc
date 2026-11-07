@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "convax-homepage",
+  "main": "./worker.mjs",
+  "compatibility_date": "2026-10-13",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "microvoid.io/convax", "zone_name": "microvoid.io" },
+    { "pattern": "microvoid.io/convax/*", "zone_name": "microvoid.io" }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/convax/assets/*.mp4"],
+    "not_found_handling": "none"
+  }
+}

@@ -1,0 +1,43 @@
+---
+title: "Organize canvases"
+description: "Navigate the workspace, manage canvas tabs, and keep track of work."
+sidebar:
+  order: 2
+---
+
+A canvas stores cards and their connections. Its tab is a view of that saved canvas: closing a tab preserves the graph so you can reopen it later.
+
+## Navigate and arrange
+
+Choose **Touchpad** or **Mouse** in the lower-left controls. macOS defaults to Touchpad: two-finger scrolling moves the canvas and pinching zooms. Other platforms default to Mouse, with wheel zoom and drag-to-pan. Your explicit preference is remembered across canvases and client restarts.
+
+Drag a card's name area to move it. Alignment guides help match neighboring edges and centers; a multi-card selection keeps its relative positions. Use the external lower-right grip to resize a card. Expanded content scrolls inside the card; native editors and Chat history keep their own scrolling and text selection.
+
+When the canvas owns focus:
+
+| Action | Shortcut |
+| --- | --- |
+| Select all cards | Cmd/Ctrl+A |
+| Copy, paste, duplicate | Cmd/Ctrl+C, Cmd/Ctrl+V, Cmd/Ctrl+D |
+| Move selected cards | Arrow keys |
+| Remove selected cards or connections | Delete or Backspace |
+| Undo / redo graph edits | Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z |
+| Fit canvas | Cmd/Ctrl+0 |
+
+Inputs, conversation controls, terminals, menus, and IME composition retain their native keys. Undo changes the graph; it does not rewind sent messages or filesystem writes.
+
+## Manage saved canvases
+
+Drag a top tab to reorder it, or double-click its title to rename the canvas. The workspace menu opens **All canvases**, with search and separate active and archived lists.
+
+- **Archive** closes the tab without stopping its conversations. Unarchive makes it available to reopen.
+- **Duplicate canvas** creates independent card and connection identities. File paths remain references; original conversations and drafts are not copied.
+- **Permanently delete…** requires confirmation. It removes the canvas and its undo history, stops and archives its conversations, and preserves original files and Session history.
+
+If deletion is unfinished, use its saved **Retry** action.
+
+## Find running work
+
+**Activity** collects completion and pending-interaction notices. Clicking a notice opens its canvas and reveals the corresponding Chat thread; only successful navigation marks it read. **Automation** opens DSH's task manager over the canvas and can locate the conversation linked to a task.
+
+Continue with [files and media](/en/guides/resources/) or [Chat threads](/en/guides/chats/).

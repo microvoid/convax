@@ -1,0 +1,66 @@
+---
+title: "Get started"
+description: "Build the source checkout, enable the canvas, and start your first conversation."
+sidebar:
+  order: 1
+---
+
+Use Node.js **24.9.0 or newer** and **pnpm 11.28.5**. Install dependencies from the repository root; Convax and the retained DSH source share one workspace and lockfile.
+
+## Install and build
+
+Open your Convax checkout and run:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run build
+```
+
+The build includes the DSH runtime, Convax Host and renderer, generated client artifacts, and aggregate type checks. Do not install a second dependency tree inside `libs/dsh`.
+
+## Start Desktop
+
+```sh
+pnpm run start:desktop
+```
+
+Configure a model API key in the welcome screen or settings. The source launcher can also load `DEEPSEEK_API_KEY` from the repository's `.env`, preserving values already supplied by the launching environment.
+
+On a fresh installation, open **Plugins → Add plugin**. Install the local bundle using your checkout's actual absolute path:
+
+```text
+link:/absolute/path/to/convax/packages/plugin-renderer
+```
+
+Choose **Enable now**. The bundle activates the Convax Host and canvas renderer. The launcher selects the data directory; it does not install or enable this bundle automatically. Later launches retain the selected plugins.
+
+After changing application source, rebuild and start with:
+
+```sh
+pnpm run dev:desktop
+```
+
+## Start Web instead
+
+Create a `.env` at the repository root when you want to use the environment credential:
+
+```dotenv
+DEEPSEEK_API_KEY=your-deepseek-api-key
+```
+
+Then run:
+
+```sh
+pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
+```
+
+Open the complete access URL printed in the terminal. The default server address is `http://127.0.0.1:3080`; the printed URL can also carry access credentials. Web uses the Host machine's filesystem. Use Desktop for native local-file drops and macOS window mirroring.
+
+## Create your first Chat
+
+1. Create a canvas with the top-bar **+**.
+2. Open **+** in the creation dock, choose **Add folder**, and select a folder.
+3. Choose **New chat** on the folder card.
+4. Inspect the folder reference in the composer, enter your question, and send.
+
+If startup reports missing artifacts, run the build again and keep the terminal error available for diagnosis. Never commit `.env` or `.convax` data. Continue with [Chats and references](/en/guides/chats/) or the [canvas guide](/en/guides/canvases/).

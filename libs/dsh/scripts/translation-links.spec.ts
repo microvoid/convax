@@ -56,6 +56,65 @@ function expectUnchangedLinkInput(root: string, input: string): void {
   expect(normalizeTranslationMarkdownLinks(input, context)).toBe(input)
 }
 
+describe('localized MP4 links', () => {
+  it('normalizes existing local video siblings while retaining exact URL suffixes', () => {
+    const root = fixture()
+    mkdirSync(join(root, 'docs/assets'))
+    for (const locale of ['en', 'zh']) writeFileSync(join(root, `docs/assets/demo-${locale}.mp4`), '')
+    const suffix = '?view=full&amp;muted=1#t=2'
+    for (const locale of ['en', 'zh']) {
+      const context = {
+        ...linkContext(root, locale === 'en' ? 'docs/guide.md' : 'docs/guide.zh.md'),
+        isTranslationPairSource: () => false,
+      }
+      const input = `[Demo](assets/demo-${locale}.mp4${suffix})\n`
+      expect(translationLinkLocaleViolations(input, context)).toEqual([])
+      expect(normalizeTranslationMarkdownLinks(input, context)).toBe(
+        `[Demo](dsh-translation-target:docs/assets/demo-en.mp4${suffix})\n`,
+      )
+    }
+  })
+
+  it.each([
+    { source: 'docs/guide.md', authored: 'zh', expected: 'en' },
+    { source: 'docs/guide.zh.md', authored: 'en', expected: 'zh' },
+  ])('rewrites a wrong-locale video in $source without changing its suffix', ({ source, authored, expected }) => {
+    const root = fixture()
+    const files = new Set(['docs/assets/demo-en.mp4', 'docs/assets/demo-zh.mp4'])
+    const context = linkContext(root, source, path => files.has(path))
+    const url = `assets/demo-${authored}.mp4?muted=0&amp;view=full#t=1`
+    const expectedUrl = `assets/demo-${expected}.mp4?muted=0&amp;view=full#t=1`
+    const input = `[Demo](${url})\n`
+    expect(translationLinkLocaleViolations(input, context)).toEqual([{
+      sourcePath: source, line: 1, url, expectedUrl,
+    }])
+    expect(rewriteTranslationLinkLocales(input, context)).toEqual({ content: `[Demo](${expectedUrl})\n`, rewritten: 1 })
+  })
+
+  it('requires both video files in the selected content plane', () => {
+    const root = fixture()
+    mkdirSync(join(root, 'docs/assets'))
+    for (const locale of ['en', 'zh']) writeFileSync(join(root, `docs/assets/demo-${locale}.mp4`), '')
+    const input = '[Demo](assets/demo-en.mp4)\n'
+    const context = linkContext(root, 'docs/guide.zh.md', path => path === 'docs/assets/demo-en.mp4')
+    expect(translationLinkLocaleViolations(input, context)).toEqual([])
+    expect(normalizeTranslationMarkdownLinks(input, context)).toBe(input)
+  })
+
+  it.each([
+    '[Demo](https://example.test/demo-en.mp4)\n',
+    '[Demo](/assets/demo-en.mp4)\n',
+    '[Demo](../../demo-en.mp4)\n',
+    '[Demo](assets/demo-en.webm)\n',
+    '[Demo](assets/demo-en.gif)\n',
+  ])('preserves an external, escaped, absolute, or unsupported target: %s', (input) => {
+    const root = fixture()
+    const context = linkContext(root, 'docs/guide.zh.md', () => true)
+    expect(translationLinkLocaleViolations(input, context)).toEqual([])
+    expect(normalizeTranslationMarkdownLinks(input, context)).toBe(input)
+  })
+})
+
 describe('translation link locale validation', () => {
   it('rejects a Chinese link to the English sibling with an exact diagnostic', () => {
     const root = fixture()

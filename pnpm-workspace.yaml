@@ -1,4 +1,5 @@
 packages:
+  - apps/*
   - packages/*
   - libs/dsh/vendor/*
   - libs/dsh/packages/*/*
@@ -25,6 +26,8 @@ peerDependencyRules:
 # (git hooks) genuinely need theirs.
 allowBuilds:
   esbuild: true
+  # Wrangler uses Cloudflare's local Workers runtime for deployment validation.
+  workerd: true
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.
   node-pty: true
