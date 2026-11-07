@@ -1,13 +1,36 @@
 ---
 title: "快速开始"
-description: "构建源码，启用画布，再开始第一段对话。"
+description: "安装客户端，配置模型，再开始第一段对话。"
 sidebar:
   order: 1
 ---
 
-使用 **Node.js 24.9.0 或更新版本**与 **pnpm 11.28.5**。所有依赖都在仓库根目录安装；Convax 与保留的 DSH 源码共用一个 workspace 和 lockfile。
+下载 Convax 客户端，连接自己的模型，将第一个文件夹和对话放上画布。
 
-## 安装与构建
+## 下载并安装客户端
+
+打开[官网下载区](https://microvoid.io/convax/#download)，获取适用于 **macOS Apple Silicon** 的 DMG。下载区会显示当前版本和安装包状态；安装包尚未发布时会显示准备中，请在可下载后继续。
+
+打开 DMG，将 **Convax** 拖入**应用程序**，然后启动 Convax。安装包已包含画布，无需安装开发工具或手动添加本地插件。
+
+## 配置模型
+
+在右上角工作区菜单中打开**设置**，配置模型提供方和 API key。在对话输入框中选择要使用的模型，再开始发送消息。
+
+## 创建第一个 Chat
+
+1. 点击顶栏 **+** 创建画布。
+2. 打开底部创建栏的 **+**，选择**添加文件夹**，选中一个文件夹。
+3. 点击文件夹卡片上的**新建聊天**。
+4. 查看输入框中的文件夹引用，输入问题并发送。
+
+接下来可阅读 [Chat 与引用](/zh/guides/chats/)或[画布指南](/zh/guides/canvases/)。
+
+## 开发者：从源码运行
+
+修改 Convax 或运行 Web 时，使用 **Node.js 24.9.0 或更新版本**与 **pnpm 11.28.5**。所有依赖都在仓库根目录安装；Convax 与保留的 DSH 源码共用一个 workspace 和 lockfile。
+
+### 安装与构建
 
 打开已检出的 Convax 仓库，运行：
 
@@ -18,7 +41,7 @@ pnpm run build
 
 构建包含 DSH 运行时、Convax Host 与 renderer、生成的客户端产物及聚合类型检查。不要在 `libs/dsh` 再安装一套依赖。
 
-## 启动 Desktop
+### 启动源码 Desktop
 
 ```sh
 pnpm run start:desktop
@@ -26,13 +49,13 @@ pnpm run start:desktop
 
 在欢迎页或设置中配置模型 API key。源码启动器也可以读取仓库 `.env` 中的 `DEEPSEEK_API_KEY`，并保留启动环境已经提供的值。
 
-首次安装时，打开**插件 → 添加插件**，使用当前检出仓库的实际绝对路径安装本地 bundle：
+源码启动器首次使用时，打开**插件 → 添加插件**，使用当前检出仓库的实际绝对路径安装本地 bundle：
 
 ```text
 link:/absolute/path/to/convax/packages/plugin-renderer
 ```
 
-选择**立即启用**。这个 bundle 会启用 Convax Host 和画布 renderer。启动器负责选择数据目录，不会自动安装或启用该 bundle；后续启动会保留已选择的插件。
+选择**立即启用**。这个 bundle 会启用 Convax Host 和画布 renderer。源码启动器负责选择数据目录，不会自动安装或启用该 bundle；后续启动会保留已选择的插件。
 
 修改应用源码后，重新构建并启动：
 
@@ -40,7 +63,7 @@ link:/absolute/path/to/convax/packages/plugin-renderer
 pnpm run dev:desktop
 ```
 
-## 也可以启动 Web
+### 启动 Web
 
 需要使用环境凭据时，在仓库根目录创建 `.env`：
 
@@ -56,11 +79,4 @@ pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
 
 打开终端打印的完整访问地址。默认服务地址是 `http://127.0.0.1:3080`，打印的 URL 还可能包含访问凭据。Web 操作的是 Host 所在机器的文件系统；本机原生文件拖放和 macOS 窗口镜像请使用 Desktop。
 
-## 创建第一个 Chat
-
-1. 点击顶栏 **+** 创建画布。
-2. 打开底部创建栏的 **+**，选择**添加文件夹**，选中一个文件夹。
-3. 点击文件夹卡片上的**新建聊天**。
-4. 查看输入框中的文件夹引用，输入问题并发送。
-
-启动时若提示缺少产物，请重新构建，并保留终端错误以便定位。不要提交 `.env` 或 `.convax` 数据。接下来可阅读 [Chat 与引用](/zh/guides/chats/)或[画布指南](/zh/guides/canvases/)。
+启动时若提示缺少产物，请重新构建，并保留终端错误以便定位。不要提交 `.env` 或 `.convax` 数据。

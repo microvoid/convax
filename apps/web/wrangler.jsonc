@@ -12,7 +12,7 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/convax/assets/*.mp4"],
+    "run_worker_first": ["/convax/api/release", "/convax/assets/*.mp4"],
     "not_found_handling": "none"
   }
 }

@@ -142,7 +142,7 @@ jobs:
             exit 1
           fi
 
-          commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/tags%2F$RELEASE_TAG" --jq .sha)
+          commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/refs%2Ftags%2F$RELEASE_TAG" --jq .sha)
           tag_object=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)
           if [[ "$PUSHED_SHA" != "$commit" && "$PUSHED_SHA" != "$tag_object" ]]; then
             echo "Release tag moved after the push." >&2
@@ -293,7 +293,7 @@ jobs:
 
           verify_tag() {
             local current_commit
-            current_commit=$(gh api "repos/$GH_REPO/commits/tags%2F$RELEASE_TAG" --jq .sha)
+            current_commit=$(gh api "repos/$GH_REPO/commits/refs%2Ftags%2F$RELEASE_TAG" --jq .sha)
             if [[ "$current_commit" != "$RELEASE_COMMIT" ]]; then
               echo "Release tag no longer points to the signed commit." >&2
               exit 1

@@ -1,4 +1,5 @@
-/** Serve demo byte ranges through the edge cache so native video seeking works. */
+/** Discover public installers and serve demo byte ranges through the edge cache. */
+import { serveRelease } from './release.mjs'
 export default {
   /**
    * Cache complete public MP4 assets, then let Cloudflare apply Range and validators.
@@ -8,6 +9,7 @@ export default {
    */
   async fetch(request, env) {
     const path = new URL(request.url).pathname
+    if (path === '/convax/api/release') return serveRelease(request, caches)
     if (request.method !== 'GET' || !path.startsWith('/convax/assets/') || !path.endsWith('.mp4')) {
       return env.ASSETS.fetch(request)
     }

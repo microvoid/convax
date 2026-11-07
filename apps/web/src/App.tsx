@@ -1,20 +1,18 @@
-/** Bilingual public homepage: product story, local demo media, and source setup. */
+/** Bilingual public homepage: product story, local demos, and public desktop downloads. */
 import { useEffect, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, FileText,
-  Folder, CodeXml, GitBranch, Globe2, Languages, Menu, Monitor, Puzzle, X,
+  ArrowDown, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Download, FileText,
+  Folder, GitBranch, Languages, Menu, Monitor, Puzzle, SlidersHorizontal, X,
 } from 'lucide-react'
 import { CanvasPreview } from './CanvasPreview.tsx'
 import { DemoVideo } from './DemoVideo.tsx'
 import { copy, type Locale } from './copy.ts'
+import { loadRelease, type ReleaseState } from './release.ts'
 import convaxMark from '../../../packages/plugin-renderer/src/client/assets/convax-mark.svg'
 
 const repository = 'https://github.com/microvoid/convax'
-const install = 'git clone https://github.com/microvoid/convax.git\ncd convax\npnpm install --frozen-lockfile\npnpm run build'
-const launch = {
-  desktop: 'pnpm run start:desktop',
-  web: 'pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open',
-}
+const releases = `${repository}/releases`
+const stepIcons = [Download, SlidersHorizontal, Folder]
 
 /**
  * Render the marketing page without loading a Host, profile, or API credentials.
@@ -25,9 +23,33 @@ export function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const firstNavLink = useRef<HTMLAnchorElement>(null)
-  const [platform, setPlatform] = useState<'desktop' | 'web'>('desktop')
+  const [release, setRelease] = useState<ReleaseState>({ status: 'loading' })
+  const [releaseAttempt, setReleaseAttempt] = useState(0)
   const c = copy[locale]
-  const readme = `${repository}/blob/main/README${locale === 'zh' ? '.zh' : ''}.md`
+  const docs = `/convax/docs/${locale}/`
+  const guide = `${docs}getting-started/`
+  const downloadTarget = release.status === 'ready' ? release.downloadUrl : '#download'
+  const releaseLabel = release.status === 'ready' ? c.download.ready
+    : release.status === 'loading' ? c.download.checking : release.status === 'pending' ? c.download.pending : c.download.unavailable
+  const releaseSize = release.status === 'ready'
+    ? new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(release.size / 1_048_576) : ''
+
+  useEffect(() => {
+    const lifetime = new AbortController()
+    const timeout = window.setTimeout(() => { lifetime.abort() }, 8_000)
+    let mounted = true
+    setRelease({ status: 'loading' })
+    void loadRelease(lifetime.signal).then((value) => {
+      if (mounted) setRelease(value)
+    }).catch(() => {
+      if (mounted) setRelease({ status: 'unavailable' })
+    }).finally(() => { window.clearTimeout(timeout) })
+    return () => {
+      mounted = false
+      lifetime.abort()
+      window.clearTimeout(timeout)
+    }
+  }, [releaseAttempt])
 
   useEffect(() => {
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en'
@@ -65,11 +87,11 @@ export function App() {
           <nav className={`primary-nav${menuOpen ? ' is-open' : ''}`} id="primary-nav" aria-label={c.nav.menu}>
             <a ref={firstNavLink} href="#projects" onClick={() => { setMenuOpen(false) }}>{c.nav.demos}</a>
             <a href="#features" onClick={() => { setMenuOpen(false) }}>{c.nav.features}</a>
-            <a href="#start" onClick={() => { setMenuOpen(false) }}>{c.nav.start}</a>
+            <a href={guide} onClick={() => { setMenuOpen(false) }}>{c.nav.docs}</a>
+            <a href="#download" className="mobile-download" onClick={() => { setMenuOpen(false) }}>{c.nav.download}</a>
           </nav>
           <div className="nav-actions">
-            <a className="github-link" href={repository} target="_blank" rel="noreferrer"><CodeXml size={17} />GitHub<ArrowUpRight size={13} /></a>
-            <span className="nav-divider" />
+            <a className="nav-download" href="#download"><Download size={15} />{c.nav.download}</a>
             <button className="locale-button" aria-label={c.nav.language} onClick={() => { setLocale(locale === 'zh' ? 'en' : 'zh') }}>
               <Languages size={16} /><span>{locale === 'zh' ? 'EN' : '中文'}</span>
             </button>
@@ -89,13 +111,14 @@ export function App() {
 
       <main id="main">
         <section className="hero section-shell">
-          <a href={`${readme}#run`} className="preview-label"><span className="live-dot" />{c.preview}<ArrowUpRight size={13} /></a>
+          <span className="preview-label"><span className="live-dot" />{c.preview}</span>
           <h1><span>{c.hero.lead}</span>{' '}<span>{c.hero.end}</span></h1>
           <p className="hero-description">{c.hero.subtitle}</p>
           <div className="hero-actions">
-            <a href="#start" className="button button-primary">{c.hero.start}<ArrowRight size={17} /></a>
+            <a href={downloadTarget} className="button button-primary" data-download="hero"><Download size={17} />{c.hero.download}</a>
             <a href="#projects" className="button button-secondary"><span className="little-play" />{c.hero.watch}</a>
           </div>
+          <p className="hero-platform"><Monitor size={14} />{c.download.platform}<span>·</span>{release.status === 'ready' ? `v${release.version}` : releaseLabel}</p>
           <p className="hero-footnote">{c.hero.footnote}</p>
           <CanvasPreview locale={locale} />
           <a href="#projects" className="scroll-cue" aria-label={c.nav.demos}><ArrowDown size={16} /></a>
@@ -160,44 +183,41 @@ export function App() {
           </div>
         </section>
 
-        <section id="start" className="start-section section-shell">
-          <div className="start-copy"><span className="eyebrow">{c.start.eyebrow}</span><h2>{c.start.title}</h2>
-            <p className="section-description">{c.start.body}</p>
-            <a className="button button-primary" href={`${readme}#run`} target="_blank" rel="noreferrer">{c.start.guide}<ArrowUpRight size={17} /></a>
-            <a className="text-link" href={repository} target="_blank" rel="noreferrer"><CodeXml size={15} />{c.start.source}<ArrowUpRight size={14} /></a>
+        <section id="download" className="download-section section-shell" aria-labelledby="download-heading">
+          <div className="download-intro">
+            <span className="eyebrow">{c.download.eyebrow}</span>
+            <h2 id="download-heading">{c.download.title}</h2>
+            <p className="section-description">{c.download.body}</p>
+            <a className="text-link" href={guide}><BookOpen size={16} />{c.download.guide}<ArrowRight size={15} /></a>
           </div>
-          <div className="setup-card">
-            <div className="setup-tabs" role="tablist" aria-label={c.start.tabLabel}>
-              {(['desktop', 'web'] as const).map((value, index) => (
-                <button
-                  key={value}
-                  id={`tab-${value}`}
-                  role="tab"
-                  aria-selected={platform === value}
-                  aria-controls={`panel-${value}`}
-                  tabIndex={platform === value ? 0 : -1}
-                  onClick={() => { setPlatform(value) }}
-                  onKeyDown={(event) => {
-                    if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-                      event.preventDefault()
-                      const next = event.key === 'Home' ? 'desktop' : event.key === 'End' ? 'web' : index === 0 ? 'web' : 'desktop'
-                      setPlatform(next)
-                      document.getElementById(`tab-${next}`)?.focus()
-                    }
-                  }}
-                >
-                  {value === 'desktop' ? <Monitor size={16} /> : <Globe2 size={16} />}{value === 'desktop' ? 'Desktop' : 'Web'}
-                </button>
-              ))}
-              <span className="setup-terminal-dot" />
+          <div className="download-card" data-release-status={release.status}>
+            <div className="download-card-heading">
+              <div className="download-app-mark"><img src={convaxMark} alt="" /></div>
+              <div><h3>Convax for Mac</h3><p>{c.download.platform}</p></div>
+              <span className="download-format">DMG</span>
             </div>
-            <div role="tabpanel" id={`panel-${platform}`} aria-labelledby={`tab-${platform}`} tabIndex={0} className="setup-content">
-              <p>{c.start[platform]}</p>
-              <pre><code><span className="code-comment"># 01 / Install</span>{'\n'}{install}{'\n\n'}<span className="code-comment"># 02 / Launch</span>{'\n'}<span className="code-launch">{launch[platform]}</span></code></pre>
-              <p className="setup-note">{platform === 'desktop' ? c.start.desktopNote : c.start.webNote}</p>
+            <p className="download-compatibility">{c.download.compatibility}</p>
+            <div className="download-status" aria-live="polite" aria-atomic="true">
+              {release.status === 'ready' ? <><span className="release-ready"><span className="live-dot" />{c.download.ready}</span>
+                <p>v{release.version}<span>·</span>{releaseSize} MB<span>·</span>{c.download.package}</p></>
+                : <><strong>{releaseLabel}</strong>
+                  <p>{release.status === 'unavailable' ? c.download.unavailableBody : c.download.pendingBody}</p></>}
             </div>
-            <div className="setup-requirements"><Check size={13} />{c.start.requirements}</div>
+            {release.status === 'ready'
+              ? <a href={release.downloadUrl} className="button button-primary" data-download="installer"><Download size={17} />{c.hero.download}</a>
+              : <button className="button button-primary" disabled>{releaseLabel}</button>}
+            <div className="download-links">
+              <a href={release.status === 'ready' ? release.releaseUrl : releases} target="_blank" rel="noreferrer">{c.download.releases}<ArrowUpRight size={14} /></a>
+              <button disabled={release.status === 'loading'} onClick={() => { setReleaseAttempt(value => value + 1) }}>{c.download.retry}</button>
+            </div>
+            <p className="download-other-platforms">{c.download.otherPlatforms}</p>
           </div>
+          <ol className="onboarding-steps">
+            {c.download.steps.map((step, index) => {
+              const Icon = stepIcons[index] ?? Folder
+              return <li key={step.title}><div className="onboarding-step-heading"><span>0{index + 1}</span><Icon size={19} /></div><h3>{step.title}</h3><p>{step.body}</p></li>
+            })}
+          </ol>
         </section>
 
         <section id="faq" className="faq-section section-shell">
@@ -211,7 +231,7 @@ export function App() {
       <footer className="site-footer section-shell">
         <div className="footer-top"><a href="#" className="brand"><span className="brand-symbol" aria-hidden="true"><img src={convaxMark} alt="" /></span>Convax</a>
           <p>{c.footer.tagline}</p><div><a href={repository} target="_blank" rel="noreferrer">GitHub<ArrowUpRight size={13} /></a>
-            <a href={readme} target="_blank" rel="noreferrer">{c.footer.docs}<ArrowUpRight size={13} /></a>
+            <a href={docs}>{c.footer.docs}<ArrowRight size={13} /></a>
             <a href={`${repository}/blob/main/LICENSE`} target="_blank" rel="noreferrer">{c.footer.license}</a></div></div>
         <div className="footer-bottom"><span>{c.footer.built}</span><span>© {new Date().getFullYear()} Convax</span></div>
       </footer>

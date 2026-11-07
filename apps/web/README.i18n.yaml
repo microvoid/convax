@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write ../../apps/web/README.md
 /convax-web:
-  en: f464becd5ef4a835
-  zh: e18405417c89a3d1
+  en: 088bf54598e034aa
+  zh: 2cee1c30cbedb4b7
 /convax-web/develop:
   en: 41d80742ad1c81b8
   zh: 992cea126c350cf8
 /convax-web/build-and-validate:
-  en: 068eb1b7c20d3315
-  zh: 5f606f81bb9641e7
+  en: aaccff66a4a8828a
+  zh: fd88bd11938571da
 /convax-web/deploy:
-  en: 94ea097b1fc02b3f
-  zh: 429fc38185e3e292
+  en: d486e11bdd008cc5
+  zh: 8dd7bf77cc01e1a8

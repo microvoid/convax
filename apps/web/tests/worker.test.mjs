@@ -46,6 +46,14 @@ async function assertRange(video, header, first, last) {
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), video.bytes.subarray(first, last + 1))
 }
 
+test('the deployed release route reaches the Worker and rejects unsupported methods', { timeout: 60_000 }, async () => {
+  const response = await worker.fetch('/convax/api/release', { method: 'POST' })
+  assert.equal(response.status, 405)
+  assert.equal(response.headers.get('Allow'), 'GET')
+  assert.equal(response.headers.get('Cache-Control'), 'no-store')
+  await response.arrayBuffer()
+})
+
 test('cold and hot MP4 requests return exact nonzero byte ranges through the real cache', { timeout: 60_000 }, async () => {
   for (const video of videos) {
     await assertRange(video, 'bytes=4096-8191', 4096, 8191)
@@ -104,6 +112,9 @@ test('Chrome can decode and seek both Worker-served walkthroughs to eighteen sec
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
+    await page.route(`http://${worker.address}:${worker.port}/convax/api/release`, route => route.fulfill({
+      contentType: 'application/json', body: JSON.stringify({ status: 'pending', releaseUrl: 'https://github.com/microvoid/convax/releases' }),
+    }))
     await page.goto(`http://${worker.address}:${worker.port}/convax/?lang=en`)
     await mkdir(artifacts, { recursive: true })
     for (const kind of ['projects', 'apps']) {

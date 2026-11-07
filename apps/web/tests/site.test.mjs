@@ -13,6 +13,12 @@ const artifacts = fileURLToPath(new URL('../../../.artifacts/public-site/', impo
 const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
   ?? (existsSync(chrome) ? chrome : undefined)
+const readyRelease = {
+  status: 'ready', version: '0.1.0', size: 123_731_968,
+  downloadUrl: 'https://github.com/microvoid/convax/releases/download/v0.1.0/convax-0.1.0-mac-arm64.dmg',
+  releaseUrl: 'https://github.com/microvoid/convax/releases/tag/v0.1.0',
+}
+const releasesUrl = 'https://github.com/microvoid/convax/releases'
 let server
 let browser
 let origin
@@ -37,7 +43,7 @@ after(async () => {
   try { await browser?.close() } finally { await server?.close() }
 })
 
-async function openPage(t, { language = 'zh', width = 1440, onRequest } = {}) {
+async function openPage(t, { language = 'zh', width = 1440, release = 'ready', releaseResponse, onRequest } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 1000 }, locale: 'zh-CN', reducedMotion: 'reduce' })
   const errors = []
   const external = []
@@ -47,22 +53,29 @@ async function openPage(t, { language = 'zh', width = 1440, onRequest } = {}) {
     try {
       assert.deepEqual(errors, [], 'The public homepage must not throw browser errors')
       assert.deepEqual(external, [], 'The homepage and its demo assets must work without external requests')
-      assert.deepEqual(api, [], 'The public homepage must not load a Host or API')
+      assert.deepEqual(api, [], 'The public homepage must only query its public release endpoint, never a Host or model API')
       assert.deepEqual(outsideBase, [], 'Homepage assets must stay under the configured deployment prefix')
     } finally { await context.close() }
   })
   const page = await context.newPage()
+  await page.route(`${origin}${base}api/release`, route => route.fulfill({
+    status: releaseResponse?.status ?? (release === 'unavailable' ? 503 : 200),
+    contentType: 'application/json',
+    body: JSON.stringify(releaseResponse?.body ?? (release === 'ready' ? readyRelease : { status: release, releaseUrl: releasesUrl })),
+  }))
   page.on('pageerror', error => errors.push(error.message))
   page.on('request', (request) => {
     onRequest?.(request)
     const url = new URL(request.url())
     if (url.origin !== origin) external.push(request.url())
     else if (!url.pathname.startsWith(base)) outsideBase.push(url.pathname)
-    if (['fetch', 'xhr', 'websocket'].includes(request.resourceType())) api.push(request.url())
+    if (['fetch', 'xhr', 'websocket'].includes(request.resourceType())
+      && !(url.origin === origin && url.pathname === `${base}api/release` && request.method() === 'GET')) api.push(request.url())
   })
   const response = await page.goto(`${origin}${base}${language === 'en' ? '?lang=en' : ''}`)
   assert.equal(response?.status(), 200)
   await page.getByRole('heading', { level: 1 }).waitFor()
+  await page.locator(`[data-release-status="${release}"]`).waitFor()
   return page
 }
 
@@ -93,9 +106,8 @@ async function assertNoPageOverflow(page) {
     viewport: document.documentElement.clientWidth,
     content: document.scrollingElement.scrollWidth,
   }))
-  assert.equal(page.viewportSize().width, 390)
   assert.ok(dimensions.content <= dimensions.viewport,
-    `Mobile content must fit the viewport: ${JSON.stringify(dimensions)}`)
+    `Content must fit the ${page.viewportSize().width}px viewport: ${JSON.stringify(dimensions)}`)
 }
 
 async function scrollToTop(page) {
@@ -124,7 +136,7 @@ test('Chinese homepage presents five sections and local poster players without a
     if (new URL(request.url()).pathname.endsWith('.mp4')) mediaRequests.push(request.url())
   } })
   await assertLocale(page, 'zh')
-  for (const id of ['projects', 'apps', 'features', 'start', 'faq']) assert.equal(await page.locator(`section#${id}`).count(), 1)
+  for (const id of ['projects', 'apps', 'features', 'download', 'faq']) assert.equal(await page.locator(`section#${id}`).count(), 1)
   for (const [selector, attribute, contentType] of [
     ['script[type="module"][src]', 'src', /javascript/u],
     ['link[rel="stylesheet"]', 'href', /text\/css/u],
@@ -198,30 +210,89 @@ test('failed local media reports a localized error and retry recovers the real v
   }
 })
 
-test('launch tabs and FAQ disclosures support keyboard navigation', { timeout: 60_000 }, async (t) => {
-  const page = await openPage(t)
-  const desktop = page.getByRole('tab', { name: 'Desktop', exact: true })
-  const web = page.getByRole('tab', { name: 'Web', exact: true })
-  assert.equal(await desktop.getAttribute('aria-selected'), 'true')
-  await desktop.focus()
-  await page.keyboard.press('ArrowRight')
-  assert.equal(await web.getAttribute('aria-selected'), 'true')
-  assert.equal(await web.evaluate(element => document.activeElement === element), true)
-  assert.match(await page.getByRole('tabpanel', { name: 'Web', exact: true }).innerText(), /pnpm dsh web --patch packages\/plugin-renderer\/cordis\.patch\.yml/u)
-  await page.keyboard.press('Home')
-  assert.equal(await desktop.getAttribute('aria-selected'), 'true')
-  assert.match(await page.getByRole('tabpanel', { name: 'Desktop', exact: true }).innerText(), /pnpm run start:desktop/u)
-  await page.keyboard.press('End')
-  assert.equal(await web.getAttribute('aria-selected'), 'true')
-  const summary = page.locator('#faq summary').first()
-  await summary.focus()
-  await page.keyboard.press('Enter')
-  assert.equal(await summary.evaluate(element => element.parentElement.open), true)
-  await page.keyboard.press('Enter')
-  assert.equal(await summary.evaluate(element => element.parentElement.open), false)
+test('published installers replace source setup with direct downloads and a keyboard-accessible getting-started path', { timeout: 60_000 }, async (t) => {
+  for (const language of ['zh', 'en']) {
+    const page = await openPage(t, { language })
+    const hero = page.locator('[data-download="hero"]')
+    const installer = page.locator('[data-download="installer"]')
+    assert.equal(await hero.getAttribute('href'), readyRelease.downloadUrl)
+    assert.equal(await installer.getAttribute('href'), readyRelease.downloadUrl)
+    assert.equal(await hero.innerText(), language === 'en' ? 'Download for macOS' : '下载 macOS 客户端')
+    assert.match((await page.locator('.hero-platform').innerText()).replace(/\s+/gu, ' '), /Apple Silicon.*v0\.1\.0/u)
+    const card = page.locator('.download-card')
+    assert.match(await card.innerText(), /Apple Silicon/u)
+    assert.match(await card.innerText(), /118 MB/u)
+    assert.equal(await card.getByRole('link', { name: language === 'en' ? 'Releases & updates' : '版本与更新说明' }).getAttribute('href'), readyRelease.releaseUrl)
+    assert.equal(await page.locator('.onboarding-steps > li').count(), 3)
+    assert.equal(await page.locator('.download-intro .text-link').getAttribute('href'), `/convax/docs/${language}/getting-started/`)
+    assert.equal(await page.locator('pre, [role="tab"]').count(), 0)
+    assert.doesNotMatch(await page.locator('main').innerText(), /从源码开始|Start from source|pnpm|git clone/u)
+    await installer.focus()
+    assert.equal(await installer.evaluate(element => document.activeElement === element), true)
+    const summary = page.locator('#faq summary').first()
+    await summary.focus()
+    await page.keyboard.press('Enter')
+    assert.equal(await summary.evaluate(element => element.parentElement.open), true)
+    await page.keyboard.press('Enter')
+    assert.equal(await summary.evaluate(element => element.parentElement.open), false)
+  }
 })
 
-test('390px mobile layout, menu and localized setup remain within the viewport', { timeout: 60_000 }, async (t) => {
+test('unpublished installers show the preparation state and never offer a fabricated file link', { timeout: 60_000 }, async (t) => {
+  for (const language of ['zh', 'en']) {
+    const page = await openPage(t, { language, release: 'pending' })
+    const hero = page.locator('[data-download="hero"]')
+    assert.equal(await hero.getAttribute('href'), '#download')
+    assert.equal(await page.locator('[data-download="installer"]').count(), 0)
+    const card = page.locator('.download-card')
+    assert.equal(await card.locator(':scope > button').isDisabled(), true)
+    assert.equal(await card.locator(':scope > button').innerText(), language === 'en' ? 'Installer coming soon' : '安装包准备中')
+    assert.equal(await card.getByRole('link', { name: language === 'en' ? 'Releases & updates' : '版本与更新说明' }).getAttribute('href'), releasesUrl)
+    assert.equal(await page.locator('a[href*="/releases/download/"]').count(), 0)
+    await hero.click()
+    assert.equal(new URL(page.url()).hash, '#download')
+    await card.screenshot({ path: join(artifacts, `download-pending-${language}.png`) })
+  }
+})
+
+test('release lookup failures keep the homepage available and retry recovers the public installer', { timeout: 60_000 }, async (t) => {
+  for (const language of ['zh', 'en']) {
+    const releaseRequests = []
+    const page = await openPage(t, { language, release: 'unavailable', onRequest: (request) => {
+      if (new URL(request.url()).pathname === `${base}api/release`) releaseRequests.push(request.url())
+    } })
+    const card = page.locator('.download-card')
+    assert.match(await card.locator('.download-status').innerText(), language === 'en' ? /Download information is unavailable/u : /暂时无法获取下载版本/u)
+    assert.equal(await card.locator(':scope > button').isDisabled(), true)
+    assert.equal(await page.locator('[data-download="hero"]').getAttribute('href'), '#download')
+    assert.equal(await page.locator('[data-download="installer"]').count(), 0)
+    await page.route(`${origin}${base}api/release`, route => route.fulfill({ contentType: 'application/json', body: JSON.stringify(readyRelease) }))
+    await card.getByRole('button', { name: language === 'en' ? 'Check again' : '重新检查', exact: true }).click()
+    await page.locator('[data-release-status="ready"]').waitFor()
+    assert.equal(await page.locator('[data-download="installer"]').getAttribute('href'), readyRelease.downloadUrl)
+    assert.equal(await page.locator('[data-download="hero"]').getAttribute('href'), readyRelease.downloadUrl)
+    assert.equal(releaseRequests.length, 2, 'A manual retry must issue one fresh release lookup')
+    await assertLocale(page, language)
+  }
+})
+
+test('invalid public download metadata never turns the primary action into an unrelated file link', { timeout: 60_000 }, async (t) => {
+  const page = await openPage(t, {
+    release: 'unavailable',
+    releaseResponse: { status: 200, body: { ...readyRelease, downloadUrl: 'https://example.com/unrelated-installer.dmg' } },
+  })
+  assert.equal(await page.locator('[data-download="installer"]').count(), 0)
+  assert.equal(await page.locator('[data-download="hero"]').getAttribute('href'), '#download')
+  assert.equal(await page.locator('a[href="https://example.com/unrelated-installer.dmg"]').count(), 0)
+  const card = page.locator('.download-card')
+  assert.equal(await card.locator(':scope > button').isDisabled(), true)
+  await page.route(`${origin}${base}api/release`, route => route.fulfill({ contentType: 'application/json', body: JSON.stringify(readyRelease) }))
+  await card.getByRole('button', { name: '重新检查', exact: true }).click()
+  await page.locator('[data-release-status="ready"]').waitFor()
+  assert.equal(await page.locator('[data-download="installer"]').getAttribute('href'), readyRelease.downloadUrl)
+})
+
+test('390px mobile layout, menu and localized download controls remain within the viewport', { timeout: 60_000 }, async (t) => {
   const page = await openPage(t, { width: 390 })
   await assertNoPageOverflow(page)
   await scrollToTop(page)
@@ -240,8 +311,31 @@ test('390px mobile layout, menu and localized setup remain within the viewport',
   assert.equal(await toggle.evaluate(element => document.activeElement === element), true)
   await page.getByRole('button', { name: 'English', exact: true }).click()
   await assertLocale(page, 'en')
-  await page.getByRole('tab', { name: 'Web', exact: true }).click()
+  const hero = page.locator('[data-download="hero"]')
+  assert.equal(await hero.getAttribute('href'), readyRelease.downloadUrl)
+  const heroSize = await hero.boundingBox()
+  assert.ok(heroSize && heroSize.height >= 44, 'The primary mobile download action must retain a touch-sized target')
   await assertNoPageOverflow(page)
   await scrollToTop(page)
   await page.screenshot({ path: join(artifacts, 'mobile-en.png'), fullPage: true })
+})
+
+test('English download actions remain complete and reachable across phone, tablet and desktop widths', { timeout: 60_000 }, async (t) => {
+  for (const width of [390, 768, 1024, 1440]) {
+    const page = await openPage(t, { language: 'en', width })
+    await assertNoPageOverflow(page)
+    for (const selector of ['[data-download="hero"]', '[data-download="installer"]']) {
+      const action = page.locator(selector)
+      await action.scrollIntoViewIfNeeded()
+      const geometry = await action.evaluate(element => ({
+        x: element.getBoundingClientRect().x, width: element.getBoundingClientRect().width,
+        height: element.getBoundingClientRect().height, content: element.scrollWidth, inner: element.clientWidth,
+      }))
+      assert.ok(geometry.x >= 0 && geometry.x + geometry.width <= width,
+        `${selector} must fit the ${width}px viewport: ${JSON.stringify(geometry)}`)
+      assert.ok(geometry.height >= 44, `${selector} must remain a touch-sized action at ${width}px`)
+      assert.ok(geometry.content <= geometry.inner, `${selector} must show its full label at ${width}px`)
+      assert.equal(await action.getAttribute('href'), readyRelease.downloadUrl)
+    }
+  }
 })
