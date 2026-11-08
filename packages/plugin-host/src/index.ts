@@ -28,6 +28,8 @@ import { CanvasWorkingDirectories } from './directories.ts'
 import { canvasCommitRequestSchema } from './schema.ts'
 import { readCanvasDocument } from './documents.ts'
 import { CanvasMediaResponses, readCanvasMediaSource } from './media.ts'
+import { noticeDeploymentSchema, registerConvaxNotices } from './notices/config.ts'
+import type { NoticeDeploymentConfig } from './notices/config.ts'
 import type {
   CanvasCommandRequest, CanvasCommandResult, CanvasDirectory, CanvasId, CanvasNodeId,
   CanvasPreview, CanvasDocumentPreview, CanvasMediaSource, CanvasResource, CanvasWorkspace, CanvasThreadRequest, CanvasThreadResult,
@@ -45,6 +47,7 @@ export { sameCanvasRequest } from './request-equality.ts'
 export { layoutGrid } from './layout.ts'
 export type { CanvasGridLayout, CanvasLayoutNode } from './layout.ts'
 export { CanvasNodeRegistry } from './registry.ts'
+export { NoticeCoordinator } from './notices/coordinator.ts'
 export type { CanvasNodeDefinition, CanvasNodeMigration } from './registry.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -73,6 +76,8 @@ export interface Config {
   documentBytes: number
   /** Largest filesystem window buffered by one media response pull. */
   mediaChunkBytes: number
+  /** Optional Convax cloud notice source; absent deployments make no notification HTTP requests. */
+  notices?: NoticeDeploymentConfig | undefined
 }
 /** Validated resource-read configuration. */
 export const Config: configSchema<Config> = configSchema.object({
@@ -82,6 +87,7 @@ export const Config: configSchema<Config> = configSchema.object({
   previewBytes: configSchema.number().step(1).min(1).default(256 * 1024),
   documentBytes: configSchema.number().step(1).min(1).default(50 * 1024 * 1024),
   mediaChunkBytes: configSchema.number().step(1).min(1).default(256 * 1024),
+  notices: configSchema.union([noticeDeploymentSchema, configSchema.const(undefined)]),
 })
 
 /** Coordination owned by the composing plugin rather than Remote callers. */
@@ -635,4 +641,5 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   await migrations.start()
   registerCanvasTools(ctx, service)
   registerGraphTools(ctx, service)
+  registerConvaxNotices(ctx, config.databasePath, config.notices)
 }

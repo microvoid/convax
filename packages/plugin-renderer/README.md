@@ -100,6 +100,13 @@ A pending creation or deletion offers **Retry**, which resumes its saved operati
 
 Unavailable plugins and incompatible node data appear as placeholders. Their saved payloads, positions, and connections remain intact; you can move or remove them while other nodes remain usable. Re-enabling compatible Host and Client implementations restores the original display. A missing Client display leaves the Host provider's input preparation available.
 
+<a id="application-notices"></a>
+### Application notices
+
+When the [Host notice source](../plugin-host/README.md#client-notices) is configured, feature and update announcements can open a global modal. Maintenance uses the shared Toast/Message surface; generic guidance also supports a banner. Ordinary notices wait while the window is inactive, an input or drag is active, a task is running, or another modal owns interaction.
+
+Closing an ordinary notice uses its configured snooze action when present, otherwise records dismissal. Mandatory update notices have no close button and ignore Escape and mask dismissal. Their update action opens the native updater without automatically downloading or installing a release.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
@@ -109,6 +116,8 @@ Unavailable plugins and incompatible node data appear as placeholders. Their sav
 The renderer contributes to the shell's single `shell.workspace` Slot. Components receive derived Slot props, declared viewing-store actions, and narrow injected callbacks. Generated Remote methods carry revisioned commands to the Host; Client resource providers own live workspace snapshots and file reads. React Flow controls graph gestures without owning durable canvas records. The canvas-owned grouping controller submits Host commands; group frames are derived from current measured card bounds and are not persisted. Node measurements stay in temporary renderer state. Controlled-node updates retain them to keep mounted editors visible during selection and prop updates.
 
 Workspace controls derive busy and history indicators from one active-operation kind; a synchronous submission guard prevents overlapping mutations. Paste and duplicate share the same post-commit sequence: restore card preferences, select the copies, then reveal them with their measured dimensions.
+
+Notifications mount independently in `shell.overlay`, so switching canvases does not unload them. A React-independent window runtime reads browser interaction and task state, requests a Host presentation lease, and passes data and callbacks to the view. Actual visible mounting reports exposure; fetching or queueing a notice does not. Disposal removes activity listeners, drains operations and releases the window's lease.
 
 Desktop drops use a Convax-owned adapter for the existing preload file-path capability. The adapter preserves original File identity and leaves bytes untouched; the Host filesystem authorizes and classifies the resolved path before a reference node is saved. Served Web documents have no native path capability.
 
@@ -143,6 +152,7 @@ Window screenshots and their metadata increase user-input size without changing 
 
 - Audio and video codec support follows the browser and operating system; unsupported formats use system opening. File moves and renames do not rewrite saved references. One Session has one editable composer per Client; distinct threads provide independent editors. Browser-owned draft attachment objects survive view closures while DSH's client remains loaded, but they are not persisted across a page reload or application exit.
 - Groups support one level. Nested groups, group folding, automatic membership changes on drag, and resizing a group with its contents are not available.
+- Guide bubbles and an announcement history entry are not provided. Notification UI does not enforce service policy or configure a Convax native update feed; the existing Desktop update flow remains its own owner. Cloud delivery and read-state limits belong to the [Host notice source](../plugin-host/README.md#known-limitations-and-deferred-work).
 - Window mirroring requires macOS Desktop screen-capture permission and an image-input model for Chat screenshots. Direct mirror operation remains deferred. Minimized/closed windows can leave Chromium tracks marked live; native validation rejects their screenshots and disconnects detected stale sources. Focus, visibility, pointer entry, and submission are detection points, not a continuous window-change subscription. Ordinary browsers cannot silently capture a Desktop Host's window.
 
 <a id="dev-note"></a>

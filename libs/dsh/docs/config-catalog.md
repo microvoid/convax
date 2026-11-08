@@ -782,7 +782,8 @@ export interface ToolResultPruneConfig {
 ## `@deepseek-ai/dsh-convax-plugin-host`
 
 - `inject`: `fs` · `tools` · `remoteAccess`
-- `source`: [`../../packages/plugin-host/src/index.ts:63`](../../../packages/plugin-host/src/index.ts)
+- `refs`: `ClientNoticeArch` (`@convax/api-contracts/notices`) · `ClientNoticeChannel` (`@convax/api-contracts/notices`) · `ClientNoticePlatform` (`@convax/api-contracts/notices`)
+- `source`: [`../../packages/plugin-host/src/index.ts:66`](../../../packages/plugin-host/src/index.ts)
 
 ```ts config-catalog
 /** Deployment limits for one resource preview. */
@@ -799,6 +800,46 @@ export interface Config {
   documentBytes: number
   /** Largest filesystem window buffered by one media response pull. */
   mediaChunkBytes: number
+  /** Optional Convax cloud notice source; absent deployments make no notification HTTP requests. */
+  notices?: NoticeDeploymentConfig | undefined
+}
+
+/** Explicit product identity, trusted destinations and local delivery limits. */
+export interface NoticeDeploymentConfig extends NoticeCoordinatorConfig {
+  /** HTTPS API base URL or explicit loopback server; bare origins use /api. */
+  origin: string
+  /** Installed Convax SemVer, independent of the retained DSH package version. */
+  appVersion: string
+  /** Installed product platform used for server-side delivery selection. */
+  platform: ClientNoticePlatform
+  /** Installed application architecture. */
+  arch: ClientNoticeArch
+  /** Release channel selected by this deployment. */
+  channel: ClientNoticeChannel
+  /** Language requested for remote announcement content. */
+  locale: string
+  /** Exact HTTPS origins permitted for announcement and fallback download pages. */
+  allowedPageOrigins: string[]
+  /** Deadline in milliseconds for each independent policy or guidance request. */
+  timeoutMs: number
+}
+
+/** Host scheduling choices supplied by validated plugin configuration. */
+export interface NoticeCoordinatorConfig {
+  /** Quiet interval before ordinary notices may interrupt this window, in milliseconds. */
+  readonly idleMs: number
+  /** Renderer lease renewal and eligibility polling interval, in milliseconds. */
+  readonly pollIntervalMs: number
+  /** Delay before retrying a failed source read, in milliseconds. */
+  readonly failureRetryMs: number
+  /** Maximum ownership gap before another window may acquire a presentation, in milliseconds. */
+  readonly leaseMs: number
+  /** Minimum time between ordinary automatic modals, in milliseconds. */
+  readonly modalCooldownMs: number
+  /** Ordinary automatic modal budget for one Host lifetime. */
+  readonly maxModalPerLaunch: number
+  /** Full-opacity reading interval before a Message fades, in milliseconds. */
+  readonly messageHoldMs: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-convax-plugin-host -->

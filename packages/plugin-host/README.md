@@ -61,6 +61,27 @@ The `convax.window` node stores only `bindingId` (a UUID selection identity) and
 
 Closing a view does not stop a thread. Deleting a Chat or canvas with threads requires explicit confirmation. Convax records the deletion, uses native Workspace archival and stop requests, then waits for owned Agents and jobs before removing graph records. Actual subagent descendants are included; independent forks remain separate. Residual activity, stop failures and cancellation preserve the archived Sessions, graph and visible retry intention. Retrying an already archived thread requests its stop again. Failed or late creation and deletion work remains retryable under the original identity. `retryOperations` resumes pending operations and delivery recovery.
 
+<a id="client-notices"></a>
+### Client notices
+
+The independent `ctx.convaxNotices` service coordinates application notices across windows connected to this Host. The optional `notices` configuration selects a Convax API deployment; omitting it makes no notification HTTP requests. Supply the installed Convax version rather than the retained DSH version. `origin` accepts an HTTPS API base URL, including its deployment path; a bare origin uses `/api`:
+
+```yaml
+notices:
+  origin: https://microvoid.io/convax/api
+  appVersion: 0.1.0
+  platform: darwin
+  arch: arm64
+  channel: latest
+  locale: zh-CN
+  allowedPageOrigins:
+    - https://microvoid.io
+```
+
+The [notice configuration](src/notices/config.ts) defaults to a 3,000 ms idle interval, 5,000 ms renderer polling, 60,000 ms refresh retry after failure, 15,000 ms HTTP timeout, and 10,000 ms message hold. A 30,000 ms presentation lease selects one window at a time and must cover at least three renderer polling intervals. Ordinary modals default to one automatic presentation per Host launch and a rolling 86,400,000 ms cooldown; messages and generic banners do not consume that modal budget.
+
+Local exposure, dismissal and snooze records live in `convax-notices.json` beside `databasePath`, independently of canvas database migrations. A stable notice ID retains its read state when its content revision changes. Maintenance notices match registered capability IDs and always use a transient message; ordinary guidance can use a modal, banner or message. A failed refresh retains this Host's last accepted policy instead of clearing a known update requirement. Notice delivery does not create Sessions or model inputs.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -129,6 +150,7 @@ Graph edits append tool interactions without rewriting earlier Session history. 
 <a id="known-limitations-and-deferred-work"></a>
 
 - Complete document reads are bounded by `documentBytes`; Word and PowerPoint previews require an active Office conversion provider. The [renderer](../plugin-renderer/README.md) owns supported presentation formats.
+- The [API backend](../../docs/api-backend.md) serves policy and guidance from a read-only deployment catalog. Delivery requires a published catalog and an explicitly configured API base URL. D1 feedback and account-level read state are not implemented. Notice presentation does not replace Desktop or service-operation policy enforcement or configure a native update feed.
 
 <a id="dev-note"></a>
 ### Dev Note

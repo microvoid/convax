@@ -2,6 +2,14 @@
 import type { ConvaxKey } from './en.ts'
 
 export const zh: Record<ConvaxKey, string> = {
+  'notices.close': '关闭',
+  'notices.mandatory.title': '需要更新后继续使用',
+  'notices.mandatory.body': '当前版本已停止支持，请打开更新器下载受支持的版本。安装前仍需你确认',
+  'notices.openUpdate': '打开更新器',
+  'notices.downloadPage': '前往下载页',
+  'notices.actionFailed': '未能完成操作，请重试',
+  'notices.updateUnavailable': '此构建暂不支持更新，请使用官方下载页',
+  'notices.openFailed': '未能打开页面，请重试',
   'workspace.title': 'Convax',
   'terminal.title': '终端',
   'browser.title': '浏览器',

@@ -1,0 +1,5 @@
+- dialog "Connect resources to a conversation":
+  - heading "Connect resources to a conversation" [level=2]
+  - button "Close"
+  - paragraph: Connect a resource card to give the conversation the context it needs.
+  - button "Got it"

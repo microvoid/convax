@@ -1,5 +1,13 @@
 /** English copy defines the complete Convax UI key set. */
 export const en = {
+  'notices.close': 'Close',
+  'notices.mandatory.title': 'Update required',
+  'notices.mandatory.body': 'This version is no longer supported. Open the updater to download a supported version. Installation still requires your confirmation.',
+  'notices.openUpdate': 'Open updater',
+  'notices.downloadPage': 'Open download page',
+  'notices.actionFailed': 'The action could not be completed. Try again.',
+  'notices.updateUnavailable': 'Updates are unavailable in this build. Use the official download page.',
+  'notices.openFailed': 'The page could not be opened. Try again.',
   'workspace.title': 'Convax',
   'terminal.title': 'Terminal',
   'browser.title': 'Browser',

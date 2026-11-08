@@ -61,6 +61,27 @@ kind: "package-reference"
 
 关闭视图不会停止 thread。删除包含 thread 的 Chat 或画布需要明确确认。Convax 记录删除意图，使用原生 Workspace 归档和停止请求，等待所属 Agent 与后台任务结束后再移除图记录。实际子智能体后代一并处理，独立分叉不受影响。残留活动、停止失败和取消均保留已归档 Session、图记录与可见的重试意图。重试已归档 thread 时会再次请求停止。失败或晚到的创建、删除工作保留原操作身份以便重试。`retryOperations` 继续未完成操作与交付恢复。
 
+<a id="client-notices"></a>
+### 客户端通知
+
+独立的 `ctx.convaxNotices` 服务协调连接到此 Host 的各窗口应用通知。可选的 `notices` 配置指定 Convax API 部署；省略时不发送通知 HTTP 请求。版本填写已安装的 Convax 版本，不使用保留的 DSH 版本。`origin` 接受包含部署路径的 HTTPS API 基地址；仅填写 origin 时使用 `/api`：
+
+```yaml
+notices:
+  origin: https://microvoid.io/convax/api
+  appVersion: 0.1.0
+  platform: darwin
+  arch: arm64
+  channel: latest
+  locale: zh-CN
+  allowedPageOrigins:
+    - https://microvoid.io
+```
+
+[通知配置](src/notices/config.ts)默认使用 3,000 ms 空闲间隔、5,000 ms Renderer 轮询间隔、刷新失败后 60,000 ms 重试间隔、15,000 ms HTTP 超时与 10,000 ms 消息展示时长。30,000 ms 展示租约在同一时刻选择一个窗口，且必须覆盖至少三个 Renderer 轮询间隔。普通弹窗默认在每次 Host 启动后至多自动展示一次，并遵守滚动 86,400,000 ms 冷却期；消息及通用横幅不占用这一弹窗额度。
+
+本机曝光、关闭和稍后提醒记录保存在 `databasePath` 同目录的 `convax-notices.json`，独立于画布数据库迁移。通知内容修订号变化时，稳定通知 ID 保留原有已读状态。维护通知按已注册能力 ID 匹配，固定使用短暂消息；普通公告可使用弹窗、横幅或消息。刷新失败时保留此 Host 最后接纳的策略，不清除已知升级要求。通知投放不创建 Session 或模型输入。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -129,6 +150,7 @@ Host 启用时，两个通用工具及五个旧工具 schema 加入工具集。�
 <a id="known-limitations-and-deferred-work"></a>
 
 - 完整文档读取受 `documentBytes` 限制；Word 与 PowerPoint 预览需要活动的 Office 转换提供方。支持的展示格式由 [renderer](../plugin-renderer/README.zh.md) 拥有。
+- [API 后端](../../docs/api-backend.zh.md)从只读部署配置提供策略和公告查询。实际投放需要发布配置并显式设置 API 基地址。暂未实现 D1 反馈和账号级已读。通知展示不能替代 Desktop 或服务操作入口的策略执行，也不配置原生更新源。
 
 <a id="dev-note"></a>
 ### 开发备注

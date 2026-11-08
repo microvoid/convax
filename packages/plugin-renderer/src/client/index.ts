@@ -21,6 +21,13 @@ import { ConvaxRenderer } from './node-renderers.tsx'
 import { defaultCanvasInputMode } from './input-mode.ts'
 import { CanvasGraphSurface } from './CanvasGraphSurface.tsx'
 import { CanvasActivity } from './activity.ts'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
+import { NoticeOverlay } from './notices/NoticeOverlay.tsx'
+import type { NoticeOverlayInjected } from './notices/NoticeOverlay.tsx'
+import { NoticeRuntime } from './notices/runtime.ts'
+import { BrowserNoticeEnvironment, NoticeUpdateUnavailableError } from './notices/browser.ts'
+import type { NoticeClientId } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { DesktopUpdateBridge } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 
 export type { CanvasNodeRendererDefinition, IConvaxRenderer } from './node-renderers.tsx'
 export type { CanvasNodeOwner, CanvasNodeRendererProps, CanvasChatPresentation, CanvasChatThreadOwner,
@@ -68,6 +75,34 @@ export async function apply(ctx: Context): Promise<void> {
     }, 'convax: workspace stream disposal')
     let restart = (): void => {}
     const activity = new CanvasActivity()
+    scope.inject(['remote.convaxNotices'], (noticeScope) => {
+      const carrier = (globalThis as typeof globalThis & {
+        dshDesktop?: { protocolVersion: number; updates?: DesktopUpdateBridge }
+      }).dshDesktop
+      const t = noticeScope.locale.bind(NS)
+      const environment = new BrowserNoticeEnvironment({ document, window,
+        running: () => [...noticeScope.uiSession.sessionStatus.getSnapshot().values()]
+          .some(status => status.running === true || status.pendingInteraction !== undefined),
+        capabilities: () => ['convax.canvas', ...Object.keys(renderer.getSnapshot().definitions)],
+        updates: carrier?.protocolVersion === 1 ? carrier.updates : undefined,
+      })
+      const notices = new NoticeRuntime({ remote: noticeScope.remote.convaxNotices,
+        clientId: randomUUID() as NoticeClientId, environment,
+        actionFailed: error => t(error instanceof NoticeUpdateUnavailableError ? 'notices.updateUnavailable' : 'notices.actionFailed'),
+        report: (error) => { noticeScope.logger.warn('Convax notice operation failed', error) },
+      })
+      noticeScope.effect(() => {
+        void notices.start().catch((error: unknown) => { noticeScope.logger.warn('Convax notice observation could not start', error) })
+        return () => notices.dispose()
+      }, 'convax: window notice lifetime')
+      noticeScope.slots.inject('shell.overlay', () => noticeScope.slots.register({
+        name: 'shell.overlay', id: 'convax.notices', locale: NS,
+        inject: (): NoticeOverlayInjected => ({ hooks: { notice: notices.state },
+          shown: (id) => { notices.shown(id) }, close: (id) => { notices.close(id) },
+          action: (id, actionId) => { notices.action(id, actionId) }, expired: (id) => { notices.expired(id) },
+        }),
+      }, NoticeOverlay))
+    })
     const observeActivity = (): void => {
       const workspace = renderer.workspace.getSnapshot()
       if (workspace !== undefined) activity.observe(workspace,

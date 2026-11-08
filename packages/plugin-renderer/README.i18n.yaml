@@ -15,11 +15,14 @@
   en: 122f0d41696980b1
   zh: f366d2759fbb78b1
 /deepseek-ai-dsh-convax-plugin-renderer/use-this-package:
-  en: b8e86fda4c06a71d
-  zh: e0feb12419c6f3dc
+  en: dc502b3eb7e229ea
+  zh: ab2e4b9ae919c52b
+/deepseek-ai-dsh-convax-plugin-renderer/use-this-package/application-notices:
+  en: e3edbccb3d9bb46c
+  zh: 180c39defa950682
 /deepseek-ai-dsh-convax-plugin-renderer/understand-the-implementation:
-  en: 5f1ce38062e34ab6
-  zh: c3a0952c42d4ab4b
+  en: cb045accc78deb14
+  zh: 467fd261a3a272eb
 /deepseek-ai-dsh-convax-plugin-renderer/model-experience:
   en: caa5d0ac4199359d
   zh: 50e60973d89e1f13
@@ -27,8 +30,8 @@
   en: dab0e0e648da8607
   zh: a879ab220ad66814
 /deepseek-ai-dsh-convax-plugin-renderer/known-limitations-and-deferred-work:
-  en: 6009fb61cf1e25d1
-  zh: 5b432958613b6c07
+  en: 994778ed364a6ce5
+  zh: 68c9795638c00839
 /deepseek-ai-dsh-convax-plugin-renderer/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: e88aeb617ffb74ea

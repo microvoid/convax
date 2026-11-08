@@ -1,0 +1,83 @@
+.dialog {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  width: min(440px, 100%);
+  max-height: 100%;
+  padding: 24px;
+  overflow: auto;
+}
+
+.content, .copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header h2, .copy h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.body, .copy p, .error {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error { color: var(--dsw-alias-state-error-primary); }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.actions > button { white-space: normal; }
+
+.banner {
+  position: fixed;
+  top: max(12px, var(--dsh-frame-overlay-top, 12px));
+  left: 12px;
+  right: 12px;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-sizing: border-box;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-panel);
+  pointer-events: auto;
+}
+
+.banner .copy { flex: 1 1 240px; gap: 4px; }
+.banner .copy h2 { font-size: 14px; line-height: 22px; }
+
+@media (max-width: 440px) {
+  .dialog { padding: 20px; }
+  .header { flex-wrap: wrap; }
+  .actions { width: 100%; }
+  .actions > button { flex: 1 1 auto; }
+}

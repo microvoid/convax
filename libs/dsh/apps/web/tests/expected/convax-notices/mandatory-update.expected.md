@@ -1,0 +1,5 @@
+- dialog "Update required":
+  - heading "Update required" [level=2]
+  - paragraph: This version is no longer supported. Open the updater to download a supported version. Installation still requires your confirmation.
+  - button "Open updater"
+  - button "Open download page"

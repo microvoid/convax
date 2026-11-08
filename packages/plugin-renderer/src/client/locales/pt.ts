@@ -2,6 +2,14 @@
 import type { ConvaxKey } from './en.ts'
 
 export const pt: Record<ConvaxKey, string> = {
+  'notices.close': 'Fechar',
+  'notices.mandatory.title': 'Atualização necessária',
+  'notices.mandatory.body': 'Esta versão não é mais compatível. Abra o atualizador para baixar uma versão compatível. A instalação requer sua confirmação.',
+  'notices.openUpdate': 'Abrir atualizador',
+  'notices.downloadPage': 'Abrir página de download',
+  'notices.actionFailed': 'Não foi possível concluir a ação. Tente novamente.',
+  'notices.updateUnavailable': 'Esta compilação não oferece atualizações. Use a página oficial de download.',
+  'notices.openFailed': 'Não foi possível abrir a página. Tente novamente.',
   'workspace.title': 'Convax',
   'terminal.title': 'Terminal',
   'browser.title': 'Navegador',

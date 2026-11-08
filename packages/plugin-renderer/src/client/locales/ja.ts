@@ -2,6 +2,14 @@
 import type { ConvaxKey } from './en.ts'
 
 export const ja: Record<ConvaxKey, string> = {
+  'notices.close': '閉じる',
+  'notices.mandatory.title': '更新が必要です',
+  'notices.mandatory.body': 'このバージョンはサポートが終了しました。更新画面から対応バージョンをダウンロードしてください。インストール前に確認します。',
+  'notices.openUpdate': '更新画面を開く',
+  'notices.downloadPage': 'ダウンロードページを開く',
+  'notices.actionFailed': '操作を完了できませんでした。もう一度お試しください。',
+  'notices.updateUnavailable': 'このビルドでは更新できません。公式ダウンロードページをご利用ください。',
+  'notices.openFailed': 'ページを開けませんでした。もう一度お試しください。',
   'workspace.title': 'Convax',
   'terminal.title': 'ターミナル',
   'browser.title': 'ブラウザー',

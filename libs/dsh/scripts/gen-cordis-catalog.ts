@@ -179,6 +179,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  convaxNotices: 'application-private notice delivery leases over Remote — ../../packages/plugin-host/README.md owns configuration and behavior',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',
   webTerminals: 'client-side terminal view models — packages/api/terminal-controller/README.md owns the API',
   browserViews: 'client-side independent browser views — packages/client/ui-sidebar-browser/README.md owns the API',
