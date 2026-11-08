@@ -55,6 +55,7 @@ import {
 import { LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
 import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
 import { parseSessionLog, prepareSessionSnapshotFixtureForComparison } from '@deepseek-ai/dsh-llm-replay'
+import type {} from '@deepseek-ai/dsh-tool-skill'
 import { bindingSchema, graphSchema, operationSchema, threadOperationSchema } from '../../../../packages/plugin-host/src/schema.ts'
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
@@ -499,6 +500,12 @@ const WORKTREE_CHECKOUT_FILTER = "printf 'FILTERED CHECKOUT CONTENT\\n'"
 const WORKTREE_CHECKOUT_ATTRIBUTES = 'tracked.txt filter=dsh-snapshot-checkout\n'
 
 const workspaceSetups: Record<string, (cwd: string) => Promise<void>> = {
+  async 'convax-skill'(cwd) {
+    // Load the packaged instructions from a cwd-owned root so resource paths remain portable in the transcript.
+    const target = join(cwd, '.dsh', 'skills', 'convax')
+    await mkdir(dirname(target), { recursive: true })
+    await cp(join(repoRoot, '../../packages/plugin-host/skills/convax'), target, { recursive: true })
+  },
   async 'windows-acl-skill'(cwd) {
     const target = join(cwd, '.dsh', 'skills', 'diagnose-windows-sandbox-acl', 'SKILL.md')
     await mkdir(dirname(target), { recursive: true })
@@ -756,6 +763,51 @@ async function verifyConvaxGraphTools(scenario: HeadlessScenario, cwd: string, l
     expect(threadOperationSchema.parse(JSON.parse(threadRow.value))).toMatchObject({ phase: 'bound', sessionId: log.header.id })
   } finally {
     database.close()
+  }
+}
+
+/** Check workspace construction against the closed graph database and untouched source files. */
+async function verifyConvaxWorkspace(scenario: HeadlessScenario, cwd: string, log: SessionLog): Promise<void> {
+  const events = parseSessionLog(log.content)
+  expect(events.flatMap(event => event.type === 'tool/call' ? [event.data.name] : []))
+    .toEqual(['skill', 'read', 'convax_graph', 'convax_commit', 'convax_graph'])
+  const results = events.flatMap(event => event.type === 'tool/result' ? [event.data.message] : [])
+  expect(results).toHaveLength(5)
+  expect(results.every(result => result.isError === false)).toBe(true)
+  const catalog = events.find(event => event.type === 'user/message' && event.data.source.kind === 'skill-catalog')
+  expect(catalog?.type === 'user/message' ? catalog.data.source : null).toMatchObject({
+    entries: expect.arrayContaining([expect.objectContaining({ name: 'convax' })]),
+  })
+  const context = events.find(event => event.type === 'user/message' && event.data.source.kind === 'runtime-context')
+  const contextText = context?.type === 'user/message'
+    ? context.data.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') : ''
+  expect(contextText).toContain('Convax Chat identity:')
+  expect(contextText).toContain(`"sessionId":"${String(log.header.id)}"`)
+  expect(contextText).toContain('"canvasId":"graph-canvas"')
+  const final = results[4]?.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('')
+  if (final === undefined) throw new Error('Convax final graph read is absent')
+  expect(JSON.parse(final)).toMatchObject({
+    revision: 4, projection: { chats: true, completeChats: true },
+    chats: [{ nodeId: 'graph-chat', threads: [{ sessionId: log.header.id }] }],
+  })
+  const database = new DatabaseSync(join(cwd, '.dsh', 'storages', 'convax-canvas.sqlite'), { readOnly: true })
+  try {
+    const row = database.prepare('SELECT value FROM unit_globals WHERE unit = ?').get('convax')
+    if (typeof row?.value !== 'string') throw new Error('Convax workspace graph is absent')
+    const graph = graphSchema.parse(JSON.parse(row.value))
+    const stable = JSON.parse(JSON.stringify(graph).replaceAll(await realpath(cwd), '{{cwd}}').replaceAll(cwd, '{{cwd}}'))
+    expect(stable).toEqual(JSON.parse(await readFile(join(scenario.dir, 'graph.expected.json'), 'utf8')))
+    const bindings = database.prepare('SELECT key, value FROM u_convax_bindings').all()
+    expect(bindings).toHaveLength(1)
+    expect(bindings[0]?.key).toBe(log.header.id)
+    const binding = bindings[0]?.value
+    if (typeof binding !== 'string') throw new Error('Convax workspace Session binding is absent')
+    expect(bindingSchema.parse(JSON.parse(binding))).toMatchObject({ nodeId: 'graph-chat', sessionId: log.header.id })
+    const receipts = database.prepare('SELECT key FROM u_convax_operations ORDER BY key').all()
+    expect(receipts.map(receipt => receipt.key)).toEqual(['atlas-build', 'seed-canvas', 'seed-chat'])
+  } finally { database.close() }
+  for (const file of ['reference.txt', 'design.md']) {
+    expect(await readFile(join(cwd, file), 'utf8')).toBe(await readFile(join(scenario.dir, 'workspace', file), 'utf8'))
   }
 }
 
@@ -1424,6 +1476,7 @@ describe('headless recorded-session snapshots', () => {
             if (scenario.name === 'convax-graph-tools' || scenario.name === 'convax-graph-commit') {
               await verifyConvaxGraphTools(scenario, cwd, actualLogs[0]!)
             }
+            if (scenario.name === 'convax-workspace') await verifyConvaxWorkspace(scenario, cwd, actualLogs[0]!)
             if (scenario.name === 'session-query-spill') {
               await verifySessionQuerySpill(actualLogs[0]!.content, spillRoot, locatorRoot)
             }

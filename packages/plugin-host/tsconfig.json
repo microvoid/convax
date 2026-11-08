@@ -33,6 +33,9 @@
       "path": "../../libs/dsh/packages/core/agent"
     },
     {
+      "path": "../../libs/dsh/packages/core/system-prompt"
+    },
+    {
       "path": "../../libs/dsh/packages/core/session"
     },
     {

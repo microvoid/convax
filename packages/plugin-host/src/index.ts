@@ -22,6 +22,8 @@ import type { CanvasSessionOperations, CanvasDeliveryOperations } from './node-o
 import { CanvasMigrationCoordinator } from './migrations.ts'
 import { registerCanvasTools } from './tools.ts'
 import { registerGraphTools } from './graph-tools.ts'
+import { registerChatTools } from './chat-tools.ts'
+import { registerCanvasChatContext } from './chat-context.ts'
 import { registerConvaxDevelopment } from './development.ts'
 import { CanvasDatabase } from './database.ts'
 import { CanvasWorkingDirectories } from './directories.ts'
@@ -620,6 +622,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const repository = new CanvasRepository(domain, registry, reportObserverFailure)
   const integrations: HostIntegrations = { directories: new CanvasWorkingDirectories(ctx, domain, repository, config.canvasDirectoryRoot) }
   const service = new ConvaxHost(ctx, repository, config, integrations)
+  registerCanvasChatContext(ctx, repository)
   resources.service = service
   const mediaResponses = new Set<CanvasMediaResponses>()
   integrations.media = async () => { await Promise.all([...mediaResponses].map(responses => responses.close())) }
@@ -641,5 +644,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   await migrations.start()
   registerCanvasTools(ctx, service)
   registerGraphTools(ctx, service)
+  registerChatTools(ctx, service)
   registerConvaxNotices(ctx, config.databasePath, config.notices)
 }

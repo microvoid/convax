@@ -4,23 +4,26 @@ English | [中文](convax-graph-tools.md)
 
 ## 概述
 
-使用 `convax_graph` 发现已保存的图及提供方 schema，再通过 `convax_commit` 提交有序编辑。这两个工具属于 Convax Host，renderer 停用后仍然可用。Session 消息和源文件仍由 DSH 与文件系统持有。
+使用 `convax_graph` 发现已保存的图、Chat thread 及提供方 schema，通过 `convax_commit` 提交有序图编辑，通过 `convax_chat` 准备原生对话。这些工具属于 Convax Host，renderer 停用后仍然可用。Session 消息和源文件仍由 DSH 与文件系统持有。
 
 ## 目录
 
 - [读取](#read)
 - [提交](#commit)
+- [Chat thread](#chat-threads)
 - [历史与恢复](#history)
 - [提供方与布局集成](#providers)
 
 <a id="read"></a>
 ## 读取
 
-省略 `canvasId` 时使用调用 Session 的 Chat 绑定。未绑定的 Session 可以列出画布和检查提供方，读取节点、连线或分组需要显式目标。结果描述已保存状态，与打开的 tab、视口和选中状态无关。
+省略 `canvasId` 时使用调用 Session 的 Chat 绑定。未绑定的 Session 可以列出画布和检查提供方，读取节点、连线、分组或 Chat 需要显式目标。结果描述已保存状态，与打开的 tab、视口和选中状态无关。
 
-默认响应包含画布摘要，以及目标身份、标题和修订号。`include` 选择 `canvases`、`nodes`、`connections`、`groups`、`nodeTypes` 和 `issues`。未请求的集合不出现，不表示空集合。`projection` 字段声明包含范围与完整性。
+默认响应包含画布摘要，以及目标身份、标题和修订号。`include` 选择 `canvases`、`nodes`、`connections`、`groups`、`chats`、`nodeTypes` 和 `issues`。未请求的集合不出现，不表示空集合。`projection` 字段声明包含范围与完整性。
 
 `selection.nodeIds`、`selection.typeIds` 与 `selection.groupIds` 取交集。分组筛选选择成员节点，请求的 `groups` 返回结果选区涉及分组的身份、标题及可选的色板颜色。节点的 `groupId` 字段暴露成员归属，所有位置均使用世界坐标。连线的两个端点必须都在该节点集合内。`selection.connectionIds` 进一步筛选连线及端点；`selection.incidentTo` 选择触及指定节点的边、端点及指定节点。`fields.nodes` 与 `fields.connections` 选择记录字段，始终保留 `id`。文件数据包含路径，不包含内容。
+
+请求的 `chats` 包含最终选中节点的 Chat 身份、目录、thread 的 Session 身份和生命周期问题，不加载对话消息。仅当读取已有目标画布的完整、未筛选 Chat 集合时，`projection.completeChats` 才为 true。
 
 ```json
 {"include":["nodes","connections","nodeTypes"],"selection":{"incidentTo":["note"]},"fields":{"nodes":["typeId","data","revision"]}}
@@ -54,6 +57,15 @@ English | [中文](convax-graph-tools.md)
 图校验失败不发布任何修改，也不消耗重试身份。成功时原子提交图、一条回执和一条历史，并只推进一次画布修订号。回执包含 `ok`、`canvasId`、`operationId`、`revision` 及可空 `error`；错误包含稳定的 `code`、`message`，单项失败还返回从零开始的 `opIndex`。回执不返回整张图。
 
 重试时复用操作身份及完全相同的参数，包括原预期修订号。持久回执可在重启或源文件移除后避免重复编辑。相同身份对应不同请求会被拒绝。冲突后重新读取，再为修改后的请求分配新身份。画布移除后回执仍保留修订号，供显式历史请求及丢失回执后的重试使用。
+
+<a id="chat-threads"></a>
+## Chat thread
+
+`convax_chat` 复用原生 Session 协调器。`create-thread` 在已有 Chat 中创建独立 thread，可用 `cwd` 和 `agentPreset` 选择目录与预设。`fork-thread` 接受 `sourceSessionId` 和可选的 `atSeq`，继承来源目录、预设和事件前缀。`open-session` 使用保留的新 `nodeId` 和 `position`，将已有 `sessionId` 放到画布上；已绑定的 Session 返回实际位置，包括其他画布上的位置。
+
+所有动作都要求 `expectedRevision`。省略 `canvasId` 时使用调用 Chat 的画布。创建与分叉可省略 `nodeId`，使用同一 Chat，并且必须提供 `operationId`。结果不确定时，保留完全相同的请求重试。放置操作不接受 `operationId`，重试时复用保留的放置请求。回执包含动作、画布与节点身份、可空的 Session 与操作身份、结果修订号及可空错误；成功的放置操作报告实际 Chat 位置。
+
+创建 Chat 节点不等于准备 thread。这些动作不会发送提示词、启动 agent（智能体）、选择可见 thread 或插入输入框引用。已接纳的原生操作可能在取消后完成；分配其他身份前，应读取当前 Chat 状态或重试相同请求。待完成结果保留可恢复工作，不代表 thread 已确认创建。
 
 <a id="history"></a>
 ## 历史与恢复

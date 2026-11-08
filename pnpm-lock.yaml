@@ -17997,6 +17997,9 @@ importers:
       '@deepseek-ai/dsh-storage-sqlite':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/storage/storage-sqlite
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../libs/dsh/packages/core/system-prompt
       '@deepseek-ai/dsh-tool-present':
         specifier: workspace:*
         version: link:../../libs/dsh/packages/deliverables/tool-present

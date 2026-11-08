@@ -51,12 +51,12 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
   ctx.tools.register(defineTool({
     name: 'convax_graph', presentCall: () => ({ card: 'generic', title: 'Read canvas graph' }),
     description: 'Read saved Convax state, independent of open views. By default return canvas summaries and the bound Chat canvas identity/revision. '
-      + 'Request include collections explicitly: nodes, connections, groups, nodeTypes or issues. Groups organize nodes through groupId; all node positions are world coordinates. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. '
+      + 'Request include collections explicitly: nodes, connections, groups, chats, nodeTypes or issues. Chats describe project directories, thread identities and lifecycle issues; messages remain in their Sessions. Groups organize nodes through groupId; all node positions are world coordinates. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. '
       + 'Select nodes by IDs/types, connections by IDs, or incidentTo nodes and their one-hop endpoints. Node/type filters intersect; connections form an induced subgraph. '
       + 'Field projection always retains object IDs. Omitted collections are not empty collections. File records contain paths, not file contents.',
     parameters: {
       canvasId: { type: 'string', description: 'Omit for this Session Chat canvas. Unbound Sessions receive workspace summaries.' },
-      include: { type: 'array', items: { type: 'string', enum: ['canvases', 'nodes', 'connections', 'groups', 'nodeTypes', 'issues'] } },
+      include: { type: 'array', items: { type: 'string', enum: ['canvases', 'nodes', 'connections', 'groups', 'chats', 'nodeTypes', 'issues'] } },
       selection: { type: 'object', additionalProperties: false, properties: {
         nodeIds: identityList, typeIds: identityList, connectionIds: identityList, incidentTo: identityList, groupIds: identityList,
       } },
@@ -70,8 +70,8 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
     execute(args, exec) {
       exec.signal.throwIfAborted()
       const canvasId = canvasTarget(host, exec, args.canvasId)
-      if (canvasId === null && args.include?.some(collection => collection === 'nodes' || collection === 'connections' || collection === 'groups')) {
-        throw new Error('An explicit canvasId is required to read nodes, connections or groups from an unbound Session')
+      if (canvasId === null && args.include?.some(collection => collection === 'nodes' || collection === 'connections' || collection === 'groups' || collection === 'chats')) {
+        throw new Error('An explicit canvasId is required to read nodes, connections, groups or chats from an unbound Session')
       }
       const selection = args.selection
       const graph = projectCanvasGraph(host.workspace(), canvasId, {

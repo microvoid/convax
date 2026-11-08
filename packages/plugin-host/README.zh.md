@@ -27,7 +27,9 @@ kind: "package-reference"
 
 通过 [Convax 产品组合](../plugin-renderer/cordis.patch.yml)挂载 Host。Convax 独占配置的应用 home 下的 `storages/convax-canvas.sqlite`，DSH 保留已有存储路由。画布 Host 需要文件系统、工具与 Remote 访问控制服务。独立的[默认节点 Host](../plugin-inernal-nodes-host/README.zh.md)提供文件、文件夹、Chat、窗口定义及原生 Session 协调。Renderer 启用独立于两个 Host 插件。移除节点提供方会保留已存节点、连线与 Session 归属，依赖提供方的操作则暂不可用。
 
-存在 DSH 技能注册表时，本 Host 通过已有文件系统技能提供方暴露打包的 [Convax 开发技能](skills/convax-plugin-development/SKILL.md)。结合原有 Creator 工作流，将可运行的[画布笔记 Bundle](templates/canvas-note/README.zh.md)复制到工作区，再通过 Plugin Manager 安装。模板属于纯画布能力，没有 Convax 时可加载，但不提供原生笔记视图。Host API 发布为公开的 `lib/types/index.d.ts`；Client 节点 API 由 renderer 的公开 `./client` 声明提供。这些可选注册不依赖静态中央目录。
+存在 DSH skill（技能）注册表时，本 Host 通过已有文件系统 skill 提供方暴露打包的 [Convax 用户 skill](skills/convax/SKILL.md) 和 [Convax 开发 skill](skills/convax-plugin-development/SKILL.md)。用户 skill 指导项目工作区搭建、资源使用、Chat 准备、图编辑和文件交付；仅为当前请求加载相应工作流的补充指引。
+
+结合开发 skill 与原有 Creator 工作流，将可运行的[画布笔记 Bundle](templates/canvas-note/README.zh.md)复制到工作区，再通过 Plugin Manager 安装。模板属于纯画布能力，没有 Convax 时可加载，但不提供原生笔记视图。Host API 发布为公开的 `lib/types/index.d.ts`；Client 节点 API 由 renderer 的公开 `./client` 声明提供。这些可选注册不依赖静态中央目录。
 
 新画布在 `canvasDirectoryRoot` 下获得本机工作目录，默认根目录为 `~/Documents/convax`。目录名使用稳定的画布身份，因此重命名或归档画布不会移动目录。`ensureCanvasDirectory` 返回可用的绝对路径；旧画布在首次请求时补建目录。已有分配不随配置变化而改变。目录准备先于图创建，包括图工具批量创建和画布复制。失败的创建可能保留空目录分配，但目录准备失败时不会发布新画布。Host 使用组合的文件系统校验本机目录；不兼容或访问被拒绝时明确报错，不替换为其他路径。
 
@@ -119,6 +121,20 @@ Host 专用 `convaxDeliveries` Session 投影归约明确的 `deliverables/prese
 <a id="model-experience"></a>
 ## 模型体验
 
+### 绑定 Chat 的上下文与 skill
+
+#### 模型看到的内容
+
+已绑定的 Chat 提供以 `Convax Chat identity:` 开头的运行时快照，其中包含画布、Chat 与 Session 身份及 Session 的项目目录，并将 Convax 任务路由到 `convax` skill。未绑定、已移除和删除中的 Chat 不提供身份信息。快照不包含图、资源内容、窗口选区、视口或实测卡片尺寸。当前执行目录仍由 DSH 已有的工作目录上下文持有。
+
+#### Token 影响
+
+简短的身份与路由文本进入原生运行时上下文。skill 目录发布用户与开发 skill 摘要；完整说明和补充资源按需加载。
+
+#### KV Cache 影响
+
+身份通过运行时上下文传递，不进入可复用的系统指令。绑定变化沿用 DSH 的运行时上下文快照替换，不重写此前的用户消息。
+
 ### 显式输入框引用
 
 #### 模型看到的内容
@@ -127,21 +143,21 @@ Host 专用 `convaxDeliveries` Session 投影归约明确的 `deliverables/prese
 
 #### Token 影响
 
-引用文本通过普通原生消息计入 token。Host 不为每次发送附加图上下文文本。
+引用文本通过普通原生消息计入 token。Host 不会隐式附加文件内容或完整图。
 
 #### KV Cache 影响
 
 原生消息历史决定请求前缀。修改连线不会重写已接纳消息，也不会向后续消息插入新上下文。
 
-### Canvas 图工具
+### 画布与 Chat 工具
 
 #### 模型看到的内容
 
-Host 通过 `convax_graph` 提供选择性读取与提供方 schema，通过 `convax_commit` 提供有序语义编辑。成功批次只推进一次画布修订号，并记录一条回执和一条历史。旧五个工具保留兼容。[图工具参考](../../libs/dsh/docs/subsystems/convax-graph-tools.zh.md) 定义选择器、操作、版本条件及生命周期恢复。工具注册与默认 Session 到 Chat 的目标解析独立于 renderer。
+Host 通过 `convax_graph` 提供图及 Chat/thread 的选择性读取，通过 `convax_commit` 提供有序语义编辑，通过 `convax_chat` 创建或分叉 thread，以及放置已有 Session。Chat 准备不会发送消息、启动 agent 或插入输入框引用。成功的图批次只推进一次画布修订号，并记录一条回执和一条历史。旧五个工具保留兼容。[图工具参考](../../libs/dsh/docs/subsystems/convax-graph-tools.zh.md) 定义选择器、操作、版本条件及生命周期恢复。工具注册与默认 Session 到 Chat 的目标解析独立于 renderer。
 
 #### Token 影响
 
-Host 启用时，两个通用工具及五个旧工具 schema 加入工具集。存在技能注册表时，标准技能目录提供 Convax 开发摘要，加载时才读取完整说明。通用读取只返回请求的集合与字段；提交回执包含身份、结果修订号及适用时的明确拒绝。旧编辑回执保留目标图。调用及渲染后的 JSON 进入普通 Session 历史，不复制源文件内容。
+Host 启用时，三个主要工具及五个旧工具 schema 加入工具集。通用读取只返回请求的集合与字段；Chat/thread 状态仅在 `include: ["chats"]` 时出现。图提交与 Chat 准备的回执包含身份、结果修订号及适用时的明确拒绝。旧编辑回执保留目标图。调用及渲染后的 JSON 进入普通 Session 历史，不复制源文件内容。
 
 #### KV Cache 影响
 

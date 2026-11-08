@@ -18,7 +18,7 @@ import type { CanvasCommand, CanvasId, CanvasNodeId, CanvasNodeTypeId, CanvasOpe
 const canvasId = 'canvas-a' as CanvasId
 const otherCanvasId = 'canvas-b' as CanvasId
 const chatId = 'chat-a' as CanvasNodeId
-const toolNames = ['convax_graph', 'convax_commit', 'convax_query_canvases', 'convax_add_file', 'convax_connect', 'convax_move_nodes', 'convax_arrange_nodes']
+const toolNames = ['convax_graph', 'convax_commit', 'convax_chat', 'convax_query_canvases', 'convax_add_file', 'convax_connect', 'convax_move_nodes', 'convax_arrange_nodes']
 const cleanups: Array<() => Promise<unknown>> = []
 afterEach(async () => {
   vi.restoreAllMocks()
@@ -138,6 +138,12 @@ describe('Convax graph tools', () => {
     expect(types.value).toHaveProperty('nodeTypes.0.dataSchema.required', ['path'])
     expect(types.value).toHaveProperty('nodeTypes.0.dataSchema.properties.path.type', 'string')
     expect(types.value).not.toHaveProperty('canvases')
+    expect((await f.invoke('convax_graph', { include: ['chats'] }, { agent: f.outsider })).isError).toBe(true)
+    const explicitChats = await f.invoke('convax_graph', { canvasId, include: ['chats'] }, { agent: f.outsider })
+    expect(explicitChats.isError).toBe(false)
+    expect(explicitChats.value).toMatchObject({ chats: [{ nodeId: chatId, threads: [{ sessionId: f.owner.id }] }],
+      projection: { chats: true, completeChats: true },
+    })
   })
 
   it('uses a third-party resource provider through the same public capability after default nodes are disabled', async () => {

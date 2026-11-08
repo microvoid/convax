@@ -1,11 +1,11 @@
-/** Packaged Convax authoring resources delivered through the existing DSH skill provider. */
+/** Packaged Convax user and authoring skills delivered through the DSH skill provider. */
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import * as SkillFilesystem from '@deepseek-ai/dsh-skill-filesystem'
 import type {} from '@deepseek-ai/dsh-skill'
 
 /**
- * Add the packaged development skill while the existing skill registry is available.
+ * Add packaged canvas-operation and plugin-development skills while the registry is available.
  * @param ctx - Convax Host lifetime; skill and provider effects disappear with it.
  */
 export function registerConvaxDevelopment(ctx: Context): void {

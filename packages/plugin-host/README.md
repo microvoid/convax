@@ -27,7 +27,9 @@ Save multiple canvases containing references to files and folders from different
 
 Mount this Host through the [Convax product composition](../plugin-renderer/cordis.patch.yml). Convax exclusively owns `storages/convax-canvas.sqlite` under the configured application home; DSH retains its existing storage routes. The canvas Host requires filesystem, tool, and Remote access services. The separate [default node Host](../plugin-inernal-nodes-host/README.md) supplies file, folder, Chat and window definitions and native Session coordination. Renderer activation is independent of both Host plugins. Removing node providers preserves stored nodes, connections and Session ownership, while provider-dependent actions become unavailable.
 
-When DSH's skill registry is present, this Host exposes the packaged [Convax development skill](skills/convax-plugin-development/SKILL.md) through the existing filesystem skill provider. Use it alongside the original Creator workflow to copy the runnable [canvas note bundle](templates/canvas-note/README.md) into a workspace and install it through Plugin Manager. The template is canvas-only; it loads without Convax but supplies no native note view. Host APIs ship as public `lib/types/index.d.ts`; Client node APIs ship from the renderer's public `./client` declarations. Static central catalogs are not required for these optional registrations.
+When DSH's skill registry is present, this Host exposes the packaged [Convax user skill](skills/convax/SKILL.md) and [Convax development skill](skills/convax-plugin-development/SKILL.md) through the existing filesystem skill provider. The user skill guides project workspace construction, resource use, Chat preparation, graph editing and file delivery; its supporting guidance loads only for the requested workflow.
+
+Use the development skill alongside the original Creator workflow to copy the runnable [canvas note bundle](templates/canvas-note/README.md) into a workspace and install it through Plugin Manager. The template is canvas-only; it loads without Convax but supplies no native note view. Host APIs ship as public `lib/types/index.d.ts`; Client node APIs ship from the renderer's public `./client` declarations. Static central catalogs are not required for these optional registrations.
 
 New canvases receive a local working directory beneath `canvasDirectoryRoot`, which defaults to `~/Documents/convax`. The directory name uses the stable canvas identity, so renaming or archiving a canvas does not move it. `ensureCanvasDirectory` returns its usable absolute path; earlier canvases receive one when first requested. Existing assignments survive configuration changes. Directory creation precedes graph creation, including graph-tool batches and canvas copies. A failed creation can retain an empty directory reservation, but never publishes a canvas whose directory preparation failed. The Host validates local directories through the composed filesystem and reports incompatible or denied access instead of substituting another path.
 
@@ -119,6 +121,20 @@ The Host-only `convaxDeliveries` Session projection folds explicit `deliverables
 <a id="model-experience"></a>
 ## Model Experience
 
+### Bound Chat context and skills
+
+#### What the model sees
+
+A bound Chat contributes a runtime snapshot beginning with `Convax Chat identity:`. It contains the canvas, Chat and Session identities and the Session's project directory, and routes Convax tasks to the `convax` skill. Unbound, removed and deleting Chats contribute no identity. The snapshot contains no graph, resource contents, window selection, viewport or measured card sizes. The existing DSH working-directory context owns the current execution directory.
+
+#### Token effect
+
+The small identity and routing text enters native runtime context. The skill catalog publishes user and development skill summaries; full instructions and supporting resources load on demand.
+
+#### KV Cache effect
+
+Identity travels as runtime context rather than reusable system instructions. Binding changes follow DSH's runtime-context snapshot replacement without rewriting earlier user messages.
+
 ### Explicit composer references
 
 #### What the model sees
@@ -127,21 +143,21 @@ The model receives the native user message, including any file or folder referen
 
 #### Token effect
 
-Reference text contributes tokens through the ordinary native message. The Host adds no per-send graph-context text.
+Reference text contributes tokens through the ordinary native message. The Host does not implicitly append file contents or the complete graph.
 
 #### KV Cache effect
 
 Native message history determines the request prefix. Changing an edge does not rewrite an admitted message or insert new context into later messages.
 
-### Canvas graph tools
+### Canvas and Chat tools
 
 #### What the model sees
 
-The Host exposes `convax_graph` for selected reads and provider schemas, and `convax_commit` for ordered semantic edits. One successful batch advances its canvas once, with one receipt and one history entry. The five legacy tools remain compatible. The [graph-tool reference](../../libs/dsh/docs/subsystems/convax-graph-tools.md) defines selectors, operations, revision guards and lifecycle recovery. Tool registration and default Session-to-Chat targeting work independently of the renderer.
+The Host exposes `convax_graph` for selected graph and Chat/thread reads, `convax_commit` for ordered semantic edits, and `convax_chat` for creating or forking threads and placing existing Sessions. Chat preparation does not send messages, start an Agent or insert composer references. One successful graph batch advances its canvas once, with one receipt and one history entry. The five legacy tools remain compatible. The [graph-tool reference](../../libs/dsh/docs/subsystems/convax-graph-tools.md) defines selectors, operations, revision guards and lifecycle recovery. Tool registration and default Session-to-Chat targeting work independently of the renderer.
 
 #### Token effect
 
-The two generic and five legacy tool schemas join the registered tool set while the Host is active. The standard skill catalog also exposes the Convax development summary when its registry is present; full instructions are read when loaded. Generic reads include only requested collections and fields; commit replies contain identities, the resulting revision and an explicit rejection when applicable. Legacy edit replies retain the target graph. Calls and rendered JSON enter ordinary Session history without copying source-file contents.
+The three primary and five legacy tool schemas join the registered tool set while the Host is active. Generic reads include only requested collections and fields; Chat/thread state appears only with `include: ["chats"]`. Graph commit and Chat preparation replies contain identities, the resulting revision and an explicit rejection when applicable. Legacy edit replies retain the target graph. Calls and rendered JSON enter ordinary Session history without copying source-file contents.
 
 #### KV Cache effect
 

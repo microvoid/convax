@@ -48,7 +48,7 @@ Host 通过 `convax_graph` 提供选择性读取和提供方 schema，通过 `co
 
 ## 插件编写
 
-Host 在 `skills` 可用时可选挂载 DSH 已有文件系统 skill 提供方。其 `convax-development` 提供方暴露随包[开发 skill](../../../../packages/plugin-host/skills/convax-plugin-development/SKILL.md)，并随 Host 注销。[canvas-note 模板](../../../../packages/plugin-host/templates/canvas-note)使用普通 bundle 安装、可选节点适配和显式创建工具，不提供原生笔记 UI 或创建工具栏贡献。中央 Creator 资产和 DSH 发现协议保持不变。
+Host 在 `skills` 可用时可选挂载 DSH 已有文件系统 skill 提供方。其 `convax-development` 提供方同时暴露面向画布、资源、Chat 和交付工作流的随包[用户 skill](../../../../packages/plugin-host/skills/convax/SKILL.md)，以及面向插件编写的[开发 skill](../../../../packages/plugin-host/skills/convax-plugin-development/SKILL.md)；两者均随 Host 注销。[canvas-note 模板](../../../../packages/plugin-host/templates/canvas-note)使用普通 bundle 安装、可选节点适配和显式创建工具，不提供原生笔记 UI 或创建工具栏贡献。中央 Creator 资产和 DSH 发现协议保持不变。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

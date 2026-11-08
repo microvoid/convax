@@ -147,3 +147,13 @@ git show --no-patch --format=fuller f6dcd88e4a4060454892fab0117587f2682feac4
 | 根 staged pairing hook 的临时 index 验证 | 根 README、根 packages README 和 DSH README 均通过；篡改暂存配对记录会被拒绝，真实 index 不受影响 |
 
 真实 API 测试仍使用根 `.env` 中的 `DEEPSEEK_API_KEY`；本次浏览器 E2E 使用 `DSH_SNAPSHOT=replay`，不代表真实 API 调用验证。本次目录迁移没有把凭据写入文档或测试 fixture。
+
+## Convax Chat 与 skill 集成
+
+2026-11-08 的集成由根 `packages/plugin-host` 持有：随包 `convax` 用户 skill 指导画布、资源、Chat 和交付工作流，`convax-plugin-development` 继续负责插件编写。两者复用 DSH 的技能目录、按需加载与显式调用，不建立另一套技能发现或安装协议。
+
+绑定 Chat 通过 DSH 的 `systemPrompt.context` 提供画布、Chat、Session 身份及项目目录。图和资源内容仍按需读取；当前窗口选区、视口与卡片尺寸不从绑定推断。升级时保留 Host 对 `@deepseek-ai/dsh-system-prompt` 的依赖、项目引用和生命周期注册。
+
+`convax_graph` 的显式 `chats` 集合提供选定图中的 thread 与 Session 身份；`convax_chat` 将创建 thread、分叉 thread 和放置已有 Session 接到原生协调器。准备对话不发送消息、不启动 agent，也不插入输入框引用。成果继续由原生 `present` 记录明确交付，再由已有 Convax 交付投影生成输出卡片和连线。工具约定见[Convax 图工具](dsh/docs/subsystems/convax-graph-tools.zh.md)。
+
+本次集成沿用已有画布存储、Session 格式、预设、消息发送及交付恢复协议；升级不应将这些能力替换为直接编辑数据库、重建 Session 或重放任务的路径。

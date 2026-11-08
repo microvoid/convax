@@ -15,8 +15,8 @@
   en: d152484eb41ac6b4
   zh: 1db86285abf6c499
 /deepseek-ai-dsh-convax-plugin-host/use-this-package:
-  en: bf2242d2afa69124
-  zh: 79cf8737767ae35b
+  en: 75400430991897fb
+  zh: 75c77dc9026428db
 /deepseek-ai-dsh-convax-plugin-host/use-this-package/client-notices:
   en: 170e99a56bb7b69c
   zh: 9294fba737d0c70d
@@ -29,6 +29,18 @@
 /deepseek-ai-dsh-convax-plugin-host/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
+/deepseek-ai-dsh-convax-plugin-host/model-experience/bound-chat-context-and-skills:
+  en: 10ec85f6513c05f5
+  zh: 497dfa43b1a78b99
+/deepseek-ai-dsh-convax-plugin-host/model-experience/bound-chat-context-and-skills/what-the-model-sees:
+  en: 442fba7adabfb24c
+  zh: 6fe6f23f061d69fc
+/deepseek-ai-dsh-convax-plugin-host/model-experience/bound-chat-context-and-skills/token-effect:
+  en: 652bda9480cfa126
+  zh: 566036ccdb5ae598
+/deepseek-ai-dsh-convax-plugin-host/model-experience/bound-chat-context-and-skills/kv-cache-effect:
+  en: e4bf2ca719565ea0
+  zh: a6cf61fb7548dfa6
 /deepseek-ai-dsh-convax-plugin-host/model-experience/explicit-composer-references:
   en: 725961d32486bb5b
   zh: aed2eeb600e29ce8
@@ -36,21 +48,21 @@
   en: 4fc152803f0032cf
   zh: 582cd07620b247a1
 /deepseek-ai-dsh-convax-plugin-host/model-experience/explicit-composer-references/token-effect:
-  en: d1a34281cb41adda
-  zh: e7671893e539c80c
+  en: 0fac24eb4dc0a59f
+  zh: ed8246524f3b16d9
 /deepseek-ai-dsh-convax-plugin-host/model-experience/explicit-composer-references/kv-cache-effect:
   en: 49046a3c53cd00f2
   zh: 2013d416c5d34169
-/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools:
-  en: f933976f95c2273c
-  zh: 075744ca1a499508
-/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools/what-the-model-sees:
-  en: a7076b48ec884778
-  zh: 7290e5e6f5f15111
-/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools/token-effect:
-  en: 04bd743c68cb6e65
-  zh: a4ec833cac614d78
-/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-graph-tools/kv-cache-effect:
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-and-chat-tools:
+  en: 75224592a7f01ca3
+  zh: 836cc15bc2b54c85
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-and-chat-tools/what-the-model-sees:
+  en: a8331ab7e00b61b8
+  zh: d5ed238d059235b4
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-and-chat-tools/token-effect:
+  en: 7c6c05a26149c7f6
+  zh: ea2844efddf5dd40
+/deepseek-ai-dsh-convax-plugin-host/model-experience/canvas-and-chat-tools/kv-cache-effect:
   en: 77985be3002e7fc9
   zh: 87c19809786dc4e0
 /deepseek-ai-dsh-convax-plugin-host/known-limitations-and-deferred-work:

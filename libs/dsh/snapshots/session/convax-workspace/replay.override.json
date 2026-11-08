@@ -1,0 +1,47 @@
+{
+  "patches": [
+    {
+      "at": 3,
+      "entry": {
+        "kind": "chunks",
+        "chunks": [
+          {
+            "type": "block-start",
+            "index": 0,
+            "blockType": "tool-call"
+          },
+          {
+            "type": "tool-call-delta",
+            "index": 0,
+            "id": "workspace-call-4",
+            "name": "convax_commit",
+            "argumentsDelta": "{\"expectedRevision\":3,\"operationId\":\"atlas-build\",\"ops\":[{\"op\":\"group.add\",\"id\":\"atlas-project\",\"title\":\"Atlas project\"},{\"op\":\"node.add\",\"id\":\"atlas-requirements\",\"typeId\":\"convax.file\",\"dataVersion\":1,\"data\":{\"path\":\"{{fromRequest:Current working directory: \"([^\"]+)\"}}/reference.txt\"},\"position\":{\"x\":-400,\"y\":0},\"groupId\":\"atlas-project\"},{\"op\":\"node.add\",\"id\":\"atlas-design\",\"typeId\":\"convax.file\",\"dataVersion\":1,\"data\":{\"path\":\"{{fromRequest:Current working directory: \"([^\"]+)\"}}/design.md\"},\"position\":{\"x\":-400,\"y\":240},\"groupId\":\"atlas-project\"},{\"op\":\"node.set\",\"id\":\"graph-chat\",\"groupId\":\"atlas-project\"},{\"op\":\"edge.add\",\"id\":\"atlas-requirements-input\",\"source\":\"atlas-requirements\",\"sourcePort\":\"output\",\"target\":\"graph-chat\",\"targetPort\":\"input\",\"purpose\":\"input\"},{\"op\":\"edge.add\",\"id\":\"atlas-design-input\",\"source\":\"atlas-design\",\"sourcePort\":\"output\",\"target\":\"graph-chat\",\"targetPort\":\"input\",\"purpose\":\"input\"}]}"
+          },
+          {
+            "type": "block-end",
+            "index": 0,
+            "block": {
+              "type": "tool-call",
+              "id": "workspace-call-4",
+              "name": "convax_commit",
+              "arguments": "{\"expectedRevision\":3,\"operationId\":\"atlas-build\",\"ops\":[{\"op\":\"group.add\",\"id\":\"atlas-project\",\"title\":\"Atlas project\"},{\"op\":\"node.add\",\"id\":\"atlas-requirements\",\"typeId\":\"convax.file\",\"dataVersion\":1,\"data\":{\"path\":\"{{fromRequest:Current working directory: \"([^\"]+)\"}}/reference.txt\"},\"position\":{\"x\":-400,\"y\":0},\"groupId\":\"atlas-project\"},{\"op\":\"node.add\",\"id\":\"atlas-design\",\"typeId\":\"convax.file\",\"dataVersion\":1,\"data\":{\"path\":\"{{fromRequest:Current working directory: \"([^\"]+)\"}}/design.md\"},\"position\":{\"x\":-400,\"y\":240},\"groupId\":\"atlas-project\"},{\"op\":\"node.set\",\"id\":\"graph-chat\",\"groupId\":\"atlas-project\"},{\"op\":\"edge.add\",\"id\":\"atlas-requirements-input\",\"source\":\"atlas-requirements\",\"sourcePort\":\"output\",\"target\":\"graph-chat\",\"targetPort\":\"input\",\"purpose\":\"input\"},{\"op\":\"edge.add\",\"id\":\"atlas-design-input\",\"source\":\"atlas-design\",\"sourcePort\":\"output\",\"target\":\"graph-chat\",\"targetPort\":\"input\",\"purpose\":\"input\"}]}"
+            }
+          },
+          {
+            "type": "usage",
+            "usage": {
+              "inputTokens": 12,
+              "outputTokens": 3
+            }
+          },
+          {
+            "type": "finish",
+            "reason": {
+              "kind": "tool-calls"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

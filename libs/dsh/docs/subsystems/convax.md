@@ -48,7 +48,7 @@ The Host exposes selected reads and provider schemas through `convax_graph`, and
 
 ## Plugin authoring
 
-The Host optionally mounts DSH's existing filesystem skill provider when `skills` is available. Its `convax-development` provider exposes the packaged [development skill](../../../../packages/plugin-host/skills/convax-plugin-development/SKILL.md) and unregisters with the Host. The [canvas-note template](../../../../packages/plugin-host/templates/canvas-note) uses ordinary bundle installation, optional node adapters and an explicit creation tool; it supplies no native note UI or creation-dock contribution. The central Creator assets and DSH discovery protocol remain unchanged.
+The Host optionally mounts DSH's existing filesystem skill provider when `skills` is available. Its `convax-development` provider exposes the packaged [user skill](../../../../packages/plugin-host/skills/convax/SKILL.md) for canvas, resource, Chat and delivery workflows, alongside the [development skill](../../../../packages/plugin-host/skills/convax-plugin-development/SKILL.md) for plugin authoring; both unregister with the Host. The [canvas-note template](../../../../packages/plugin-host/templates/canvas-note) uses ordinary bundle installation, optional node adapters and an explicit creation tool; it supplies no native note UI or creation-dock contribution. The central Creator assets and DSH discovery protocol remain unchanged.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

@@ -1,0 +1,58 @@
+{
+  "revision": 4,
+  "canvases": [
+    {
+      "id": "graph-canvas",
+      "title": "Graph tools",
+      "revision": 4,
+      "nodes": [
+        {
+          "id": "graph-chat",
+          "typeId": "convax.chat",
+          "dataVersion": 1,
+          "data": { "title": "Graph Chat", "cwd": "{{cwd}}" },
+          "position": { "x": 0, "y": 0 },
+          "revision": 2,
+          "groupId": "atlas-project"
+        },
+        {
+          "id": "atlas-requirements",
+          "typeId": "convax.file",
+          "dataVersion": 1,
+          "data": { "path": "{{cwd}}/reference.txt" },
+          "position": { "x": -400, "y": 0 },
+          "revision": 1,
+          "groupId": "atlas-project"
+        },
+        {
+          "id": "atlas-design",
+          "typeId": "convax.file",
+          "dataVersion": 1,
+          "data": { "path": "{{cwd}}/design.md" },
+          "position": { "x": -400, "y": 240 },
+          "revision": 1,
+          "groupId": "atlas-project"
+        }
+      ],
+      "connections": [
+        {
+          "id": "atlas-requirements-input",
+          "source": "atlas-requirements",
+          "sourcePort": "output",
+          "target": "graph-chat",
+          "targetPort": "input",
+          "purpose": "input"
+        },
+        {
+          "id": "atlas-design-input",
+          "source": "atlas-design",
+          "sourcePort": "output",
+          "target": "graph-chat",
+          "targetPort": "input",
+          "purpose": "input"
+        }
+      ],
+      "groups": [{ "id": "atlas-project", "title": "Atlas project" }]
+    }
+  ]
+}

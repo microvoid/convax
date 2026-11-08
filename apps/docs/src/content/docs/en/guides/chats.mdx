@@ -21,6 +21,18 @@ The composer mode selector uses installed DSH agent presets. You can change a bl
 
 Archiving a thread hides its tab while retaining its binding and graph connections. Restoring it returns the tab. If all threads are archived, the Chat prepares a new thread and composer.
 
+## Operate the workspace through Chat
+
+In a mode with skill support, the `convax` skill guides canvas operations. Ask naturally, or begin your request with `/convax` to load it explicitly. For example:
+
+- Build project cards and connections from these resources.
+- Analyze these files and deliver a report back to the canvas.
+- Prepare an independent conversation for each project.
+
+The Chat operates on its bound canvas by default, even when another canvas tab is visible. Name another canvas explicitly to target it. Saved graph information does not include the current selection, viewport, or actual card dimensions.
+
+Preparing a thread creates or forks a native conversation without sending its task. Choose the prepared thread and send a message to start work. When Chat explicitly delivers a file, Convax adds an output card and links it to the source Chat; writing a file or mentioning its path alone does not deliver it.
+
 ## Control message references
 
 Connect a resource's output to the Chat's input. The connection gesture adds one removable reference to the thread selected when that connection starts. Inspect the reference rail above the input text before sending.

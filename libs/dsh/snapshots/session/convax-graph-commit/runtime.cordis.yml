@@ -5,7 +5,7 @@
         databasePath: !!js dshHomePath('storages', 'convax-canvas.sqlite')
         legacyDatabasePath: !!js dshHomePath('storages', 'convax.sqlite')
         canvasDirectoryRoot: !!js dshHomePath('canvas-workspaces')
-    - id: convax-graph-tools-default-nodes
+    - id: convax-graph-tools-nodes
       name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-host'
     - id: convax-graph-tools-fixture
       name: '../../../../../packages/plugin-host/tests/fixtures/graph-tools.ts'

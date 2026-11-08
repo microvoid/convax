@@ -165,6 +165,80 @@
       }
     },
     {
+      "name": "convax_chat",
+      "description": "Create or fork one native DSH Session thread inside an existing Chat container, or place an existing Session on a canvas. Read chats with convax_graph before choosing targets. Omitted canvasId uses this Session's Chat canvas; omitted nodeId for create-thread or fork-thread uses this Session's Chat only on that same canvas. Creating a Chat node does not create a thread. These actions never send prompts, start an Agent, select a visible thread, or add composer references. create-thread uses the Chat directory unless cwd is explicit; agentPreset is optional. fork-thread inherits the source directory, preset and event prefix; cwd and agentPreset overrides are not accepted. For create-thread and fork-thread retain operationId and the identical complete request, including expectedRevision, when retrying an uncertain result. open-session requires sessionId, a retained new nodeId and position; it returns the Session's existing Chat if already bound, even on another canvas. It accepts no operationId: retain the same placement request for retries. An accepted native operation may finish after cancellation; inspect state or retry the same request rather than allocating another identity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "create-thread",
+              "fork-thread",
+              "open-session"
+            ]
+          },
+          "canvasId": {
+            "type": "string",
+            "description": "Target canvas; omit for this Session's bound canvas."
+          },
+          "nodeId": {
+            "type": "string",
+            "description": "Existing Chat for create-thread/fork-thread, or retained new Chat identity for open-session."
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "description": "Canvas revision returned by convax_graph. Preserve it on an identical retry."
+          },
+          "operationId": {
+            "type": "string",
+            "description": "Required unique retry identity for create-thread/fork-thread; omit for open-session."
+          },
+          "cwd": {
+            "type": "string",
+            "description": "create-thread only: existing project directory. Omit to use the Chat directory; this does not extend filesystem permissions."
+          },
+          "agentPreset": {
+            "type": "string",
+            "description": "create-thread only: installed DSH agent preset. Omit to resolve the configured default once."
+          },
+          "sourceSessionId": {
+            "type": "string",
+            "description": "fork-thread only: source DSH Session identity."
+          },
+          "atSeq": {
+            "type": "integer",
+            "description": "fork-thread only: inclusive source event sequence; omit for the latest completed-turn prefix."
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "open-session only: original DSH Session to place without copying its history."
+          },
+          "position": {
+            "type": "object",
+            "description": "open-session only: position of a new Chat; ignored when the original Session already has a binding.",
+            "additionalProperties": false,
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision"
+        ]
+      }
+    },
+    {
       "name": "convax_commit",
       "description": "Apply ordered semantic graph operations to one canvas. Later operations see earlier temporary results. One successful graph commit advances the canvas once and records one retry receipt and history entry. Use the revision read by convax_graph or a successful commit; conflicts never overwrite newer edits. Retain operationId and the identical complete request for retries. node.set replaces data completely and requires dataVersion when replacing data; ifRevision checks the node at that operation. canvas.add requires an explicit new canvasId and revision zero. history must appear alone. Removing nodes removes their incident connections but preserves source files. Edges never send prompts or insert composer references. group.add followed by node.set groupId creates a logical group in the same batch; group.remove only ungroups members. group.move translates every member once in world coordinates. Empty groups are removed at commit. Groups may use blue, green, yellow, orange, purple or pink; omitted color uses neutral gray. group.set accepts title, color, or both; color null restores neutral gray without changing the title. Chat removal uses recoverable stop/archive coordination; confirmed grants consent. Pending external work is reported rather than described as rolled back.",
       "parameters": {
@@ -634,7 +708,7 @@
     },
     {
       "name": "convax_graph",
-      "description": "Read saved Convax state, independent of open views. By default return canvas summaries and the bound Chat canvas identity/revision. Request include collections explicitly: nodes, connections, groups, nodeTypes or issues. Groups organize nodes through groupId; all node positions are world coordinates. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. Select nodes by IDs/types, connections by IDs, or incidentTo nodes and their one-hop endpoints. Node/type filters intersect; connections form an induced subgraph. Field projection always retains object IDs. Omitted collections are not empty collections. File records contain paths, not file contents.",
+      "description": "Read saved Convax state, independent of open views. By default return canvas summaries and the bound Chat canvas identity/revision. Request include collections explicitly: nodes, connections, groups, chats, nodeTypes or issues. Chats describe project directories, thread identities and lifecycle issues; messages remain in their Sessions. Groups organize nodes through groupId; all node positions are world coordinates. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. Select nodes by IDs/types, connections by IDs, or incidentTo nodes and their one-hop endpoints. Node/type filters intersect; connections form an induced subgraph. Field projection always retains object IDs. Omitted collections are not empty collections. File records contain paths, not file contents.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -651,6 +725,7 @@
                 "nodes",
                 "connections",
                 "groups",
+                "chats",
                 "nodeTypes",
                 "issues"
               ]

@@ -32,7 +32,7 @@ export interface CanvasGraphQuery {
   /** Fields retained in each requested record collection. */
   fields?: CanvasGraphFields
   /** Collections to return; omission returns only canvas summaries. */
-  include?: ('canvases' | 'nodes' | 'connections' | 'groups' | 'nodeTypes' | 'issues')[]
+  include?: ('canvases' | 'nodes' | 'connections' | 'groups' | 'chats' | 'nodeTypes' | 'issues')[]
 }
 
 function project(record: CanvasData & { id: string }, fields: string[] | undefined): CanvasData {
@@ -67,11 +67,13 @@ export function projectCanvasGraph(workspace: CanvasWorkspace, canvasId: CanvasI
     for (const id of selection.incidentTo ?? []) endpoints.add(id)
     nodes = nodes.filter(node => endpoints.has(node.id))
   }
+  const selectedNodeIds = new Set(nodes.map(node => node.id))
   return {
     canvasId: canvas?.id ?? null, revision: canvas?.revision ?? null, title: canvas?.title ?? null,
     projection: {
       nodes: include.has('nodes'), connections: include.has('connections'), nodeTypes: include.has('nodeTypes'), issues: include.has('issues'),
-      groups: include.has('groups'),
+      groups: include.has('groups'), chats: include.has('chats'),
+      completeChats: canvas !== undefined && include.has('chats') && selection === undefined,
       completeGroups: canvas !== undefined && include.has('groups') && selection === undefined && query.fields?.groups === undefined,
       groupFields: query.fields?.groups ?? null,
       completeNodes: canvas !== undefined && include.has('nodes') && selection === undefined && query.fields?.nodes === undefined,
@@ -85,6 +87,8 @@ export function projectCanvasGraph(workspace: CanvasWorkspace, canvasId: CanvasI
     ...(include.has('groups') ? { groups: (canvas?.groups ?? []).filter(group => selection === undefined
       || nodes.some(node => node.groupId === group.id)).map(group => project({ ...group }, query.fields?.groups)) } : {}),
     ...(include.has('connections') ? { connections: edges.map(edge => project({ ...edge }, query.fields?.connections)) } : {}),
+    ...(include.has('chats') ? { chats: workspace.chats.filter(chat => chat.canvasId === canvasId
+      && selectedNodeIds.has(chat.nodeId)).map(chat => ({ ...chat, threads: chat.threads.map(thread => ({ ...thread })) })) } : {}),
     ...(include.has('nodeTypes') ? { nodeTypes: workspace.nodeTypes.map(type => ({ ...type, ports: type.ports.map(port => ({ ...port })), description: type.description ?? null, dataSchema: type.dataSchema ?? null })) } : {}),
     ...(include.has('issues') ? { nodeIssues: workspace.nodeIssues.filter(issue => canvasId === null || issue.canvasId === canvasId).map(issue => ({ ...issue })) } : {}),
   }

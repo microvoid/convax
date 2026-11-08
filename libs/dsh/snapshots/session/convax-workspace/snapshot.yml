@@ -1,0 +1,13 @@
+version: 1
+scenario: convax-workspace
+profile: headless
+composition: default
+recording: authored
+replay:
+  override: true
+header:
+  class: convax-workspace
+  pin: true
+workspace:
+  setup: convax-skill
+  final: true

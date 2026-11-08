@@ -4,23 +4,26 @@ English | [中文](convax-graph-tools.zh.md)
 
 ## Summary
 
-Use `convax_graph` to discover saved graphs and provider schemas, then `convax_commit` to submit ordered edits. Both tools belong to the Convax Host and remain available without its renderer. Session messages and source files remain owned by DSH and the filesystem.
+Use `convax_graph` to discover saved graphs, Chat threads and provider schemas, `convax_commit` to submit ordered graph edits, and `convax_chat` to prepare native conversations. These tools belong to the Convax Host and remain available without its renderer. Session messages and source files remain owned by DSH and the filesystem.
 
 ## Contents
 
 - [Read](#read)
 - [Commit](#commit)
+- [Chat threads](#chat-threads)
 - [History and recovery](#history)
 - [Provider and layout integration](#providers)
 
 <a id="read"></a>
 ## Read
 
-Omitting `canvasId` resolves the calling Session’s Chat binding. An unbound Session can list canvases and inspect providers; node, connection or group reads require an explicit target. Results describe saved state, independently of open tabs, camera position or selection.
+Omitting `canvasId` resolves the calling Session’s Chat binding. An unbound Session can list canvases and inspect providers; node, connection, group or Chat reads require an explicit target. Results describe saved state, independently of open tabs, camera position or selection.
 
-The default response contains canvas summaries and the target identity, title and revision. `include` selects `canvases`, `nodes`, `connections`, `groups`, `nodeTypes` and `issues`. Omitted collections are absent, not empty. The `projection` fields declare inclusion and completeness.
+The default response contains canvas summaries and the target identity, title and revision. `include` selects `canvases`, `nodes`, `connections`, `groups`, `chats`, `nodeTypes` and `issues`. Omitted collections are absent, not empty. The `projection` fields declare inclusion and completeness.
 
 `selection.nodeIds`, `selection.typeIds` and `selection.groupIds` intersect. Group filters select member nodes; requested `groups` contain identities, titles and optional palette colors for groups represented in the resulting selection. Node `groupId` fields expose membership, and all positions are world coordinates. Connections must have both endpoints in that node selection. `selection.connectionIds` further filters edges and their endpoint nodes; `selection.incidentTo` selects touching edges, their endpoints and the named nodes. `fields.nodes` and `fields.connections` select record fields; `id` always remains. File data contains paths, not contents.
+
+Requested `chats` contain Chat identities, directories, thread Session identities and lifecycle issues for the final selected nodes. They do not load conversation messages. `projection.completeChats` is true only for an unfiltered Chat collection from an existing target canvas.
 
 ```json
 {"include":["nodes","connections","nodeTypes"],"selection":{"incidentTo":["note"]},"fields":{"nodes":["typeId","data","revision"]}}
@@ -54,6 +57,15 @@ Operations execute sequentially against a detached graph; later operations see e
 Graph validation failures publish nothing and consume no retry identity. A success commits the graph, one receipt and one history entry atomically, advancing the canvas once. Replies contain `ok`, `canvasId`, `operationId`, `revision` and nullable `error`; errors contain stable `code`, `message` and a zero-based `opIndex` when an individual operation failed. They do not return the whole graph.
 
 Retry with the same operation identity and identical complete arguments, including the original expected revision. A durable receipt prevents repeating edits even after restart or source removal. A different request under that identity is rejected. Refresh after conflicts, then allocate a new identity for the revised request. Removed canvas replies retain a revision fence for explicit history requests and lost-reply retries.
+
+<a id="chat-threads"></a>
+## Chat threads
+
+`convax_chat` reuses the native Session coordinators. `create-thread` creates an independent thread in an existing Chat; optional `cwd` and `agentPreset` select its directory and preset. `fork-thread` uses `sourceSessionId` and optional `atSeq`, inheriting its source directory, preset and event prefix. `open-session` places an existing `sessionId` on a canvas with a retained new `nodeId` and `position`; an already-bound Session returns its actual location, including on another canvas.
+
+Every action requires `expectedRevision`. Omitting `canvasId` uses the calling Chat's canvas. For creation and forks, omitting `nodeId` uses that same Chat, and `operationId` is required. Keep the identical complete request for an uncertain retry. Placement takes no `operationId`; repeat its retained placement request. Replies contain the action, canvas and node identities, nullable Session and operation identities, resulting revision and nullable error; a successful placement reports the actual Chat location.
+
+Creating a Chat node does not prepare a thread. These actions never send prompts, start an Agent, select a visible thread or insert composer references. An accepted native operation can finish after cancellation; inspect current Chat state or retry the same request before allocating another identity. Pending results retain recoverable work and are not confirmed thread creation.
 
 <a id="history"></a>
 ## History and recovery

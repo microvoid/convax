@@ -1,0 +1,10 @@
+- insert:
+    - id: convax-workspace-host
+      name: '@deepseek-ai/dsh-convax-plugin-host'
+      config:
+        databasePath: !!js dshHomePath('storages', 'convax-canvas.sqlite')
+        canvasDirectoryRoot: !!js dshHomePath('canvas-workspaces')
+    - id: convax-workspace-nodes
+      name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-host'
+    - id: convax-workspace-fixture
+      name: '../../../../../packages/plugin-host/tests/fixtures/graph-tools.ts'

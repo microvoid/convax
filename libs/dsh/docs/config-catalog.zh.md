@@ -785,7 +785,7 @@ export interface ToolResultPruneConfig {
 
 - `inject`: `fs` · `tools` · `remoteAccess`
 - `refs`: `ClientNoticeArch` (`@convax/api-contracts/notices`) · `ClientNoticeChannel` (`@convax/api-contracts/notices`) · `ClientNoticePlatform` (`@convax/api-contracts/notices`)
-- `source`: [`../../packages/plugin-host/src/index.ts:66`](../../../packages/plugin-host/src/index.ts)
+- `source`: [`../../packages/plugin-host/src/index.ts:68`](../../../packages/plugin-host/src/index.ts)
 
 ```ts config-catalog
 /** Deployment limits for one resource preview. */
