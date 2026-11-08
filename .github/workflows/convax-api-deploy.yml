@@ -1,0 +1,64 @@
+name: Convax API Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/convax-api-deploy.yml'
+      - 'apps/api/**'
+      - 'apps/deploy-cloudflare/**'
+      - 'apps/web/wrangler.jsonc'
+      - 'packages/api-contracts/**'
+      - 'scripts/smoke-convax-api.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: convax-api-production
+  cancel-in-progress: false
+
+env:
+  DSH_TELEMETRY_DISABLED: '1'
+  WRANGLER_SEND_METRICS: 'false'
+
+jobs:
+  deploy:
+    name: Check and deploy the production API
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: convax-api-production
+      url: https://microvoid.io/convax/api/health
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check contracts, API runtime and Worker bridge
+        run: pnpm run check:api
+      - name: Publish the production Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo 'Configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID before deploying.' >&2
+            exit 1
+          fi
+          pnpm --filter @convax/deploy-cloudflare deploy
+      - name: Verify the public API and homepage routes
+        run: node scripts/smoke-convax-api.mjs

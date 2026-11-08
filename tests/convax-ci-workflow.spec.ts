@@ -62,6 +62,7 @@ describe('Convax repository workflows', () => {
     const commands = ci.jobs.linux?.steps?.map(step => step.run ?? '').join('\n') ?? ''
     expect(commands).toContain('pnpm run build')
     expect(commands).toContain('pnpm run lint')
+    expect(commands).toContain('pnpm run test:api')
     expect(commands).toContain('pnpm run test:workspace')
     expect(commands).toContain('pnpm run check:docs')
     expect(commands).toContain('packages/plugin-host/tests')
@@ -78,7 +79,7 @@ describe('Convax repository workflows', () => {
     expect(JSON.stringify(ci)).not.toMatch(/secrets\.|publish|wrangler|self-hosted|blacksmith/)
   })
 
-  it('runs documentation locale and browser checks after building without opt-in or ignored failures', () => {
+  it('runs API and documentation checks after building without opt-in or ignored failures', () => {
     const ci = workflow('convax-ci.yml')
     const linux = ci.jobs.linux!
     const steps = linux.steps!
@@ -86,7 +87,7 @@ describe('Convax repository workflows', () => {
     const browserInstall = steps.findIndex(step => step.run?.includes('playwright install --with-deps chromium'))
     expect(build).toBeGreaterThanOrEqual(0)
     expect(browserInstall).toBeGreaterThan(build)
-    for (const command of ['pnpm --filter @convax/docs test', 'pnpm --filter @convax/docs test:browser']) {
+    for (const command of ['pnpm run test:api', 'pnpm --filter @convax/docs test', 'pnpm --filter @convax/docs test:browser']) {
       const index = steps.findIndex(step => step.run === command)
       expect(index, command).toBeGreaterThan(build)
       const step = steps[index]!
@@ -111,7 +112,7 @@ describe('Convax repository workflows', () => {
 
   it('keeps every inherited automatic job off in Convax without repository opt-in', () => {
     expect(readdirSync(directory).filter(name => name.endsWith('.yml')).sort()).toEqual([
-      'convax-ci.yml', 'convax-desktop-package.yml', 'convax-release-tag.yml',
+      'convax-api-deploy.yml', 'convax-ci.yml', 'convax-desktop-package.yml', 'convax-release-tag.yml',
     ])
     const inherited = readdirSync(inheritedDirectory).filter(name => name.endsWith('.yml') && name !== 'convax-ci.yml')
     for (const name of inherited) {

@@ -40,6 +40,8 @@ jobs:
         run: pnpm run build
       - name: Lint
         run: pnpm run lint
+      - name: Test cloud API contracts and runtime
+        run: pnpm run test:api
       - name: Check Convax internationalization
         run: pnpm run check:i18n
       - name: Test the internationalization gate
@@ -70,6 +72,8 @@ jobs:
           apps/web/tests/convax-canvas-directories.e2e.ts
           apps/web/tests/convax-canvas-manager.e2e.ts
           apps/web/tests/convax-canvas-interactions.e2e.ts
+          apps/web/tests/convax-canvas-groups.e2e.ts
+          apps/web/tests/convax-notices.e2e.ts
           apps/web/tests/convax-chat-settings.e2e.ts
           apps/web/tests/convax-window-mirror.e2e.ts
           apps/web/tests/convax-activity.e2e.ts

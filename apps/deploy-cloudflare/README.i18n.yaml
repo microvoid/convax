@@ -3,5 +3,5 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write ../../apps/deploy-cloudflare/README.md
 /convax-deploy-cloudflare:
-  en: c778a2ef951f40e1
-  zh: d208cfceae6a6ed4
+  en: fc16191c5ce23e68
+  zh: 12026add608d58fb
