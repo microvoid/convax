@@ -18,7 +18,7 @@ Production runs as the `convax-api` Worker at [microvoid.io/convax/api](https://
 
 ```sh
 pnpm --filter @convax/deploy-cloudflare dry-run:production
-pnpm --filter @convax/deploy-cloudflare deploy
+pnpm --filter @convax/deploy-cloudflare run deploy
 ```
 
 The public endpoints are `GET /convax/api/health`, `GET /convax/api/v1/client/policy` and `GET /convax/api/v1/client/guidance`. The Worker maps these paths to the application's `/health` and `/api/v1/client/*` routes, which remain available directly in local development and on the Workers URL. The more specific `/convax/api/release*` route stays with `convax-homepage` for public download discovery.

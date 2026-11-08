@@ -18,7 +18,7 @@ pnpm run check:api
 
 ```sh
 pnpm --filter @convax/deploy-cloudflare dry-run:production
-pnpm --filter @convax/deploy-cloudflare deploy
+pnpm --filter @convax/deploy-cloudflare run deploy
 ```
 
 公开接口为 `GET /convax/api/health`、`GET /convax/api/v1/client/policy` 和 `GET /convax/api/v1/client/guidance`。Worker 将这些路径映射到应用的 `/health` 与 `/api/v1/client/*` 路由；本地开发与 Workers 地址仍可直接访问应用路由。更具体的 `/convax/api/release*` 路由继续归 `convax-homepage` 管理，用于公开下载查询。

@@ -59,6 +59,6 @@ jobs:
             echo 'Configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID before deploying.' >&2
             exit 1
           fi
-          pnpm --filter @convax/deploy-cloudflare deploy
+          pnpm --filter @convax/deploy-cloudflare run deploy
       - name: Verify the public API and homepage routes
         run: node scripts/smoke-convax-api.mjs
