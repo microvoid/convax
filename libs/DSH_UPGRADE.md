@@ -33,6 +33,8 @@
 
 整个仓库使用根 `pnpm-workspace.yaml` 与一份 `pnpm-lock.yaml`。DSH 的内部包和 Convax 包属于同一个 pnpm workspace；`libs/dsh/package.json` 保留 DSH 的脚本与工具声明，不作为额外的父 workspace 包，也不在该目录单独维护依赖锁文件。Turborepo 从根目录编排任务，DSH 原有构建仍由其自身脚本执行。Convax 两个包保留既有包名及公开入口，目录迁移不改变 plugin id、Session 或画布存储格式。
 
+DSH 的 `dshWorkspacePackages` 只声明 `../../packages/plugin-*`，让四个 Convax 插件继续参与 Host/Client 构建与插件扫描。独立后端 `apps/api`、部署入口 `apps/deploy-cloudflare` 和公共 API 契约 `packages/api-contracts` 由根 Turbo 单独构建和检查，不进入 DSH 插件发现。
+
 依赖分类沿用 DSH 规则：Convax Renderer 的 `lucide-react` 仅供浏览器打包，声明位于该包的 `devDependencies`，根锁文件同步反映这一归属。这是依赖归类修正，没有为 Convax 增加规则豁免。
 
 ## 内置节点插件归属

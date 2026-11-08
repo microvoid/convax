@@ -1,0 +1,20 @@
+{
+  "name": "@convax/api-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical public HTTP schemas for the Convax cloud API",
+  "exports": {
+    "./notices": { "types": "./types/notices.d.ts" },
+    "./openapi": "./openapi/convax.openapi.json",
+    "./schemas/*": "./schemas/*"
+  },
+  "scripts": {
+    "build": "node scripts/check.mjs",
+    "typecheck": "node scripts/check.mjs",
+    "lint": "node scripts/check.mjs",
+    "test": "node scripts/check.mjs"
+  },
+  "devDependencies": { "ajv": "8.20.0" },
+  "engines": { "node": ">=24.9.0" }
+}

@@ -57,6 +57,15 @@ native/system/test/bin/
 libs/dsh/apps/desktop/.desktop-build/
 libs/dsh/apps/web/dist/
 
+# Convax cloud API artifacts and local Workers state
+apps/api/dist/
+apps/api/src/database/generated/
+apps/api/prisma/*.sqlite*
+apps/deploy-cloudflare/dist/
+apps/deploy-cloudflare/.wrangler/
+apps/deploy-cloudflare/.dev.vars*
+apps/deploy-cloudflare/.env*
+
 # Convax documentation site
 !apps/docs/src/lib/
 !apps/docs/src/lib/**

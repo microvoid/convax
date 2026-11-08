@@ -67,6 +67,7 @@
     "@deepseek-ai/dsh-skill": "workspace:*"
   },
   "devDependencies": {
+    "@convax/api-contracts": "workspace:*",
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-brand": "workspace:*",
     "@deepseek-ai/dsh-fs": "workspace:*",

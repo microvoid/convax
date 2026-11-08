@@ -1,0 +1,13 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/database/generated/prisma"
+  runtime             = "cloudflare"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Add Convax-owned models with the first persistent API feature.

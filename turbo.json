@@ -65,6 +65,95 @@
       "env": [
         "DOCS_SITE_URL"
       ]
+    },
+    "@convax/api-contracts#build": {
+      "outputs": []
+    },
+    "@convax/api-contracts#typecheck": {
+      "outputs": []
+    },
+    "@convax/api-contracts#lint": {
+      "outputs": []
+    },
+    "@convax/api-contracts#test": {
+      "outputs": []
+    },
+    "@convax/api#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@convax/api#typecheck": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": []
+    },
+    "@convax/api#lint": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": []
+    },
+    "@convax/api#db:validate": {
+      "outputs": []
+    },
+    "@convax/api#test": {
+      "dependsOn": [
+        "@convax/api#build"
+      ],
+      "cache": false
+    },
+    "@convax/deploy-cloudflare#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@convax/deploy-cloudflare#typecheck": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": []
+    },
+    "@convax/deploy-cloudflare#lint": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": []
+    },
+    "@convax/deploy-cloudflare#test": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false
+    },
+    "@convax/deploy-cloudflare#dev": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "@convax/deploy-cloudflare#dry-run": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@convax/api#dev": {
+      "dependsOn": [
+        "@convax/api#build"
+      ],
+      "cache": false,
+      "persistent": true
     }
   },
   "globalPassThroughEnv": [

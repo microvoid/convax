@@ -1,0 +1,81 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Convax API", "version": "0.1.0" },
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Read HTTP service liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The HTTP service is running; persistence is not checked.",
+            "content": {
+              "application/json": { "schema": { "$ref": "../schemas/health-response.json" } }
+            }
+          },
+          "503": {
+            "description": "The HTTP service could not start.",
+            "content": {
+              "application/json": { "schema": { "$ref": "../schemas/error-response.json" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/policy": {
+      "get": {
+        "operationId": "getClientPolicy",
+        "summary": "Read client update and maintenance policy",
+        "description": "Public client metadata from the immutable deployment catalog. A successful response is a complete policy snapshot. Failure does not clear an accepted restriction. Desktop and operation entrypoints enforce restrictions independently of presentation. This route does not authenticate accounts. Required native updates need an explicitly available matching release and HTTPS recovery page; Web receives no native update requirement.",
+        "security": [],
+        "parameters": [
+          { "$ref": "#/components/parameters/AppVersion" }, { "$ref": "#/components/parameters/Platform" },
+          { "$ref": "#/components/parameters/Arch" }, { "$ref": "#/components/parameters/Channel" },
+          { "$ref": "#/components/parameters/Locale" }, { "$ref": "#/components/parameters/InstallationId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full policy; empty maintenance explicitly means no maintenance. Estimated end times do not clear active restrictions.",
+            "headers": { "Cache-Control": { "schema": { "type": "string", "const": "no-store" } } },
+            "content": { "application/json": { "schema": { "$ref": "../schemas/client-policy-response.json" } } }
+          },
+          "400": { "description": "Invalid client metadata.", "content": { "application/json": { "schema": { "$ref": "../schemas/error-response.json" } } } },
+          "503": { "description": "Policy unavailable; retain known policy.", "content": { "application/json": { "schema": { "$ref": "../schemas/error-response.json" } } } }
+        }
+      }
+    },
+    "/api/v1/client/guidance": {
+      "get": {
+        "operationId": "getClientGuidance",
+        "summary": "Read optional client announcements",
+        "description": "Public announcements selected from the immutable deployment catalog by effective dates and configured version, platform, architecture, channel and locale targeting. Stable item IDs own local read state; content revisions do not reset it. The Host owns idle timing, frequency and window selection. Guidance cannot make an operation mandatory. Installation IDs are delivery identifiers, not credentials. This version has no account synchronization or feedback endpoint; Web receives no native upgrade announcements.",
+        "security": [],
+        "parameters": [
+          { "$ref": "#/components/parameters/AppVersion" }, { "$ref": "#/components/parameters/Platform" },
+          { "$ref": "#/components/parameters/Arch" }, { "$ref": "#/components/parameters/Channel" },
+          { "$ref": "#/components/parameters/Locale" }, { "$ref": "#/components/parameters/InstallationId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Optional announcements with closed action and surface types. Page URLs require the installed application's exact HTTPS-origin allowlist. IDs must be unique; update action release IDs must match their item. ExpiresAt must follow startsAt. Maintenance policy is presented as a message rather than an announcement banner.",
+            "headers": { "Cache-Control": { "schema": { "type": "string", "const": "no-store" } } },
+            "content": { "application/json": { "schema": { "$ref": "../schemas/client-guidance-response.json" } } }
+          },
+          "400": { "description": "Invalid client metadata.", "content": { "application/json": { "schema": { "$ref": "../schemas/error-response.json" } } } },
+          "503": { "description": "Announcements temporarily unavailable.", "content": { "application/json": { "schema": { "$ref": "../schemas/error-response.json" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "AppVersion": { "name": "appVersion", "in": "query", "required": true, "schema": { "$ref": "../schemas/client-notice-definitions.json#/$defs/semver" } },
+      "Platform": { "name": "platform", "in": "query", "required": true, "schema": { "type": "string", "enum": ["darwin", "win32", "linux", "web"] } },
+      "Arch": { "name": "arch", "in": "query", "required": true, "schema": { "type": "string", "enum": ["arm64", "x64", "universal"] } },
+      "Channel": { "name": "channel", "in": "query", "required": true, "schema": { "type": "string", "enum": ["latest", "nightly"] } },
+      "Locale": { "name": "locale", "in": "query", "required": true, "schema": { "type": "string", "minLength": 2, "maxLength": 35 } },
+      "InstallationId": { "name": "X-Installation-Id", "in": "header", "required": true, "description": "App-generated installation UUID; does not authenticate or authorize a user.", "schema": { "type": "string", "format": "uuid" } }
+    }
+  }
+}

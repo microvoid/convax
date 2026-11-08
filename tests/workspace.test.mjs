@@ -26,6 +26,9 @@ test('one workspace discovers the documentation app, Convax packages and retaine
   assert.deepEqual(patterns, manifest.workspaces)
   const manifests = globSync(patterns.map(pattern => `${pattern}/package.json`), { cwd: root }).sort()
   assert.ok(manifests.includes('apps/docs/package.json'))
+  assert.ok(manifests.includes('apps/api/package.json'))
+  assert.ok(manifests.includes('apps/deploy-cloudflare/package.json'))
+  assert.ok(manifests.includes('packages/api-contracts/package.json'))
   assert.ok(manifests.includes('packages/plugin-host/package.json'))
   assert.ok(manifests.includes('packages/plugin-renderer/package.json'))
   assert.ok(manifests.includes('libs/dsh/apps/cli/package.json'))
@@ -77,25 +80,36 @@ test('the default Convax composition mounts independently switchable node provid
 test('Turbo root tasks delegate to registered DSH and Convax commands', () => {
   const turbo = readJson('turbo.json')
   const docs = readJson('apps/docs/package.json')
+  const apiTypecheck = ['@convax/api#typecheck', '@convax/api#db:validate', '@convax/deploy-cloudflare#typecheck', '@convax/api-contracts#typecheck']
+  const apiLint = ['@convax/api#lint', '@convax/deploy-cloudflare#lint', '@convax/api-contracts#lint']
+  const apiTest = ['@convax/api#test', '@convax/deploy-cloudflare#test', '@convax/api-contracts#test']
   const commands = {
-    build: ['dsh:build', '@convax/docs#build', '@convax/docs#typecheck'],
-    'build:artifacts': ['dsh:build:artifacts', '@convax/docs#build'],
-    'build:check': ['dsh:build:check', '@convax/docs#typecheck'],
-    typecheck: ['dsh:typecheck', '@convax/docs#typecheck'],
-    lint: ['dsh:lint', '@convax/docs#lint:docs'],
-    test: ['convax:test'],
+    build: ['dsh:build', '@convax/docs#build', '@convax/docs#typecheck', '@convax/deploy-cloudflare#build', '@convax/api#db:validate'],
+    'build:artifacts': ['dsh:build:artifacts', '@convax/docs#build', '@convax/deploy-cloudflare#build'],
+    'build:check': ['dsh:build:check', '@convax/docs#typecheck', ...apiTypecheck],
+    typecheck: ['dsh:typecheck', '@convax/docs#typecheck', ...apiTypecheck],
+    lint: ['dsh:lint', '@convax/docs#lint:docs', ...apiLint],
+    test: ['convax:test', ...apiTest],
     'dev:docs': ['@convax/docs#dev'],
     'build:docs': ['@convax/docs#build'],
     'check:docs': ['@convax/docs#check'],
     'preview:docs': ['@convax/docs#preview'],
+    'dev:api': ['@convax/api#dev', '@convax/deploy-cloudflare#dev'],
+    'build:api': ['@convax/deploy-cloudflare#build'],
+    'typecheck:api': apiTypecheck,
+    'lint:api': apiLint,
+    'test:api': apiTest,
+    'check:api': [...apiTypecheck, ...apiLint, ...apiTest, '@convax/deploy-cloudflare#build'],
   }
   for (const [script, expected] of Object.entries(commands)) {
     const tasks = manifest.scripts[script].match(/^turbo run (.+)$/)?.[1]?.split(' ')
     assert.deepEqual(tasks, expected, `${script} preserves its validation owners`)
     for (const task of tasks) {
-      if (task.startsWith('@convax/docs#')) {
-        assert.ok(turbo.tasks[task], `${script} has a registered documentation task`)
-        assert.equal(typeof docs.scripts[task.split('#')[1]], 'string')
+      if (task.includes('#')) {
+        const [name, command] = task.split('#')
+        const directory = name === '@convax/api-contracts' ? 'packages/api-contracts' : `apps/${name.split('/')[1]}`
+        assert.ok(turbo.tasks[task], `${script} has a registered package task`)
+        assert.equal(typeof readJson(`${directory}/package.json`).scripts[command], 'string')
       } else {
         assert.ok(turbo.tasks[`//#${task}`], `${script} has a registered root task`)
         assert.match(manifest.scripts[task], /scripts\/dsh\.mjs/)
@@ -118,6 +132,22 @@ test('Turbo root tasks delegate to registered DSH and Convax commands', () => {
   }
   assert.match(manifest.scripts['test:web:built'], /scripts\/dsh\.mjs test:web:built$/)
   assert.match(manifest.scripts.dsh, /libs\/dsh\/apps\/cli\/src\/bin\.ts$/)
+  for (const task of ['dev', 'test', 'build', 'typecheck', 'lint']) {
+    assert.deepEqual(turbo.tasks[`@convax/deploy-cloudflare#${task}`].dependsOn, ['^build'])
+  }
+  assert.deepEqual(turbo.tasks['@convax/api#test'].dependsOn, ['@convax/api#build'])
+  assert.deepEqual(turbo.tasks['@convax/api#dev'].dependsOn, ['@convax/api#build'])
+})
+
+test('DSH discovers Convax plugins independently of the cloud API contracts', () => {
+  const patterns = readJson('libs/dsh/package.json').dshWorkspacePackages
+  assert.deepEqual(patterns, ['../../packages/plugin-*'])
+  assert.deepEqual(globSync(patterns.map(pattern => `${pattern}/package.json`), { cwd: join(root, 'libs/dsh') }).sort(), [
+    '../../packages/plugin-host/package.json',
+    '../../packages/plugin-inernal-nodes-host/package.json',
+    '../../packages/plugin-inernal-nodes-renderer/package.json',
+    '../../packages/plugin-renderer/package.json',
+  ])
 })
 
 test('Desktop launches the retained DSH app with outer Convax data paths', () => {

@@ -1,0 +1,11 @@
+{
+  "extends": ["../../.oxlintrc.json"],
+  "overrides": [
+    {
+      "files": ["src/**/*.module.ts"],
+      "rules": {
+        "typescript/no-extraneous-class": ["error", { "allowWithDecorator": true }]
+      }
+    }
+  ]
+}

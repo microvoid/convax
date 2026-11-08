@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "convax-api-local",
+  "main": "src/api.ts",
+  "compatibility_date": "2026-08-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "alias": {
+    "class-transformer/storage": "class-transformer/cjs/storage.js",
+    "@nestjs/microservices/microservices-module": "./src/nest-optional-stub.ts",
+    "@nestjs/websockets/socket-module": "./src/nest-optional-stub.ts",
+    "@nestjs/microservices": "./src/nest-optional-stub.ts"
+  },
+  "d1_databases": [
+    {
+      "binding": "CONVAX_DB",
+      "database_name": "convax-api-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../api/prisma/migrations"
+    }
+  ],
+  "env": {
+    "production": {
+      "name": "convax-api",
+      "account_id": "83f39638ca7175ec8251da36568c5e62",
+      "workers_dev": true,
+      "preview_urls": false,
+      "routes": [
+        { "pattern": "microvoid.io/convax/api", "zone_name": "microvoid.io" },
+        { "pattern": "microvoid.io/convax/api/*", "zone_name": "microvoid.io" }
+      ],
+      "d1_databases": []
+    }
+  }
+}

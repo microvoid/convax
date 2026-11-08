@@ -42,8 +42,11 @@
 
 ```text
 apps/
+  api/
+  deploy-cloudflare/
   docs/
 packages/
+  api-contracts/
   plugin-host/
   plugin-renderer/
 libs/
@@ -141,6 +144,7 @@ pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
 <a id="development-and-documentation"></a>
 ## 开发与文档
 
+- [API 后端](docs/api-backend.zh.md)：云端服务架构、AuthX 接入边界与本地开发。
 - [文档站](apps/docs/README.zh.md)：使用 Nimbus 编写中英文指南及静态构建。运行 `pnpm run dev:docs` 后，打开 `http://localhost:4321/convax/docs/` 进行本地预览。
 - [Convax 包说明](packages/README.zh.md)：Host 持久化与可独立停用的 renderer。
 - [画布界面](packages/plugin-renderer/README.zh.md)：交互、预览、Chat 卡片及当前限制。

@@ -1,0 +1,47 @@
+{
+  "name": "@convax/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Convax cloud API application",
+  "exports": {
+    "./runtime": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "node --import tsx/esm ../../libs/dsh/scripts/run-oxlint.ts --config .oxlintrc.json src",
+    "test": "node --test tests/*.test.mjs",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput"
+  },
+  "dependencies": {
+    "@convax/api-contracts": "workspace:*",
+    "@nestjs/common": "11.2.1",
+    "@nestjs/core": "11.2.1",
+    "@nestjs/platform-express": "11.2.1",
+    "@prisma/adapter-d1": "7.8.0",
+    "@prisma/client": "7.8.0",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.15.1",
+    "express": "5.2.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "semver": "^7.8.5"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "^22.20.1",
+    "@types/semver": "^7.8.0",
+    "ajv": "8.20.0",
+    "prisma": "7.8.0",
+    "typescript": "6.0.3"
+  },
+  "engines": {
+    "node": ">=24.9.0"
+  }
+}

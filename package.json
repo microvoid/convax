@@ -20,12 +20,12 @@
     "libs/dsh/python/sdk-runtime"
   ],
   "scripts": {
-    "build": "turbo run dsh:build @convax/docs#build @convax/docs#typecheck",
-    "build:artifacts": "turbo run dsh:build:artifacts @convax/docs#build",
-    "build:check": "turbo run dsh:build:check @convax/docs#typecheck",
-    "typecheck": "turbo run dsh:typecheck @convax/docs#typecheck",
-    "lint": "turbo run dsh:lint @convax/docs#lint:docs",
-    "test": "turbo run convax:test",
+    "build": "turbo run dsh:build @convax/docs#build @convax/docs#typecheck @convax/deploy-cloudflare#build @convax/api#db:validate",
+    "build:artifacts": "turbo run dsh:build:artifacts @convax/docs#build @convax/deploy-cloudflare#build",
+    "build:check": "turbo run dsh:build:check @convax/docs#typecheck @convax/api#typecheck @convax/api#db:validate @convax/deploy-cloudflare#typecheck @convax/api-contracts#typecheck",
+    "typecheck": "turbo run dsh:typecheck @convax/docs#typecheck @convax/api#typecheck @convax/api#db:validate @convax/deploy-cloudflare#typecheck @convax/api-contracts#typecheck",
+    "lint": "turbo run dsh:lint @convax/docs#lint:docs @convax/api#lint @convax/deploy-cloudflare#lint @convax/api-contracts#lint",
+    "test": "turbo run convax:test @convax/api#test @convax/deploy-cloudflare#test @convax/api-contracts#test",
     "test:web:built": "node --env-file-if-exists=.env scripts/dsh.mjs test:web:built",
     "test:e2e": "node --env-file-if-exists=.env scripts/dsh.mjs test:e2e",
     "doc-sync": "node --env-file-if-exists=.env scripts/dsh.mjs doc-sync",
@@ -48,7 +48,13 @@
     "preview:docs": "turbo run @convax/docs#preview",
     "deploy:docs": "pnpm --filter @convax/docs run deploy",
     "check:i18n": "tsx scripts/check-i18n.ts",
-    "test:i18n:e2e": "vitest run --config vitest.i18n.config.ts"
+    "test:i18n:e2e": "vitest run --config vitest.i18n.config.ts",
+    "dev:api": "turbo run @convax/api#dev @convax/deploy-cloudflare#dev",
+    "build:api": "turbo run @convax/deploy-cloudflare#build",
+    "typecheck:api": "turbo run @convax/api#typecheck @convax/api#db:validate @convax/deploy-cloudflare#typecheck @convax/api-contracts#typecheck",
+    "lint:api": "turbo run @convax/api#lint @convax/deploy-cloudflare#lint @convax/api-contracts#lint",
+    "test:api": "turbo run @convax/api#test @convax/deploy-cloudflare#test @convax/api-contracts#test",
+    "check:api": "turbo run @convax/api#typecheck @convax/api#db:validate @convax/deploy-cloudflare#typecheck @convax/api-contracts#typecheck @convax/api#lint @convax/deploy-cloudflare#lint @convax/api-contracts#lint @convax/api#test @convax/deploy-cloudflare#test @convax/api-contracts#test @convax/deploy-cloudflare#build"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-convax-plugin-host": "workspace:*",

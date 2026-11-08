@@ -9,7 +9,7 @@
     "node": ">=24.9.0"
   },
   "dshWorkspacePackages": [
-    "../../packages/*"
+    "../../packages/plugin-*"
   ],
   "scripts": {
     "prepare:primary-runtime": "tsx scripts/primary-runtime/prepare.ts",

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.microvoid.io/convax/client-notice-definitions.json",
+  "$defs": {
+    "identity": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "semver": {
+      "type": "string", "maxLength": 64,
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "page": { "type": "string", "pattern": "^https://", "maxLength": 2048 },
+    "update": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "minSupportedVersion": { "$ref": "#/$defs/semver" },
+        "targetVersion": { "$ref": "#/$defs/semver" },
+        "releaseId": { "$ref": "#/$defs/identity" },
+        "reasonCode": { "enum": ["protocol_incompatible", "security_fix", "support_ended"] },
+        "fallbackPage": { "$ref": "#/$defs/page" }
+      },
+      "allOf": [{ "if": { "properties": { "required": { "const": true } } },
+        "then": { "properties": { "minSupportedVersion": {}, "targetVersion": {}, "releaseId": {}, "reasonCode": {} }, "required": ["minSupportedVersion", "targetVersion", "releaseId", "reasonCode"] } }]
+    },
+    "maintenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "revision", "status", "startsAt", "estimatedEndsAt", "affectedCapabilities", "title", "body"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identity" }, "revision": { "$ref": "#/$defs/identity" },
+        "status": { "enum": ["scheduled", "active", "resolved"] },
+        "startsAt": { "$ref": "#/$defs/timestamp" },
+        "estimatedEndsAt": { "anyOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] },
+        "affectedCapabilities": { "type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": { "$ref": "#/$defs/identity" } },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "body": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    },
+    "action": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "label", "type"],
+          "properties": { "id": { "$ref": "#/$defs/identity" }, "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "type": { "const": "dismiss" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "label", "type", "snoozeSeconds"],
+          "properties": { "id": { "$ref": "#/$defs/identity" }, "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "type": { "const": "snooze" }, "snoozeSeconds": { "type": "integer", "minimum": 3600, "maximum": 2592000 } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "label", "type", "releaseId"],
+          "properties": { "id": { "$ref": "#/$defs/identity" }, "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "type": { "const": "open_update" }, "releaseId": { "$ref": "#/$defs/identity" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "label", "type", "url"],
+          "properties": { "id": { "$ref": "#/$defs/identity" }, "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "type": { "const": "open_url" }, "url": { "$ref": "#/$defs/page" } }
+        }
+      ]
+    },
+    "guidance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "revision", "kind", "surface", "startsAt", "expiresAt", "requiresCapabilities", "frequency", "content", "actions"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identity" }, "revision": { "$ref": "#/$defs/identity" },
+        "kind": { "enum": ["feature", "upgrade", "announcement"] },
+        "surface": { "enum": ["modal", "banner", "message"] },
+        "startsAt": { "$ref": "#/$defs/timestamp" }, "expiresAt": { "$ref": "#/$defs/timestamp" },
+        "requiresCapabilities": { "type": "array", "maxItems": 100, "uniqueItems": true, "items": { "$ref": "#/$defs/identity" } },
+        "releaseId": { "$ref": "#/$defs/identity" },
+        "frequency": {
+          "type": "object", "additionalProperties": false, "required": ["scope", "maxImpressions", "cooldownSeconds"],
+          "properties": { "scope": { "const": "installation" }, "maxImpressions": { "type": "integer", "minimum": 1, "maximum": 20 }, "cooldownSeconds": { "type": "integer", "minimum": 0, "maximum": 2592000 } }
+        },
+        "content": {
+          "type": "object", "additionalProperties": false, "required": ["title", "body"],
+          "properties": { "title": { "type": "string", "minLength": 1, "maxLength": 120 }, "body": { "type": "string", "minLength": 1, "maxLength": 1000 } }
+        },
+        "actions": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "$ref": "#/$defs/action" } }
+      },
+      "allOf": [{ "if": { "properties": { "kind": { "const": "upgrade" } } }, "then": { "properties": { "releaseId": {} }, "required": ["releaseId"] } }]
+    }
+  }
+}

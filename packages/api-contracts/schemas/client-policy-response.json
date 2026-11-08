@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.microvoid.io/convax/client-policy-response.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "revision", "serverTime", "nextCheckAfterSeconds", "update", "maintenance"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "revision": { "$ref": "client-notice-definitions.json#/$defs/identity" },
+    "serverTime": { "$ref": "client-notice-definitions.json#/$defs/timestamp" },
+    "nextCheckAfterSeconds": { "type": "integer", "minimum": 30, "maximum": 3600 },
+    "update": { "$ref": "client-notice-definitions.json#/$defs/update" },
+    "maintenance": { "type": "array", "maxItems": 50, "items": { "$ref": "client-notice-definitions.json#/$defs/maintenance" } }
+  }
+}

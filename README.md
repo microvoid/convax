@@ -42,8 +42,11 @@ One root pnpm workspace and lockfile cover the repository. Turborepo coordinates
 
 ```text
 apps/
+  api/
+  deploy-cloudflare/
   docs/
 packages/
+  api-contracts/
   plugin-host/
   plugin-renderer/
 libs/
@@ -141,6 +144,7 @@ Open the complete local access URL printed in the terminal; the server defaults 
 <a id="development-and-documentation"></a>
 ## Development and documentation
 
+- [API backend](docs/api-backend.md): cloud service architecture, AuthX integration boundaries, and local development.
 - [Documentation site](apps/docs/README.md): bilingual guides and static builds with Nimbus. Run `pnpm run dev:docs` and open `http://localhost:4321/convax/docs/` for a local preview.
 - [Convax packages](packages/README.md): Host persistence and the independently switchable renderer.
 - [Canvas UI](packages/plugin-renderer/README.md): interactions, previews, Chat cards, and current limitations.

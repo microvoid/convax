@@ -28,6 +28,13 @@ allowBuilds:
   esbuild: true
   # Wrangler uses Cloudflare's local Workers runtime for deployment validation.
   workerd: true
+  # Prisma CLI validates and generates our explicit Cloudflare/D1 schema.
+  prisma: true
+  '@prisma/engines': true
+  # Generate clients explicitly once the API owns a persistent model.
+  '@prisma/client': false
+  # Nest's postinstall only prints an optional funding message.
+  '@nestjs/core': false
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.
   node-pty: true

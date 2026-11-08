@@ -28,6 +28,7 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@convax/api-contracts/notices": ["../../packages/api-contracts/types/notices.d.ts"],
       "@deepseek-ai/dsh-convax-plugin-host": ["../../packages/plugin-host/src/index.ts"],
       "@deepseek-ai/dsh-convax-plugin-host/types": ["../../packages/plugin-host/src/types.ts"],
       "@deepseek-ai/dsh-convax-plugin-host/src/*": ["../../packages/plugin-host/src/*"],

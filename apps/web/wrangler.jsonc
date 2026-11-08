@@ -7,7 +7,8 @@
   "preview_urls": false,
   "routes": [
     { "pattern": "microvoid.io/convax", "zone_name": "microvoid.io" },
-    { "pattern": "microvoid.io/convax/*", "zone_name": "microvoid.io" }
+    { "pattern": "microvoid.io/convax/*", "zone_name": "microvoid.io" },
+    { "pattern": "microvoid.io/convax/api/release*", "zone_name": "microvoid.io" }
   ],
   "assets": {
     "directory": "./dist",
