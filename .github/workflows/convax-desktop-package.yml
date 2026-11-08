@@ -312,7 +312,8 @@ jobs:
             if [[ "${RELEASE_VERSION%%+*}" == *-* ]]; then
               options+=(--prerelease)
             fi
-            gh release create "$RELEASE_TAG" --verify-tag --target "$RELEASE_COMMIT" --draft \
+            # The existing tag pins the signed commit; targeting main avoids GitHub's workflow-write check.
+            gh release create "$RELEASE_TAG" --verify-tag --target main --draft \
               --title "Convax $RELEASE_TAG" \
               --generate-notes --notes "$marker" "${options[@]}"
             release=$(gh release view "$RELEASE_TAG" --json isDraft,body,assets)

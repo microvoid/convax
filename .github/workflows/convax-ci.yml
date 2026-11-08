@@ -57,7 +57,7 @@ jobs:
       - name: Test monorepo wiring
         run: pnpm run test:workspace
       - name: Test workflow scheduling
-        run: pnpm exec vitest run --config vitest.config.ts tests/convax-ci-workflow.spec.ts tests/convax-i18n-workflow.spec.ts tests/workspace-resolution.client.spec.ts --maxWorkers=2
+        run: pnpm exec vitest run --config vitest.config.ts tests/convax-ci-workflow.spec.ts tests/convax-release-workflow.spec.ts tests/convax-i18n-workflow.spec.ts tests/workspace-resolution.client.spec.ts --maxWorkers=2
       - name: Install browser
         run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium
       - name: Test documentation in Chromium

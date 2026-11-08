@@ -76,6 +76,7 @@ describe('Convax repository workflows', () => {
     expect(commands).toContain('convax-card-resize.e2e.ts')
     expect(commands).toContain('libs/dsh/scripts/prepare-ci-bubblewrap.sh')
     expect(commands).toContain('tests/workspace-resolution.client.spec.ts')
+    expect(commands).toContain('tests/convax-release-workflow.spec.ts')
     expect(JSON.stringify(ci)).not.toMatch(/secrets\.|publish|wrangler|self-hosted|blacksmith/)
   })
 
