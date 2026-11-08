@@ -1,5 +1,5 @@
 /** Place independent graph copies near the intended point while preserving their relative coordinates. */
-import type { CanvasCommand, CanvasData, CanvasNode, CanvasConnectionId, CanvasNodeId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasCommand, CanvasData, CanvasNode, CanvasConnectionId, CanvasGroupId, CanvasNodeId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { clipboardNodeData, type CanvasClipboardPayload, type ClipboardNodeSize } from './canvas-clipboard.ts'
 import { RESOURCE_CARD_GAP } from './placement.ts'
 
@@ -72,7 +72,7 @@ function freeOrigin(payload: CanvasClipboardPayload, desired: CanvasPoint, obsta
 }
 
 /**
- * Allocate fresh identities and atomically remap all internal copied connections.
+ * Allocate fresh node and group identities and remap copied membership and connections atomically.
  * @param payload - Validated clipboard nodes, edges and geometry.
  * @param desired - Intended top-left selection position in world coordinates.
  * @param obstacles - Current measured cards to avoid.
@@ -88,6 +88,12 @@ export function createClipboardSubgraph(
     throw new RangeError('Clipboard selection geometry is not finite')
   }
   const origin = freeOrigin(payload, desired, obstacles)
+  const groupIds = new Map<CanvasGroupId, CanvasGroupId>()
+  const groups = payload.groups.map((group) => {
+    const id = allocate() as CanvasGroupId
+    groupIds.set(group.id, id)
+    return { ...group, id }
+  })
   const ids = new Map<CanvasNodeId, CanvasNodeId>()
   const nodes = payload.nodes.map((node) => {
     const id = allocate() as CanvasNodeId
@@ -97,9 +103,14 @@ export function createClipboardSubgraph(
     if (![position.x, position.y, position.x + size.width, position.y + size.height].every(Number.isFinite)) {
       throw new RangeError('Copied node coordinates are not finite')
     }
-    return { ...node, id, revision: 1, data: copyData(node), position }
+    const { groupId, ...independent } = node
+    const copiedGroupId = groupId === undefined ? undefined : groupIds.get(groupId)
+    if (groupId !== undefined && copiedGroupId === undefined) throw new Error('Clipboard node group is missing')
+    return { ...independent, id, revision: 1, data: copyData(node), position,
+      ...(copiedGroupId === undefined ? {} : { groupId: copiedGroupId }),
+    }
   })
-  return { kind: 'add-subgraph', nodes, connections: payload.connections.map((edge) => {
+  return { kind: 'add-subgraph', nodes, ...(groups.length === 0 ? {} : { groups }), connections: payload.connections.map((edge) => {
     const source = ids.get(edge.source)
     const target = ids.get(edge.target)
     if (source === undefined || target === undefined) throw new Error('Clipboard connection leaves its selection')

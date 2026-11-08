@@ -881,7 +881,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.keyboard.press('ControlOrMeta+C')
     await expect.poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).includes(first.id)).toBe(true)
     const copied = await page.evaluate(() => navigator.clipboard.readText())
-    expect(JSON.parse(copied)).toMatchObject({ kind: 'convax.canvas.nodes', version: 1 })
+    expect(JSON.parse(copied)).toMatchObject({ kind: 'convax.canvas.nodes', version: 2 })
     await clipboardSettled(page)
     expect(canvas(scaffold, fixture.id)).toEqual(original)
 
@@ -1295,6 +1295,8 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(await remove.count()).toBe(0)
     expect(canvas(scaffold, fixture.id).connections).toEqual([connection])
     await page.getByRole('button', { name: 'Fit canvas', exact: true }).click()
+    await node(page, fixture.resources[0]!.id).locator('[data-convax-resource-header]').click()
+    await expect.poll(() => selectedIds(page)).toEqual([fixture.resources[0]!.id])
     await mkdir(ARTIFACTS, { recursive: true })
     await page.screenshot({ path: join(ARTIFACTS, 'convax-interactions-history.png') })
     await mkdir(EXPECTED, { recursive: true })

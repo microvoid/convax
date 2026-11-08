@@ -12,6 +12,8 @@ Convax 需要以画布作为 Desktop 的主界面，让用户跨多个画布组�
 
 [窗口镜像方案](2026-11-02-convax-window-mirror.zh.md)增加绑定具体窗口、可直接操作的应用窗口，以及发送时截图 reference。
 
+[分组决策](../../implemented/architecture/2026-11-08-convax-canvas-groups.zh.md)拥有节点的逻辑成员归属、世界坐标和窗口派生分组框。本提案继续保留独立的产品与集成决策。
+
 ## 提案
 
 以下产品行为已经确定。DSH 现有公开扩展点能够满足需求时，保持 DSH 不变；仅有 Convax 专用需求不足以新增 DSH 运行时 API。Convax 拥有图事务、schema 升级、thread 操作恢复和删除协调。经复现确认的 DSH 缺陷单独修复，并提供对应测试。

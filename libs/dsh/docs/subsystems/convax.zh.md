@@ -6,7 +6,7 @@ Convax 拥有应用级画布记录、节点定义、引用连线和带修订号�
 
 ## 记录与命令
 
-`CanvasDocument` 拥有节点、连线和单调修订号。`CanvasWorkspace` 是已保存画布、当前可用 Host 节点类型与 Chat 到 Session 绑定的独立快照。[客户端安全声明](../../../../packages/plugin-host/src/types.ts)定义记录与可判别命令，Typert 根据 Host 方法生成传输。
+`CanvasDocument` 拥有节点、逻辑 `groups`、连线和单调修订号。`CanvasGroup` 仅保留身份和标题，可选的 `CanvasNode.groupId` 建立唯一成员归属，位置仍使用世界坐标。renderer 从各窗口测得的卡片尺寸派生分组框。成员归属与分组元数据使用 Host 事务和字段级历史，[分组决策](../../.agents/notes/implemented/architecture/2026-11-08-convax-canvas-groups.zh.md)解释这项划分。`CanvasWorkspace` 是已保存画布、当前可用 Host 节点类型与 Chat 到 Session 绑定的独立快照。[客户端安全声明](../../../../packages/plugin-host/src/types.ts)定义记录与可判别命令，Typert 根据 Host 方法生成传输。
 
 `CanvasResource` 描述文件或目录元数据。`CanvasDocumentPreview` 携带解析后的 `path`、`name`、可为 null 的字节 `size`、文件系统 `version`、`mimeType` 和完整的临时 `bytes`；Office 转换可附加 `renderedAs: 'pdf'` 与 `missingFonts`，同时保留源路径。`watchResource` 监听元数据；一元 `readDocument` 调用通过已组合文件系统读取内容，不使用 Session。[Host 包](../../../../packages/plugin-host/README.zh.md#use-this-package)拥有字节限制、转换可用性和读取失败。
 

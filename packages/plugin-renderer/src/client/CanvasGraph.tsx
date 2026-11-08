@@ -4,10 +4,10 @@ import {
   Background, NodeToolbar, Panel, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useStore as useFlowStore,
   type Connection, type Node, type NodeProps, type OnConnectEnd, type ReactFlowInstance, type Viewport,
 } from '@xyflow/react'
-import { Button, isBehindModal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Modal, isBehindModal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   CanvasChat, CanvasCommand, CanvasConnectionId, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeIssue,
-  CanvasNodeTypeInfo, CanvasPoint, CanvasPort, CanvasResource,
+  CanvasNodeTypeInfo, CanvasPoint, CanvasPort, CanvasResource, CanvasGroupId,
 } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { CanvasChatPresentation, CanvasConnectionOrigin, CanvasNodeOwner, WorkspaceProps } from './props.ts'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
@@ -36,6 +36,8 @@ import { useCanvasClipboard } from './use-canvas-clipboard.ts'
 import { CanvasAddToolbar } from './CanvasAddToolbar.tsx'
 import { CanvasViewToolbar } from './CanvasViewToolbar.tsx'
 import toolbarCss from './CanvasToolbar.module.css'
+import { CanvasGroupingController, CanvasGroupDrag, canvasGroupBounds, type CanvasSelection } from './canvas-grouping.ts'
+import { CanvasGroupFrame } from './CanvasGroupFrame.tsx'
 
 type CardData = Omit<CanvasNodeOwner, 'definition' | 'selected'> & {
   definition: CanvasNodeTypeInfo | undefined
@@ -203,11 +205,33 @@ function CanvasGraphContent({
     readonly screen: CanvasPoint
     readonly world: CanvasPoint
     readonly nodeIds: readonly CanvasNodeId[]
+    readonly groupIds: readonly CanvasGroupId[]
   } | null>(null)
   const contextFocus = useRef<HTMLElement | null>(null)
+  const groupingInputs = useRef({ document, command })
+  groupingInputs.current = { document, command }
+  const [grouping] = useState(() => new CanvasGroupingController({
+    document: () => groupingInputs.current.document,
+    command: operation => groupingInputs.current.command(operation),
+    newId: () => randomUUID() as CanvasGroupId,
+  }))
+  const [selectedGroupIds, setGroupSelection] = useState<CanvasGroupId[]>([])
+  const [renamingGroup, setRenamingGroup] = useState<{ id: CanvasGroupId; title: string } | null>(null)
+  const groupPointer = useRef<{ cancel: () => void } | null>(null)
+  useEffect(() => {
+    if (!active) groupPointer.current?.cancel()
+    return () => { groupPointer.current?.cancel() }
+  }, [active, document.id, document.revision])
   const cutting = useRef(false)
   const keyboardMutation = useRef(false)
   const pointerDrag = useRef<'active' | 'cancelled' | null>(null)
+  const groupedNodeDrag = useRef<{
+    gesture: CanvasGroupDrag
+    anchorId: string
+    origin: CanvasPoint
+    canvasId: CanvasDocument['id']
+    revision: number
+  } | null>(null)
   const snapping = useRef<{
     readonly anchorId: CanvasNodeId
     readonly geometry: CanvasSnapGesture
@@ -234,14 +258,39 @@ function CanvasGraphContent({
   const [drag, setDrag] = useState<{ revision: number; positions: Record<string, { x: number; y: number }> }>({
     revision: document.revision, positions: {},
   })
+  useEffect(() => {
+    const grouped = groupedNodeDrag.current
+    if (grouped === null || active && grouped.canvasId === document.id && grouped.revision === document.revision) return
+    groupedNodeDrag.current = null
+    pointerDrag.current = 'cancelled'
+    snapping.current = null
+    setSnapGuides([])
+    setDrag({ revision: document.revision, positions: {} })
+  }, [active, document.id, document.revision])
   const [selectedNodeIds, setSelection] = useState<string[]>([])
   const retainedNodeIds = useMemo(() => new Set<string>(document.nodes.map(node => node.id)), [document.nodes])
   // Host updates can remove selected nodes before React Flow emits a selection change.
   const selection = useMemo(() => selectedNodeIds.filter(id => retainedNodeIds.has(id)), [selectedNodeIds, retainedNodeIds])
+  const groupSelection = grouping.selectedGroups({ nodeIds: selection as CanvasNodeId[], groupIds: selectedGroupIds })
   const [edgeSelection, setEdgeSelection] = useState<string[]>([])
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
   const [measurements, setMeasurements] = useState<ReadonlyMap<string, { width: number; height: number }>>(new Map())
   const [zoom, setZoom] = useState(viewport?.zoom ?? 1)
+  const selectedTargets: CanvasSelection = { nodeIds: selection as CanvasNodeId[], groupIds: groupSelection }
+  const selectedMembers = grouping.members(selectedTargets)
+  const createGroup = (targets: CanvasSelection): void => {
+    if (busy || pointerDrag.current !== null) return
+    void grouping.group(targets, t('group.untitled')).then((id) => {
+      if (id !== null) { setSelection([]); setGroupSelection([id]); setEdgeSelection([]) }
+    })
+  }
+  const ungroup = (ids: readonly CanvasGroupId[]): void => {
+    if (busy || ids.length === 0) return
+    const members = grouping.members({ nodeIds: [], groupIds: ids })
+    void grouping.ungroup(ids).then((saved) => {
+      if (saved) { setGroupSelection(current => current.filter(id => !ids.includes(id))); setSelection(members) }
+    })
+  }
   useEffect(() => {
     const picker = filePicker.current
     if (picker === null) return
@@ -370,10 +419,11 @@ function CanvasGraphContent({
     observedActivity.current = threadFocus
     revealActivityNode()
   }, [threadFocus, document.id, document.nodes, revealActivityNode])
-  const geometry = nodes.map(node => ({ id: node.id, ...node.position,
+  const geometry = nodes.map(node => ({ id: node.id as CanvasNodeId, ...node.position,
     width: node.measured?.width ?? (rendererDefinitions[node.data.node.typeId]?.defaultSize?.width ?? RESOURCE_CARD_WIDTH),
     height: node.measured?.height ?? (rendererDefinitions[node.data.node.typeId]?.defaultSize?.height ?? 140),
   }))
+  const groupFrames = canvasGroupBounds(document, geometry)
   const dimensions = Object.fromEntries(geometry.map(({ id, width, height }) => [id, { width, height }]))
   const views = Object.fromEntries(nodes.map((node): [string, CanvasClipboardView] => [node.id,
     rendererDefinitions[node.data.node.typeId]?.presentation === 'chat' ? { kind: 'chat', presentation: chatPresentations[node.id] ?? { collapsed: false } }
@@ -383,7 +433,7 @@ function CanvasGraphContent({
   const clipboard = useCanvasClipboard({ document, dimensions, views,
     copyData: node => rendererDefinitions[node.typeId]?.clipboardData?.(node) ?? structuredClone(node.data),
     obstacles: geometry, command, report: reportClipboard,
-    select: (ids) => { setSelection(ids); setEdgeSelection([]); setHoveredEdge(null) },
+    select: (ids) => { setSelection(ids); setGroupSelection([]); setEdgeSelection([]); setHoveredEdge(null) },
     reveal: (ids) => { pendingReveal.current = ids; queueMicrotask(revealPastedNodes) },
     applyViews: (copies) => {
       for (const { nodeId, view } of copies) {
@@ -441,7 +491,9 @@ function CanvasGraphContent({
     const owner = root.ownerDocument
     const cancelDrag = (): void => {
       if (pointerDrag.current === null) return
+      if (groupPointer.current !== null) { groupPointer.current.cancel(); return }
       pointerDrag.current = 'cancelled'
+      groupedNodeDrag.current = null
       snapping.current = null
       setSnapGuides([])
       setDrag({ revision: document.revision, positions: {} })
@@ -476,26 +528,29 @@ function CanvasGraphContent({
       }
       const action = resolveCanvasKeyboardAction(event, root)
       if (action === null) return
-      if ((action.kind === 'copy' || action.kind === 'duplicate') && selection.length === 0) return
+      if ((action.kind === 'copy' || action.kind === 'duplicate') && selectedMembers.length === 0) return
+      if (action.kind === 'group' && (busy || !grouping.canGroup(selectedTargets) || pointerDrag.current !== null)) return
+      if (action.kind === 'ungroup' && (busy || groupSelection.length === 0 || pointerDrag.current !== null)) return
       if ((action.kind === 'copy' || action.kind === 'paste' || action.kind === 'duplicate')
         && (busy || clipboard.pending || pointerDrag.current !== null)) return
       if ((action.kind === 'undo' || action.kind === 'redo') && (busy || clipboard.pending || history.pending
         || pointerDrag.current !== null || !(action.kind === 'undo' ? history.canUndo : history.canRedo))) return
       const focused = owner.activeElement
-      if (action.kind === 'move' && selection.length === 0) return
+      if (action.kind === 'move' && selectedMembers.length === 0) return
       if (action.kind === 'remove' && (busy || cutting.current || keyboardMutation.current)) return
       const focusedEdge = focused?.closest('.react-flow__edge')?.getAttribute('data-id')
       const edgeCandidates = hoveredEdge === null ? focusedEdge ? [focusedEdge] : edgeSelection : [hoveredEdge]
       const targetedEdges = document.connections.filter(connection => edgeCandidates.includes(connection.id))
         .map(connection => connection.id)
       if (action.kind === 'remove' && targetedEdges.length === 0
-        && !document.nodes.some(node => selection.includes(node.id))) return
+        && selectedMembers.length === 0) return
       event.preventDefault()
       event.stopPropagation()
       switch (action.kind) {
         case 'select-all':
           if (pointerDrag.current !== null) return
-          setSelection(document.nodes.map(node => node.id))
+          setSelection(document.nodes.filter(node => node.groupId === undefined).map(node => node.id))
+          setGroupSelection((document.groups ?? []).map(group => group.id))
           setEdgeSelection([])
           setHoveredEdge(null)
           return
@@ -503,36 +558,39 @@ function CanvasGraphContent({
           if (clipboard.cancel()) return
           cancelDrag()
           setSelection([])
+          setGroupSelection([])
           setEdgeSelection([])
           setHoveredEdge(null)
           return
         case 'zoom-in': void flow?.zoomIn(); return
         case 'zoom-out': void flow?.zoomOut(); return
         case 'fit': void flow?.fitView({ padding: FIT_PADDING }); return
-        case 'copy': void clipboard.copy(selection as CanvasNodeId[]); return
+        case 'copy': void clipboard.copy(selectedMembers); return
         case 'paste': void clipboard.paste(); return
-        case 'duplicate': void clipboard.duplicate(selection as CanvasNodeId[]); return
+        case 'duplicate': void clipboard.duplicate(selectedMembers); return
+        case 'group': createGroup(selectedTargets); return
+        case 'ungroup': ungroup(groupSelection); return
         case 'undo': replayHistory('undo'); return
         case 'redo': replayHistory('redo'); return
         case 'remove': {
           if (targetedEdges.length > 0) { cut(targetedEdges); return }
-          const nodeIds = document.nodes.filter(node => selection.includes(node.id)).map(node => node.id)
+          const nodeIds = selectedMembers
           if (nodeIds.length === 0) return
           keyboardMutation.current = true
-          void command({ kind: 'remove-nodes', nodeIds }).then((saved) => {
-            if (saved) setSelection([])
+          void (groupSelection.length === 0 ? command({ kind: 'remove-nodes', nodeIds }) : grouping.remove(selectedTargets)).then((saved) => {
+            if (saved) { setSelection([]); setGroupSelection([]) }
           }).finally(() => { keyboardMutation.current = false })
           return
         }
         case 'move': {
           if (busy || keyboardMutation.current || pointerDrag.current !== null) return
-          const moved = nodes.filter(node => selection.includes(node.id)).map(node => ({
+          const moved = nodes.filter(node => selectedMembers.includes(node.id as CanvasNodeId)).map(node => ({
             id: node.id as CanvasNodeId, position: { x: node.position.x + action.x, y: node.position.y + action.y },
           }))
           if (moved.length === 0) return
           keyboardMutation.current = true
           setDrag({ revision: document.revision, positions: Object.fromEntries(moved.map(node => [node.id, node.position])) })
-          void command({ kind: 'move-nodes', nodes: moved }).then((saved) => {
+          void (groupSelection.length === 0 ? command({ kind: 'move-nodes', nodes: moved }) : grouping.move(selectedTargets, { x: action.x, y: action.y })).then((saved) => {
             if (!saved) setDrag({ revision: document.revision, positions: {} })
           }).finally(() => { keyboardMutation.current = false })
           return
@@ -549,7 +607,7 @@ function CanvasGraphContent({
       owner.defaultView?.removeEventListener('blur', cancelConnectionCreation)
     }
   }, [document, nodes, selection, hoveredEdge, edgeSelection, busy, cut, command, flow, contextMenu, closeContextMenu,
-    connectionMenu, cancelConnectionCreation, clipboard, history, replayHistory, active])
+    connectionMenu, cancelConnectionCreation, clipboard, history, replayHistory, active, groupSelection, selectedMembers, grouping])
   const edges: GraphEdge[] = document.connections.map(connection => ({
     id: connection.id, type: 'convaxConnection', source: connection.source, target: connection.target,
     sourceHandle: connection.sourcePort, targetHandle: connection.targetPort,
@@ -558,7 +616,7 @@ function CanvasGraphContent({
       hovered: hoveredEdge === connection.id,
       endpointSelected: selection.includes(connection.source) || selection.includes(connection.target),
       busy, zoom, t, cut, hover: setHoveredEdge,
-      select: (id) => { setEdgeSelection([id]); setSelection([]) },
+      select: (id) => { setEdgeSelection([id]); setSelection([]); setGroupSelection([]) },
     },
   }))
   const connect = (connection: Connection): void => {
@@ -612,12 +670,22 @@ function CanvasGraphContent({
     const selected = document.nodes.filter(node => selection.includes(node.id)).map(node => node.id)
     const focused = graph.current?.ownerDocument.activeElement
     contextFocus.current = focused instanceof HTMLElement ? focused : null
-    setContextMenu({ screen, world, nodeIds: canvasContextTargets(hitId, selected, measured, world) })
+    const ids = canvasContextTargets(hitId, selected, measured, world)
+    const inSelectedGroup = hitId === undefined && groupFrames.some(frame => groupSelection.includes(frame.id)
+      && world.x >= frame.x && world.x <= frame.x + frame.width && world.y >= frame.y && world.y <= frame.y + frame.height)
+    setContextMenu({ screen, world, nodeIds: ids,
+      groupIds: grouping.selectedGroups({ nodeIds: ids, groupIds: inSelectedGroup ? groupSelection : [] }) })
   }
   return (
     <div ref={graph} className={css.graph} data-convax-graph="" data-convax-clipboard-pending={clipboard.pending || undefined}
       data-convax-history-pending={history.pending || undefined} data-canvas-drag-select={dragSelects || undefined}
-      onPointerDownCapture={() => { pendingActivityReveal.current = null }}
+      onPointerDownCapture={(event) => {
+        pendingActivityReveal.current = null
+        if (event.target instanceof Element && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+          const nodeId = event.target.closest('.react-flow__node')?.getAttribute('data-id')
+          if (event.target.classList.contains('react-flow__pane') || nodeId !== undefined && nodeId !== null && !selection.includes(nodeId)) setGroupSelection([])
+        }
+      }}
       onWheelCapture={() => { pendingActivityReveal.current = null }}
       onKeyDownCapture={() => { pendingActivityReveal.current = null }}
       aria-busy={busy || clipboard.pending || history.pending} onPointerLeave={() => { setHoveredEdge(null) }}>
@@ -643,8 +711,11 @@ function CanvasGraphContent({
           for (const change of changes) if (change.type === 'select') setEdgeSelection(current => change.selected
             ? [...current.filter(id => id !== change.id), change.id] : current.filter(id => id !== change.id))
         }}
-        onPaneClick={() => { setEdgeSelection([]); setHoveredEdge(null) }}
-        onNodeClick={() => { setEdgeSelection([]); setHoveredEdge(null) }}
+        onPaneClick={() => { setGroupSelection([]); setEdgeSelection([]); setHoveredEdge(null) }}
+        onNodeClick={(event) => {
+          if (!event.shiftKey && !event.metaKey && !event.ctrlKey) setGroupSelection([])
+          setEdgeSelection([]); setHoveredEdge(null)
+        }}
         onPaneContextMenu={(event) => { openContextMenu(event) }}
         onNodeContextMenu={(event, node) => { openContextMenu(event, node.id as CanvasNodeId) }}
         onSelectionContextMenu={(event) => { openContextMenu(event) }}
@@ -675,6 +746,14 @@ function CanvasGraphContent({
               && dimensions.some(change => change.id === pending.nodeId)) pending.waitingForExpansion = false
             queueMicrotask(() => { revealPastedNodes(); revealActivityNode() })
           }
+          const grouped = groupedNodeDrag.current
+          const groupedAnchor = changes.find(change => change.type === 'position' && change.id === grouped?.anchorId)
+          if (grouped !== null && groupedAnchor?.type === 'position' && groupedAnchor.position !== undefined && pointerDrag.current === 'active') {
+            const result = grouped.gesture.preview({
+              x: groupedAnchor.position.x - grouped.origin.x, y: groupedAnchor.position.y - grouped.origin.y,
+            }, flow?.getZoom() ?? zoom)
+            setDrag({ revision: grouped.revision, positions: result.positions }); setSnapGuides(result.guides)
+          }
           const gesture = snapping.current
           const anchor = gesture?.geometry.moving.find(node => node.id === gesture.anchorId)
           const anchorChange = changes.find(change => change.type === 'position' && change.id === gesture?.anchorId)
@@ -689,7 +768,7 @@ function CanvasGraphContent({
           }
           for (const change of changes) {
             if (change.type === 'position' && change.position !== undefined && pointerDrag.current !== 'cancelled'
-              && gesture === null) {
+              && gesture === null && grouped === null) {
               const position = change.position
               setDrag(current => ({
                 revision: document.revision,
@@ -704,26 +783,43 @@ function CanvasGraphContent({
           }
         }}
         onNodeDragStart={(_event, anchor, moved) => {
+          if (!active) return
           pointerDrag.current = 'active'
+          if (groupSelection.length > 0) {
+            groupedNodeDrag.current = { gesture: new CanvasGroupDrag(document, selectedTargets, geometry, groupFrames),
+              anchorId: anchor.id, origin: anchor.position, canvasId: document.id, revision: document.revision }
+            snapping.current = null; setSnapGuides([]); return
+          }
+          setGroupSelection([])
           const movingIds = new Set(moved.map(node => node.id as CanvasNodeId))
           const measured = nodes.flatMap(node => node.measured?.width === undefined || node.measured.height === undefined ? [] : [{
             id: node.id as CanvasNodeId, x: node.position.x, y: node.position.y,
             width: node.measured.width, height: node.measured.height,
           }])
-          const geometry = createCanvasSnapGesture(measured, movingIds)
-          snapping.current = geometry.moving.length !== moved.length ? null : {
-            anchorId: anchor.id as CanvasNodeId, geometry,
+          const snapGeometry = createCanvasSnapGesture(measured, movingIds)
+          snapping.current = snapGeometry.moving.length !== moved.length ? null : {
+            anchorId: anchor.id as CanvasNodeId, geometry: snapGeometry,
             positions: new Map(moved.map(node => [node.id as CanvasNodeId, node.position])),
           }
           setSnapGuides([])
         }}
         onNodeDragStop={(_event, _node, moved) => {
-          const cancelled = pointerDrag.current === 'cancelled'
           const positions = snapping.current?.positions
+          const grouped = groupedNodeDrag.current
+          const cancelled = pointerDrag.current === 'cancelled' || !active
+            || grouped !== null && (grouped.canvasId !== document.id || grouped.revision !== document.revision)
+          groupedNodeDrag.current = null
           pointerDrag.current = null
           snapping.current = null
           setSnapGuides([])
           if (cancelled) { setDrag({ revision: document.revision, positions: {} }); return }
+          if (grouped !== null) {
+            const operation = grouped.gesture.command()
+            if (operation !== null) void command(operation).then((saved) => {
+              if (!saved) setDrag({ revision: document.revision, positions: {} })
+            })
+            return
+          }
           void command({ kind: 'move-nodes', nodes: moved.map(node => ({
             id: node.id as CanvasNodeId, position: positions?.get(node.id as CanvasNodeId) ?? node.position,
           })) })
@@ -780,6 +876,75 @@ function CanvasGraphContent({
       >
         <Background color="var(--dsw-alias-border-l2)" gap={24} size={1} />
         <ViewportPortal>
+          {groupFrames.map(frame => <CanvasGroupFrame key={frame.id} frame={frame}
+            selected={groupSelection.includes(frame.id)} busy={busy || clipboard.pending || history.pending}
+            select={(extend) => {
+              setGroupSelection((current) => {
+                if (extend) return current.includes(frame.id) ? current.filter(id => id !== frame.id) : [...current, frame.id]
+                return current.includes(frame.id) ? current : [frame.id]
+              })
+              if (!extend && !groupSelection.includes(frame.id)) setSelection([])
+              setEdgeSelection([]); setHoveredEdge(null)
+            }}
+            rename={() => { setRenamingGroup({ id: frame.id, title: frame.title }) }}
+            context={(event) => {
+              event.preventDefault(); event.stopPropagation()
+              contextFocus.current = event.currentTarget
+              setContextMenu({ screen: { x: event.clientX, y: event.clientY },
+                world: flow?.screenToFlowPosition({ x: event.clientX, y: event.clientY }) ?? { x: frame.x, y: frame.y },
+                nodeIds: groupSelection.includes(frame.id) ? selection as CanvasNodeId[] : [],
+                groupIds: groupSelection.includes(frame.id) ? groupSelection : [frame.id] })
+            }}
+            drag={(event) => {
+              if (flow === null || pointerDrag.current !== null || event.shiftKey || event.metaKey || event.ctrlKey) return
+              const targets: CanvasSelection = groupSelection.includes(frame.id) ? selectedTargets : { nodeIds: [], groupIds: [frame.id] }
+              const gesture = new CanvasGroupDrag(document, targets, geometry, groupFrames)
+              const start = { x: event.clientX, y: event.clientY }
+              const owner = event.currentTarget.ownerDocument
+              const element = event.currentTarget
+              const pointerId = event.pointerId
+              const revision = document.revision
+              let distance = 0
+              let ended = false
+              pointerDrag.current = 'active'
+              element.setPointerCapture(pointerId)
+              const detach = (): void => {
+                owner.removeEventListener('pointermove', move, true)
+                owner.removeEventListener('pointerup', up, true)
+                owner.removeEventListener('pointercancel', cancel, true)
+                owner.defaultView?.removeEventListener('blur', cancel)
+                if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId)
+                groupPointer.current = null
+                pointerDrag.current = null
+                setSnapGuides([])
+              }
+              const cancel = (): void => {
+                if (ended) return
+                ended = true; detach(); setDrag({ revision, positions: {} })
+              }
+              const move = (next: PointerEvent): void => {
+                if (next.pointerId !== pointerId) return
+                next.preventDefault(); next.stopPropagation()
+                const dx = next.clientX - start.x
+                const dy = next.clientY - start.y
+                distance = Math.max(distance, Math.hypot(dx, dy))
+                if (distance < 3) return
+                const result = gesture.preview({ x: dx / flow.getZoom(), y: dy / flow.getZoom() }, flow.getZoom())
+                setDrag({ revision, positions: result.positions }); setSnapGuides(result.guides)
+              }
+              const up = (next: PointerEvent): void => {
+                if (next.pointerId !== pointerId) return
+                move(next)
+                ended = true; detach()
+                const operation = distance < 3 ? null : gesture.command()
+                if (operation !== null) void command(operation).then((saved) => { if (!saved) setDrag({ revision, positions: {} }) })
+              }
+              groupPointer.current = { cancel }
+              owner.addEventListener('pointermove', move, true)
+              owner.addEventListener('pointerup', up, true)
+              owner.addEventListener('pointercancel', cancel, true)
+              owner.defaultView?.addEventListener('blur', cancel)
+            }} />)}
           <svg className={css.snapGuides} aria-hidden="true">
             {snapGuides.map(guide => <line key={guide.axis} data-convax-snap-guide={guide.axis} data-coordinate={guide.coordinate}
               x1={guide.axis === 'x' ? guide.coordinate : guide.from} y1={guide.axis === 'x' ? guide.from : guide.coordinate}
@@ -790,10 +955,14 @@ function CanvasGraphContent({
         {connectionMenu !== null && <ConnectionCreationPreview origin={connectionMenu.origin} from={connectionMenu.from}
           to={connectionMenu.world} position={connectionMenu.position} />}
         <CreationDock busy={busy} creations={creations} invoke={invokeCreation} t={t} />
-        <NodeToolbar nodeId={selection} position={Position.Top} isVisible={active && selection.length > 1}>
+        <NodeToolbar nodeId={selectedMembers} position={groupSelection.length > 0 ? Position.Bottom : Position.Top}
+          isVisible={active && selectedMembers.length > 1}>
+          {grouping.canGroup(selectedTargets) && <Button size="sm" variant="outline" disabled={busy}
+            onClick={() => { createGroup(selectedTargets) }}>{t('group.create')}</Button>}
+          {groupSelection.length > 0 && <Button size="sm" variant="outline" disabled={busy} onClick={() => { ungroup(groupSelection) }}>{t('group.ungroup')}</Button>}
           <Button size="sm" variant="outline" disabled={busy} onClick={() => {
-            void command({ kind: 'remove-nodes', nodeIds: selection as CanvasNodeId[] }).then((saved) => {
-              if (saved) setSelection([])
+            void (groupSelection.length === 0 ? command({ kind: 'remove-nodes', nodeIds: selection as CanvasNodeId[] }) : grouping.remove(selectedTargets)).then((saved) => {
+              if (saved) { setSelection([]); setGroupSelection([]) }
             })
           }}>{t('selection.remove')}</Button>
         </NodeToolbar>
@@ -803,20 +972,49 @@ function CanvasGraphContent({
           && (entry.connectionDirection === undefined || entry.connectionDirection !== connectionMenu.origin.direction))
           .map(entry => ({ id: entry.id, label: typeof entry.label === 'string' ? entry.label : entry.label(),
             create: () => { invokeCreation(entry, connectionMenu.world, connectionMenu.origin) } }))} />}
-      {active && contextMenu !== null && <CanvasContextMenu point={contextMenu.screen} targetCount={contextMenu.nodeIds.length}
-        busy={busy || clipboard.pending} history={history} replayHistory={replayHistory} t={t}
-        close={closeContextMenu}
+      {active && contextMenu !== null && <CanvasContextMenu point={contextMenu.screen}
+        targetCount={grouping.members(contextMenu).length} groupCount={contextMenu.groupIds.length}
+        groups={document.groups ?? []} canGroup={grouping.canGroup(contextMenu)}
+        canRemoveFromGroup={document.nodes.some(node => grouping.members(contextMenu).includes(node.id) && node.groupId !== undefined)}
+        group={() => { createGroup(contextMenu) }} ungroup={() => { ungroup(contextMenu.groupIds) }}
+        renameGroup={contextMenu.groupIds.length === 1 ? () => {
+          const group = document.groups?.find(item => item.id === contextMenu.groupIds[0])
+          if (group !== undefined) setRenamingGroup({ id: group.id, title: group.title })
+        } : undefined}
+        assignGroup={(groupId) => { void grouping.assign(contextMenu, groupId) }}
+        busy={busy || clipboard.pending} history={history} replayHistory={replayHistory} t={t} close={closeContextMenu}
         creations={creations.map(entry => ({ id: entry.id, label: typeof entry.label === 'string' ? entry.label : entry.label(),
           create: () => { invokeCreation(entry, contextMenu.world) } }))}
-        focus={() => { void flow?.fitView({ nodes: contextMenu.nodeIds.map(id => ({ id })), padding: FIT_PADDING }) }}
-        remove={() => { void command({ kind: 'remove-nodes', nodeIds: [...contextMenu.nodeIds] }).then((saved) => {
-          if (saved) setSelection(current => current.filter(id => !contextMenu.nodeIds.includes(id as CanvasNodeId)))
-        }) }}
-        selectAll={() => { setSelection(document.nodes.map(node => node.id)); setEdgeSelection([]); setHoveredEdge(null) }}
-        copy={() => { void clipboard.copy(contextMenu.nodeIds) }}
+        focus={() => { void flow?.fitView({ nodes: grouping.members(contextMenu).map(id => ({ id })), padding: FIT_PADDING }) }}
+        remove={() => {
+          void (contextMenu.groupIds.length === 0 ? command({ kind: 'remove-nodes', nodeIds: [...contextMenu.nodeIds] }) : grouping.remove(contextMenu)).then((saved) => {
+            if (saved) {
+              setSelection(current => current.filter(id => !contextMenu.nodeIds.includes(id as CanvasNodeId)))
+              setGroupSelection(current => current.filter(id => !contextMenu.groupIds.includes(id)))
+            }
+          })
+        }}
+        selectAll={() => {
+          setSelection(document.nodes.filter(node => node.groupId === undefined).map(node => node.id))
+          setGroupSelection((document.groups ?? []).map(group => group.id)); setEdgeSelection([]); setHoveredEdge(null)
+        }}
+        copy={() => { void clipboard.copy(grouping.members(contextMenu)) }}
         paste={() => { void clipboard.paste(contextMenu.world) }}
-        duplicate={() => { void clipboard.duplicate(contextMenu.nodeIds) }}
+        duplicate={() => { void clipboard.duplicate(grouping.members(contextMenu)) }}
         fit={() => { void flow?.fitView({ padding: FIT_PADDING }) }} />}
+      <Modal open={renamingGroup !== null} onClose={() => { if (!busy) setRenamingGroup(null) }}
+        title={t('group.rename')} closeLabel={t('canvas.cancel')}>
+        <form className={css.renameForm} onSubmit={(event) => {
+          event.preventDefault()
+          if (renamingGroup !== null && renamingGroup.title.trim() !== '') void grouping.rename(renamingGroup.id, renamingGroup.title).then((saved) => {
+            if (saved) setRenamingGroup(null)
+          })
+        }}>
+          <Input autoFocus aria-label={t('group.name')} value={renamingGroup?.title ?? ''}
+            onChange={(event) => { setRenamingGroup(current => current === null ? null : { ...current, title: event.target.value }) }} />
+          <Button size="sm" type="submit" disabled={busy || (renamingGroup?.title.trim() ?? '') === ''}>{t('canvas.save')}</Button>
+        </form>
+      </Modal>
       {active && <CanvasViewToolbar className={css.graphControls} inputMode={inputMode} setInputMode={setInputMode}
         zoom={zoom} locale={globalThis.document.documentElement.lang || 'en'} t={t}
         zoomOut={() => { void flow?.zoomOut() }} resetZoom={() => { void flow?.zoomTo(1) }}

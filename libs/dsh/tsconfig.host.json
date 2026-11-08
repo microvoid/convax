@@ -20,6 +20,7 @@
     "apps/web/tests/convax-window-history.ts",
     "apps/web/tests/convax-window-mirror.e2e.ts",
     "apps/web/tests/convax-canvas-interactions.e2e.ts",
+    "apps/web/tests/convax-canvas-groups.e2e.ts",
     "apps/web/tests/convax-canvas-manager.e2e.ts",
     "apps/web/tests/convax-chat-settings.e2e.ts",
     "apps/web/tests/convax-composer-preferences.e2e.ts",

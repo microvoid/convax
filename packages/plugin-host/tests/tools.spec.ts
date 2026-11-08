@@ -76,6 +76,33 @@ async function fixture() {
 }
 
 describe('Convax graph tools', () => {
+  it('creates, projects and moves logical groups through one public graph transaction', async () => {
+    const f = await fixture()
+    expect((await f.add('group-file')).value).toMatchObject({ ok: true })
+    const grouping = { expectedRevision: f.revision(), operationId: 'tool-group', ops: [
+      { op: 'group.add', id: 'tool-group-id', title: 'Research' },
+      { op: 'node.set', id: chatId, groupId: 'tool-group-id' },
+      { op: 'node.set', id: 'group-file', groupId: 'tool-group-id' },
+      { op: 'group.move', id: 'tool-group-id', delta: { x: 25, y: -12 } },
+    ] }
+    const before = f.host.workspace().canvases[0]!.nodes.map(node => ({ id: node.id, position: node.position }))
+    expect((await f.invoke('convax_commit', grouping)).value).toMatchObject({ ok: true })
+    const selected = await f.invoke('convax_graph', { include: ['groups', 'nodes'], selection: { groupIds: ['tool-group-id'] },
+      fields: { nodes: ['groupId', 'position'] } })
+    expect(selected.isError).toBe(false)
+    expect(selected.value).toMatchObject({ groups: [{ id: 'tool-group-id', title: 'Research' }],
+      nodes: before.map(node => ({ id: node.id, groupId: 'tool-group-id', position: { x: node.position.x + 25, y: node.position.y - 12 } })),
+      projection: { groups: true, completeGroups: false },
+    })
+    expect((await f.invoke('convax_graph', { include: ['groups'] })).value)
+      .toMatchObject({ projection: { completeGroups: true }, groups: [{ id: 'tool-group-id', title: 'Research' }] })
+    expect((await f.invoke('convax_commit', { expectedRevision: f.revision(), operationId: 'tool-detach', ops: [
+      { op: 'node.set', id: 'group-file', groupId: null }, { op: 'group.remove', id: 'tool-group-id' },
+    ] })).value).toMatchObject({ ok: true })
+    expect(f.host.workspace().canvases[0]?.groups).toBeUndefined()
+    expect(f.host.workspace().canvases[0]?.nodes.every(node => node.groupId === undefined)).toBe(true)
+  })
+
   it('discovers provider schemas and omits unrequested collections explicitly', async () => {
     const f = await fixture()
     const summary = await f.invoke('convax_graph', {})

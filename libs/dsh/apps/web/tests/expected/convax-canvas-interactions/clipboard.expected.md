@@ -29,6 +29,7 @@
       - button "Expand outline.md"
       - text: outline.md MD · 29B
       - button "Resize preview"
+  - button "Group selection"
   - button "Remove selected references"
   - img
   - button "Add folder or files"

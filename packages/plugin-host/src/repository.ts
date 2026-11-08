@@ -6,7 +6,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { CanvasDatabase, CanvasTransaction } from './database.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import type { CanvasConnection, CanvasChat, CanvasCommandRequest, CanvasCommandResult, CanvasDocument, CanvasWorkspace, CanvasId, CanvasNodeId, CanvasSessionBinding, CanvasNodeIssue, CanvasNode, CanvasMigrationId, CanvasOpenSessionRequest, CanvasOperationId } from './types.ts'
+import type { CanvasConnection, CanvasChat, CanvasCommandRequest, CanvasCommandResult, CanvasDocument, CanvasWorkspace, CanvasId, CanvasNodeId, CanvasSessionBinding, CanvasNodeIssue, CanvasNode, CanvasMigrationId, CanvasOpenSessionRequest, CanvasOperationId, CanvasGroupId } from './types.ts'
 import type { CanvasNodeDefinition, CanvasNodeRegistry } from './registry.ts'
 import type { CanvasData } from './types.ts'
 import { graphSchema, type CanvasTableValue } from './schema.ts'
@@ -40,6 +40,7 @@ export class CanvasRepository {
         if (request.command.kind === 'history') return this.historyPlan(tx, canvas, request).removed
         if (request.command.kind === 'delete' || request.command.kind === 'purge') return canvas.nodes.map(node => node.id)
         if (request.command.kind === 'remove-nodes') return request.command.nodeIds
+        if (request.command.kind === 'remove-selection') return this.selectionNodes(canvas, request.command.nodeIds, request.command.groupIds).map(node => node.id)
         if (request.command.kind === 'batch') {
           const graph = structuredClone(tx.global.get())
           this.applyBatch(tx, graph, request, false, true)
@@ -302,6 +303,12 @@ export class CanvasRepository {
           return { ok: true as const, removed: [], restored: [] }
         }
         const canvas = tx.global.get().canvases.find(value => value.id === request.canvasId)
+        if (request.command.kind === 'remove-selection') {
+          if (canvas === undefined) throw new CommandFailure('not-found', 'Canvas no longer exists')
+          if (canvas.revision !== request.expectedRevision) throw new CommandFailure('conflict', 'Canvas changed; refresh and retry')
+          return { ok: true as const, removed: this.selectionNodes(canvas, request.command.nodeIds, request.command.groupIds)
+            .filter(isSessionNode).map(node => node.id), restored: [] }
+        }
         if (request.command.kind === 'batch') {
           const graph = structuredClone(tx.global.get())
           this.applyBatch(tx, graph, request, false, true)
@@ -437,12 +444,23 @@ export class CanvasRepository {
         const copyTitle = title.trim()
         if (copyTitle.length === 0) throw new CommandFailure('invalid-command', 'Canvas title is required')
         const ids = new Map<CanvasNodeId, CanvasNodeId>()
+        const groupIds = new Map<CanvasGroupId, CanvasGroupId>()
+        const groups = (existing.groups ?? []).map((group) => {
+          const id = brandString<CanvasGroupId>(randomUUID())
+          groupIds.set(group.id, id)
+          return { ...group, id }
+        })
         const sourceDirectory = tx.table('directories').get(existing.id)?.path
         const copiedDirectory = tx.table('directories').get(newCanvasId)?.path
         const nodes = existing.nodes.map((node) => {
           const id = brandString<CanvasNodeId>(randomUUID())
           ids.set(node.id, id)
           const copied = { ...structuredClone(node), id, revision: 1 }
+          if (node.groupId !== undefined) {
+            const groupId = groupIds.get(node.groupId)
+            if (groupId === undefined) throw new Error('Validated canvas node has no copied group')
+            copied.groupId = groupId
+          }
           if (isSessionNode(node) && sourceDirectory !== undefined
             && copiedDirectory !== undefined && copied.data.cwd === sourceDirectory) {
             copied.data.cwd = copiedDirectory
@@ -460,6 +478,7 @@ export class CanvasRepository {
             kind: 'copy' as const, source: structuredClone(existing.titleFormat ?? { kind: 'literal' as const, value: existing.title }),
           } } : {}),
           nodes,
+          ...(existing.groups === undefined ? {} : { groups }),
           connections: existing.connections.map(edge => ({ ...edge, id: brandString<CanvasConnection['id']>(randomUUID()),
             source: copiedId(edge.source), target: copiedId(edge.target) })),
         })
@@ -491,6 +510,7 @@ export class CanvasRepository {
           }
         }
         this.mutate(existing, request, settled)
+        this.pruneEmptyGroups(existing)
         existing.revision += 1
       }
     }
@@ -602,7 +622,7 @@ export class CanvasRepository {
             addedNodes.add(op.id)
             usedNodes.add(op.id)
             canvas.nodes.push(this.prepareNode({ id: op.id, typeId: op.typeId, dataVersion: op.dataVersion,
-              data: op.data, position: op.position, revision: 0 }))
+              data: op.data, position: op.position, revision: 0, ...(op.groupId === undefined ? {} : { groupId: op.groupId }) }))
             break
           }
           case 'node.set': {
@@ -611,7 +631,7 @@ export class CanvasRepository {
             if (op.ifRevision !== undefined && node.revision !== op.ifRevision) {
               throw new CommandFailure('conflict', 'Node changed before this operation')
             }
-            if (op.data === undefined && op.position === undefined) throw new CommandFailure('invalid-command', 'Node update requires data or position')
+            if (op.data === undefined && op.position === undefined && op.groupId === undefined) throw new CommandFailure('invalid-command', 'Node update requires data, position or group')
             if (op.data === undefined && op.dataVersion !== undefined) throw new CommandFailure('invalid-command', 'Data version requires replacement data')
             if (op.data !== undefined) {
               const definition = this.nodeTypes.get(node.typeId)
@@ -623,12 +643,26 @@ export class CanvasRepository {
               node.data = this.parseNodeData(definition, op.data)
             }
             if (op.position !== undefined) node.position = structuredClone(op.position)
+            if (op.groupId !== undefined) this.assignNodeGroup(canvas, node, op.groupId)
             node.revision += 1
             break
           }
           case 'node.remove':
             if (!canvas.nodes.some(node => node.id === op.id)) throw new CommandFailure('not-found', 'Node no longer exists')
             this.mutate(canvas, { ...request, command: { kind: 'remove-nodes', nodeIds: [op.id] } }, settled || planning || addedNodes.has(op.id))
+            break
+          case 'group.add':
+            if ((canvas.groups ?? []).some(group => group.id === op.id)) throw new CommandFailure('invalid-command', 'Group identity already exists')
+            canvas.groups = [...canvas.groups ?? [], { id: op.id, title: this.groupTitle(op.title) }]
+            break
+          case 'group.set':
+            this.mutate(canvas, { ...request, command: { kind: 'rename-group', groupId: op.id, title: op.title } }, settled)
+            break
+          case 'group.remove':
+            this.mutate(canvas, { ...request, command: { kind: 'ungroup', groupIds: [op.id] } }, settled)
+            break
+          case 'group.move':
+            this.mutate(canvas, { ...request, command: { kind: 'move-selection', nodeIds: [], groupIds: [op.id], delta: op.delta } }, settled)
             break
           case 'edge.add':
             if (usedEdges.has(op.id) || tx.table('retired_connections').get(op.id) !== undefined) {
@@ -652,7 +686,42 @@ export class CanvasRepository {
       }
     }
     const result = graph.canvases.find(canvas => canvas.id === request.canvasId)
-    if (result !== undefined) result.revision = (original?.revision ?? 0) + 1
+    if (result !== undefined) {
+      this.pruneEmptyGroups(result)
+      result.revision = (original?.revision ?? 0) + 1
+    }
+    if (planning && !graphSchema.safeParse(graph).success) {
+      throw new CommandFailure('invalid-command', 'Command would create an invalid canvas graph')
+    }
+  }
+
+  private groupTitle(title: string): string {
+    const value = title.trim()
+    if (value.length === 0) throw new CommandFailure('invalid-command', 'Group title is required')
+    return value
+  }
+
+  private selectionNodes(canvas: CanvasDocument, nodeIds: readonly CanvasNodeId[], groupIds: readonly CanvasGroupId[]): CanvasNode[] {
+    for (const id of nodeIds) if (!canvas.nodes.some(node => node.id === id)) throw new CommandFailure('not-found', 'Node no longer exists')
+    for (const id of groupIds) if (!(canvas.groups ?? []).some(group => group.id === id)) throw new CommandFailure('not-found', 'Group no longer exists')
+    const selected = new Set(nodeIds)
+    const groups = new Set(groupIds)
+    return canvas.nodes.filter(node => selected.has(node.id) || node.groupId !== undefined && groups.has(node.groupId))
+  }
+
+  private assignNodeGroup(canvas: CanvasDocument, node: CanvasNode, groupId: CanvasGroupId | null): void {
+    if (groupId === null) delete node.groupId
+    else {
+      if (!(canvas.groups ?? []).some(group => group.id === groupId)) throw new CommandFailure('not-found', 'Group no longer exists')
+      node.groupId = groupId
+    }
+  }
+
+  private pruneEmptyGroups(canvas: CanvasDocument): void {
+    if (canvas.groups === undefined) return
+    const occupied = new Set(canvas.nodes.flatMap(node => node.groupId === undefined ? [] : [node.groupId]))
+    canvas.groups = canvas.groups.filter(group => occupied.has(group.id))
+    if (canvas.groups.length === 0) delete canvas.groups
   }
 
   private parseNodeData(definition: CanvasNodeDefinition, data: CanvasData): CanvasData {
@@ -700,9 +769,51 @@ export class CanvasRepository {
         return
       }
       case 'add-subgraph': {
+        if (command.groups !== undefined) canvas.groups = [...canvas.groups ?? [], ...command.groups.map(group => ({
+          id: group.id, title: this.groupTitle(group.title),
+        }))]
         const nodes = command.nodes.map(node => this.prepareNode(node))
         canvas.nodes.push(...nodes)
         for (const connection of command.connections) this.addConnection(canvas, connection)
+        return
+      }
+      case 'group-nodes': {
+        const nodes = this.selectionNodes(canvas, command.nodeIds, [])
+        if (nodes.length < 2) throw new CommandFailure('invalid-command', 'Grouping requires at least two nodes')
+        if ((canvas.groups ?? []).some(group => group.id === command.group.id)) throw new CommandFailure('invalid-command', 'Group identity already exists')
+        canvas.groups = [...canvas.groups ?? [], { id: command.group.id, title: this.groupTitle(command.group.title) }]
+        for (const node of nodes) { node.groupId = command.group.id; node.revision += 1 }
+        return
+      }
+      case 'rename-group': {
+        const group = canvas.groups?.find(group => group.id === command.groupId)
+        if (group === undefined) throw new CommandFailure('not-found', 'Group no longer exists')
+        group.title = this.groupTitle(command.title)
+        return
+      }
+      case 'ungroup': {
+        const nodes = this.selectionNodes(canvas, [], command.groupIds)
+        for (const node of nodes) { delete node.groupId; node.revision += 1 }
+        canvas.groups = (canvas.groups ?? []).filter(group => !command.groupIds.includes(group.id))
+        return
+      }
+      case 'set-node-group': {
+        const nodes = this.selectionNodes(canvas, command.nodeIds, command.groupId === null ? [] : [command.groupId])
+          .filter(node => command.nodeIds.includes(node.id))
+        for (const node of nodes) { this.assignNodeGroup(canvas, node, command.groupId); node.revision += 1 }
+        return
+      }
+      case 'move-selection': {
+        if (!Number.isFinite(command.delta.x) || !Number.isFinite(command.delta.y)) throw new CommandFailure('invalid-command', 'Movement must be finite')
+        for (const node of this.selectionNodes(canvas, command.nodeIds, command.groupIds)) {
+          node.position = { x: node.position.x + command.delta.x, y: node.position.y + command.delta.y }
+          node.revision += 1
+        }
+        return
+      }
+      case 'remove-selection': {
+        const nodeIds = this.selectionNodes(canvas, command.nodeIds, command.groupIds).map(node => node.id)
+        this.mutate(canvas, { ...request, command: { kind: 'remove-nodes', nodeIds } }, settled)
         return
       }
       case 'move-nodes':

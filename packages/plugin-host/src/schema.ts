@@ -7,13 +7,15 @@ import type {
   CanvasConnection, CanvasData, CanvasDocument, CanvasId, CanvasNode,
   CanvasNodeId, CanvasNodeTypeId, CanvasConnectionId, CanvasOperationId, CanvasDeliveryId,
   CanvasCommandRequest, CanvasThreadRequest, CanvasMigrationId,
-  CanvasGraphOperation, CanvasCommitRequest, CanvasTitleFormat,
+  CanvasGraphOperation, CanvasCommitRequest, CanvasTitleFormat, CanvasGroup, CanvasGroupId,
 } from './types.ts'
 
 const point = z.object({ x: z.number(), y: z.number() })
 const sessionId = z.string().min(1).transform(value => value as SessionId)
 const canvasId = z.string().min(1).transform(value => value as CanvasId)
 const nodeId = z.string().min(1).transform(value => value as CanvasNodeId)
+const groupId = z.string().min(1).transform(value => value as CanvasGroupId)
+const group: z.ZodType<CanvasGroup> = z.object({ id: groupId, title: z.string().trim().min(1) })
 const data: z.ZodType<CanvasData> = z.record(z.string(), z.json())
 const titleFormat: z.ZodType<CanvasTitleFormat> = z.lazy(() => z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('default') }),
@@ -24,8 +26,9 @@ const node: z.ZodType<CanvasNode> = z.object({
   id: z.string().min(1).transform(v => v as CanvasNodeId),
   typeId: z.string().min(1).transform(v => v as CanvasNodeTypeId),
   dataVersion: z.number().int().nonnegative(), data, position: point,
+  groupId: groupId.optional(),
   revision: z.number().int().nonnegative(),
-})
+}).transform(({ groupId, ...value }) => ({ ...value, ...(groupId === undefined ? {} : { groupId }) }))
 const connection = z.object({
   id: z.string().min(1).transform(v => v as CanvasConnectionId),
   source: z.string().min(1).transform(v => v as CanvasNodeId), sourcePort: z.string().min(1),
@@ -37,8 +40,10 @@ const canvas: z.ZodType<CanvasDocument> = z.object({
   archived: z.boolean().optional(),
   titleFormat: titleFormat.optional(),
   revision: z.number().int().nonnegative(), nodes: z.array(node), connections: z.array(connection),
-}).transform(({ archived, titleFormat, ...document }) => ({ ...document,
-  ...(archived === undefined ? {} : { archived }), ...(titleFormat === undefined ? {} : { titleFormat }) }))
+  groups: z.array(group).optional(),
+}).transform(({ archived, titleFormat, groups, ...document }) => ({ ...document,
+  ...(archived === undefined ? {} : { archived }), ...(titleFormat === undefined ? {} : { titleFormat }),
+  ...(groups === undefined ? {} : { groups }) }))
 
 /** Wire and durable validation of sequential graph operations. */
 export const canvasGraphOperationSchema: z.ZodType<CanvasGraphOperation> = z.discriminatedUnion('op', [
@@ -47,10 +52,15 @@ export const canvasGraphOperationSchema: z.ZodType<CanvasGraphOperation> = z.dis
   z.strictObject({ op: z.literal('canvas.remove') }),
   z.strictObject({ op: z.literal('node.add'), id: nodeId,
     typeId: z.string().min(1).transform(value => value as CanvasNodeTypeId),
-    dataVersion: z.number().int().nonnegative(), data, position: point }),
+    dataVersion: z.number().int().nonnegative(), data, position: point, groupId: groupId.optional() }),
   z.strictObject({ op: z.literal('node.set'), id: nodeId, ifRevision: z.number().int().positive().optional(),
-    dataVersion: z.number().int().nonnegative().optional(), data: data.optional(), position: point.optional() }),
+    dataVersion: z.number().int().nonnegative().optional(), data: data.optional(), position: point.optional(),
+    groupId: groupId.nullable().optional() }),
   z.strictObject({ op: z.literal('node.remove'), id: nodeId }),
+  z.strictObject({ op: z.literal('group.add'), id: groupId, title: z.string() }),
+  z.strictObject({ op: z.literal('group.set'), id: groupId, title: z.string() }),
+  z.strictObject({ op: z.literal('group.remove'), id: groupId }),
+  z.strictObject({ op: z.literal('group.move'), id: groupId, delta: point }),
   z.strictObject({ op: z.literal('edge.add'), ...connection.shape }),
   z.strictObject({ op: z.literal('edge.remove'), id: z.string().min(1).transform(value => value as CanvasConnectionId) }),
   z.strictObject({ op: z.literal('history'), targetOperationId: z.string().min(1).transform(value => value as CanvasOperationId), direction: z.enum(['undo', 'redo']) }),
@@ -75,8 +85,14 @@ export const canvasCommandRequestSchema: z.ZodType<CanvasCommandRequest> = z.obj
     z.object({ kind: z.literal('duplicate'), newCanvasId: canvasId, title: z.string(), localizedCopy: z.boolean().optional() }),
     z.object({ kind: z.literal('purge') }),
     z.object({ kind: z.literal('add-node'), node, initialConnections: z.array(connection).optional() }),
-    z.object({ kind: z.literal('add-subgraph'), nodes: z.array(node), connections: z.array(connection) }),
+    z.object({ kind: z.literal('add-subgraph'), nodes: z.array(node), connections: z.array(connection), groups: z.array(group).optional() }),
     z.object({ kind: z.literal('move-nodes'), nodes: z.array(z.object({ id: nodeId, position: point })) }),
+    z.object({ kind: z.literal('group-nodes'), group, nodeIds: z.array(nodeId) }),
+    z.object({ kind: z.literal('rename-group'), groupId, title: z.string() }),
+    z.object({ kind: z.literal('ungroup'), groupIds: z.array(groupId) }),
+    z.object({ kind: z.literal('set-node-group'), nodeIds: z.array(nodeId), groupId: groupId.nullable() }),
+    z.object({ kind: z.literal('move-selection'), nodeIds: z.array(nodeId), groupIds: z.array(groupId), delta: point }),
+    z.object({ kind: z.literal('remove-selection'), nodeIds: z.array(nodeId), groupIds: z.array(groupId) }),
     z.object({ kind: z.literal('arrange-nodes'), nodeIds: z.array(nodeId), origin: point,
       columns: z.number().int().min(1), columnGap: z.number().positive(), rowGap: z.number().positive() }),
     z.object({ kind: z.literal('remove-nodes'), nodeIds: z.array(nodeId) }),
@@ -111,17 +127,29 @@ export const graphSchema = z.object({
   const canvasIds = new Set<CanvasId>()
   const nodeIds = new Set<CanvasNodeId>()
   const connectionIds = new Set<CanvasConnectionId>()
+  const groupIds = new Set<CanvasGroupId>()
   graph.canvases.forEach((document, canvasIndex) => {
     if (canvasIds.has(document.id)) {
       context.addIssue({ code: 'custom', path: ['canvases', canvasIndex, 'id'], message: 'Canvas identity is duplicated' })
     }
     canvasIds.add(document.id)
     const localNodes = new Set(document.nodes.map(entry => entry.id))
+    const localGroups = new Set((document.groups ?? []).map(entry => entry.id))
+    for (const [index, entry] of (document.groups ?? []).entries()) {
+      if (groupIds.has(entry.id)) context.addIssue({ code: 'custom', path: ['canvases', canvasIndex, 'groups', index, 'id'], message: 'Group identity is duplicated' })
+      groupIds.add(entry.id)
+      if (!document.nodes.some(node => node.groupId === entry.id)) {
+        context.addIssue({ code: 'custom', path: ['canvases', canvasIndex, 'groups', index], message: 'Group has no members' })
+      }
+    }
     document.nodes.forEach((entry, nodeIndex) => {
       if (nodeIds.has(entry.id)) {
         context.addIssue({ code: 'custom', path: ['canvases', canvasIndex, 'nodes', nodeIndex, 'id'], message: 'Node identity is duplicated' })
       }
       nodeIds.add(entry.id)
+      if (entry.groupId !== undefined && !localGroups.has(entry.groupId)) {
+        context.addIssue({ code: 'custom', path: ['canvases', canvasIndex, 'nodes', nodeIndex, 'groupId'], message: 'Node group is absent from its canvas' })
+      }
     })
     document.connections.forEach((edge, edgeIndex) => {
       if (connectionIds.has(edge.id)) {
@@ -184,8 +212,10 @@ const nodeChange = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('removed'), node, index: z.number().int().nonnegative() }),
   z.object({ kind: z.literal('updated'), nodeId, typeId: z.string().min(1).transform(value => value as CanvasNodeTypeId),
     position: z.object({ before: point, after: point }).optional(), data: z.object({ before: historyData, after: historyData }).optional(),
+    groupId: z.object({ before: groupId.nullable(), after: groupId.nullable() }).optional(),
   }).transform(value => ({ kind: value.kind, nodeId: value.nodeId, typeId: value.typeId,
     ...(value.position === undefined ? {} : { position: value.position }), ...(value.data === undefined ? {} : { data: value.data }),
+    ...(value.groupId === undefined ? {} : { groupId: value.groupId }),
   })),
 ])
 
@@ -194,9 +224,14 @@ export const canvasDeltaSchema: z.ZodType<CanvasDelta> = z.object({
   titleFormat: z.object({ before: titleFormat.nullable(), after: titleFormat.nullable() }).optional(),
   title: z.object({ before: z.string(), after: z.string() }).optional(), nodes: z.array(nodeChange),
   connections: z.array(z.object({ kind: z.enum(['added', 'removed']), connection, index: z.number().int().nonnegative() })),
+  groups: z.array(z.union([
+    z.object({ kind: z.enum(['added', 'removed']), group, index: z.number().int().nonnegative() }),
+    z.object({ kind: z.literal('updated'), groupId, title: z.object({ before: z.string(), after: z.string() }) }),
+  ])).optional(),
 }).transform(value => ({
   nodes: value.nodes, connections: value.connections, ...(value.title === undefined ? {} : { title: value.title }),
   ...(value.titleFormat === undefined ? {} : { titleFormat: value.titleFormat }),
+  ...(value.groups === undefined ? {} : { groups: value.groups }),
 }))
 
 /** Reversible graph effects and the archive changes made by the last removal. */
@@ -261,4 +296,4 @@ export interface CanvasTableKeys {
 export type CanvasTableValue<N extends keyof typeof canvasTables> = z.infer<(typeof canvasTables)[N]>
 
 /** Current Convax repository schema, independent of DSH storage formats. */
-export const CANVAS_SCHEMA_VERSION = 8
+export const CANVAS_SCHEMA_VERSION = 9

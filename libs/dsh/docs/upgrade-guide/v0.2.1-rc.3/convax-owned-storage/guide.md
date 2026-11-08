@@ -13,7 +13,7 @@ Convax stores graphs and thread Session reservations in `$DSH_HOME/storages/conv
 
 The product bundle supplies `databasePath` and `legacyDatabasePath`. Migration reads and retains `$DSH_HOME/storages/convax.sqlite`, preserving canvases, bindings, receipts, pending operations and node-upgrade copies. DSH retains Session history. Active predecessor writers, incompatible formats and conflicting Session identities reject migration.
 
-The owned SQLite schema is version 7. Versions 1–6 upgrade with a retained pre-upgrade backup; older Hosts refuse the upgraded database. New canvases allocate local directories under `canvasDirectoryRoot` (default `~/Documents/convax`) before graph publication; existing canvases allocate on first use. Saved directory assignments and existing Chat working directories survive upgrades and root configuration changes. Deleting a canvas retains its files. Canvas archive metadata is durable and separate from Session archival. Permanently deleting a canvas removes its graph undo history while retaining Session logs and source files.
+SQLite schema 9 accepts versions 1–8 with a pre-upgrade backup; older Hosts refuse the upgraded database. See [group rollback](../convax-canvas-groups/guide.md). New canvases allocate local directories under `canvasDirectoryRoot` (default `~/Documents/convax`) before graph publication; existing canvases allocate on first use. Saved directory assignments and existing Chat working directories survive upgrades and root configuration changes. Deleting a canvas retains its files. Canvas archive metadata is durable and separate from Session archival. Permanently deleting a canvas removes its graph undo history while retaining Session logs and source files.
 
 ## Migration
 

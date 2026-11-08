@@ -27,7 +27,7 @@ import { CanvasSessionMaterializer } from '../../plugin-inernal-nodes-host/src/s
 import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import type { OfficeToPdfRequest, OfficeToPdfResult } from '@deepseek-ai/dsh-office-to-pdf'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
-import type { CanvasCommand, CanvasCommandRequest, CanvasConnectionId, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasOperationId, CanvasThreadRequest } from '../src/types.ts'
+import type { CanvasCommand, CanvasCommandRequest, CanvasConnectionId, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasOperationId, CanvasThreadRequest, CanvasGroupId } from '../src/types.ts'
 
 
 interface TestSessionCreateRequest {
@@ -1834,5 +1834,184 @@ describe('Host resource acquisition and release', () => {
     release.resolve(f.domain)
     await observed
     expect(() => f.domain.global.get()).toThrow()
+  })
+})
+
+async function groupingFixture() {
+  const f = await fixture()
+  await f.repository.execute(request('create', 0, { kind: 'create', title: 'Grouped cards' }))
+  const nodes = ['a', 'b', 'c'].map((id, index) => ({ ...node(id), position: { x: index * 100, y: index * 30 } }))
+  const connection = { id: 'group-edge' as CanvasConnectionId, source: nodes[0]!.id, sourcePort: 'output',
+    target: nodes[1]!.id, targetPort: 'input', purpose: 'input' as const }
+  await f.repository.execute(request('nodes', 1, { kind: 'add-subgraph', nodes, connections: [connection] }))
+  const group = { id: 'group-a' as CanvasGroupId, title: 'Research' }
+  return { ...f, nodes, group, connection, current: () => f.repository.snapshot().canvases[0]! }
+}
+
+describe('Logical canvas groups', () => {
+  it('groups without a provider, moves mixed selections once and replays membership without overwriting positions or payloads', async () => {
+    const f = await groupingFixture()
+    const grouped = request('group', 2, { kind: 'group-nodes', group: f.group, nodeIds: [f.nodes[0]!.id, f.nodes[1]!.id] })
+    expect(canvasCommandRequestSchema.parse(grouped)).toEqual(grouped)
+    await f.unregisterType()
+    expect(await f.repository.execute(grouped)).toMatchObject({ ok: true })
+    expect(f.current().nodes.map(node => node.position)).toEqual(f.nodes.map(node => node.position))
+    const move = request('mixed-move', 3, { kind: 'move-selection', nodeIds: [f.nodes[0]!.id, f.nodes[2]!.id], groupIds: [f.group.id], delta: { x: 17, y: -4 } })
+    expect(await f.repository.execute(move)).toMatchObject({ ok: true })
+    expect(f.current().nodes.map(node => node.position)).toEqual(f.nodes.map(node => ({ x: node.position.x + 17, y: node.position.y - 4 })))
+    expect(f.current().nodes.map(node => node.revision)).toEqual([3, 3, 2])
+    expect(await f.repository.execute(move)).toMatchObject({ ok: true })
+    const positions = f.current().nodes.map(node => node.position)
+    expect(await f.repository.execute(request('undo-group', 4, { kind: 'history', targetOperationId: grouped.operationId, direction: 'undo' })))
+      .toMatchObject({ ok: true })
+    expect(f.current().groups).toBeUndefined()
+    expect(f.current().nodes.every(node => node.groupId === undefined)).toBe(true)
+    expect(f.current().nodes.map(node => node.position)).toEqual(positions)
+    expect(f.current().connections).toEqual([f.connection])
+    expect(await f.repository.execute(request('redo-group', 5, { kind: 'history', targetOperationId: grouped.operationId, direction: 'redo' })))
+      .toMatchObject({ ok: true })
+    await f.close()
+    const reopened = await f.open()
+    expect(reopened.repository.snapshot().canvases[0]).toMatchObject({ groups: [f.group], nodes: [
+      { groupId: f.group.id }, { groupId: f.group.id }, { id: f.nodes[2]!.id },
+    ] })
+  })
+
+  it('rejects undoing group creation after a new member joins without leaving a dangling group', async () => {
+    const f = await groupingFixture()
+    await f.repository.execute(request('group', 2, { kind: 'group-nodes', group: f.group, nodeIds: [f.nodes[0]!.id, f.nodes[1]!.id] }))
+    await f.repository.execute(request('join', 3, { kind: 'set-node-group', nodeIds: [f.nodes[2]!.id], groupId: f.group.id }))
+    const before = f.repository.snapshot()
+    expect(await f.repository.execute(request('undo-group', 4, { kind: 'history', targetOperationId: 'group' as CanvasOperationId, direction: 'undo' })))
+      .toMatchObject({ ok: false, code: 'conflict' })
+    expect(f.repository.snapshot()).toEqual(before)
+    expect(f.domain.table('operations').get('undo-group' as CanvasOperationId)).toBeUndefined()
+  })
+
+  it('keeps single-member groups, cleans empty groups and restores group metadata with removed nodes', async () => {
+    const f = await groupingFixture()
+    await f.repository.execute(request('group', 2, { kind: 'group-nodes', group: f.group, nodeIds: [f.nodes[0]!.id, f.nodes[1]!.id] }))
+    await f.repository.execute(request('detach', 3, { kind: 'set-node-group', nodeIds: [f.nodes[0]!.id], groupId: null }))
+    expect(f.current().groups).toEqual([f.group])
+    const remove = request('remove-last', 4, { kind: 'remove-nodes', nodeIds: [f.nodes[1]!.id] })
+    expect(await f.repository.execute(remove)).toMatchObject({ ok: true })
+    expect(f.current().groups).toBeUndefined()
+    expect(await f.repository.execute(request('undo-remove', 5, { kind: 'history', targetOperationId: remove.operationId, direction: 'undo' })))
+      .toMatchObject({ ok: true })
+    expect(f.current().groups).toEqual([f.group])
+    expect(f.current().nodes[1]?.groupId).toBe(f.group.id)
+    expect(f.current().connections).toEqual([f.connection])
+    const ungroup = request('ungroup', 6, { kind: 'ungroup', groupIds: [f.group.id] })
+    expect(await f.repository.execute(ungroup)).toMatchObject({ ok: true })
+    expect(f.current().groups).toBeUndefined()
+    expect(f.current().nodes.map(node => node.position)).toEqual(f.nodes.map(node => node.position))
+    expect(await f.repository.execute(request('undo-ungroup', 7, { kind: 'history', targetOperationId: ungroup.operationId, direction: 'undo' })))
+      .toMatchObject({ ok: true })
+    expect(f.current().groups).toEqual([f.group])
+  })
+
+  it('commits group creation and membership as one batch, and preserves unrelated fields during undo', async () => {
+    const f = await groupingFixture()
+    const batch = request('group-batch', 2, { kind: 'batch', ops: [
+      { op: 'group.add', ...f.group },
+      { op: 'node.set', id: f.nodes[0]!.id, groupId: f.group.id },
+      { op: 'node.set', id: f.nodes[1]!.id, groupId: f.group.id },
+      { op: 'group.move', id: f.group.id, delta: { x: 9, y: 4 } },
+      { op: 'group.set', id: f.group.id, title: 'Sources' },
+    ] })
+    expect(await f.repository.execute(batch)).toMatchObject({ ok: true })
+    expect(f.current().revision).toBe(3)
+    expect(f.current().groups).toEqual([{ ...f.group, title: 'Sources' }])
+    await f.repository.execute(request('external-payload', 3, { kind: 'update-node', nodeId: f.nodes[0]!.id, dataVersion: 1, data: { path: '/new/data.txt' } }))
+    expect(await f.repository.execute(request('undo-batch', 4, { kind: 'history', targetOperationId: batch.operationId, direction: 'undo' })))
+      .toMatchObject({ ok: true })
+    expect(f.current().nodes[0]).toMatchObject({ position: f.nodes[0]!.position, data: { path: '/new/data.txt' } })
+    expect(f.current().groups).toBeUndefined()
+    expect(await f.repository.execute(request('redo-batch', 5, { kind: 'history', targetOperationId: batch.operationId, direction: 'redo' })))
+      .toMatchObject({ ok: true })
+    expect(await f.repository.execute(request('rename', 6, { kind: 'rename-group', groupId: f.group.id, title: 'Renamed' }))).toMatchObject({ ok: true })
+    expect(await f.repository.execute(request('undo-renamed-add', 7, { kind: 'history', targetOperationId: batch.operationId, direction: 'undo' })))
+      .toMatchObject({ ok: false, code: 'conflict' })
+    expect(await f.repository.execute(request('batch-ungroup', 7, { kind: 'batch', ops: [{ op: 'group.remove', id: f.group.id }] })))
+      .toMatchObject({ ok: true })
+    expect(f.current().nodes.every(node => node.groupId === undefined)).toBe(true)
+  })
+
+  it('rejects invalid memberships, titles, stale selections and late batch failures atomically', async () => {
+    const f = await groupingFixture()
+    const bad: CanvasCommand[] = [
+      { kind: 'group-nodes', group: f.group, nodeIds: [f.nodes[0]!.id, f.nodes[0]!.id] },
+      { kind: 'group-nodes', group: { ...f.group, title: ' ' }, nodeIds: [f.nodes[0]!.id, f.nodes[1]!.id] },
+      { kind: 'set-node-group', nodeIds: [f.nodes[0]!.id], groupId: f.group.id },
+      { kind: 'move-selection', nodeIds: [], groupIds: [f.group.id], delta: { x: 1, y: 2 } },
+      { kind: 'group-nodes', group: f.group, nodeIds: [f.nodes[0]!.id, node('missing').id] },
+      { kind: 'add-subgraph', nodes: [{ ...node('orphan'), groupId: f.group.id }], connections: [] },
+      { kind: 'batch', ops: [{ op: 'group.add', ...f.group }, { op: 'node.set', id: f.nodes[0]!.id, groupId: f.group.id },
+        { op: 'group.set', id: f.group.id, title: '' }] },
+    ]
+    const before = f.repository.snapshot()
+    for (const [index, command] of bad.entries()) {
+      expect(await f.repository.execute(request(`bad-group-${index}`, 2, command))).toMatchObject({ ok: false })
+      expect(f.repository.snapshot()).toEqual(before)
+      expect(f.domain.table('operations').get(`bad-group-${index}` as CanvasOperationId)).toBeUndefined()
+    }
+    expect(await f.repository.execute(request('stale-group', 1, { kind: 'group-nodes', group: f.group, nodeIds: [f.nodes[0]!.id, f.nodes[1]!.id] })))
+      .toMatchObject({ ok: false, code: 'conflict' })
+  })
+
+  it('copies subgraph groups and remaps every whole-canvas group identity independently', async () => {
+    const f = await groupingFixture()
+    const copiedNodes = f.nodes.slice(0, 2).map((value, index) => ({ ...value, id: `copy-${index}` as CanvasNodeId, groupId: f.group.id }))
+    expect(await f.repository.execute(request('paste-group', 2, { kind: 'add-subgraph', nodes: copiedNodes, groups: [f.group], connections: [] })))
+      .toMatchObject({ ok: true })
+    const source = f.current()
+    const copyId = 'group-copy' as CanvasId
+    await f.unregisterType()
+    expect(await f.repository.execute(request('copy-canvas', 3, { kind: 'duplicate', newCanvasId: copyId, title: 'Copy' }))).toMatchObject({ ok: true })
+    const copy = f.repository.snapshot().canvases.find(canvas => canvas.id === copyId)!
+    expect(copy.groups).toHaveLength(1)
+    expect(copy.groups![0]!.id).not.toBe(f.group.id)
+    expect(copy.groups![0]!.title).toBe(f.group.title)
+    expect(copy.nodes.filter(node => node.groupId !== undefined)).toHaveLength(2)
+    expect(copy.nodes.filter(node => node.groupId !== undefined).every(node => node.groupId === copy.groups![0]!.id)).toBe(true)
+    expect(copy.nodes.map(node => node.position)).toEqual(source.nodes.map(node => node.position))
+    expect(f.current()).toEqual(source)
+  })
+
+  it('coordinates deleting a group containing Chat and restores its sessions, members and metadata together', async () => {
+    const f = await chatFixture()
+    const sessionId = SessionId('group-thread')
+    const archived = new Set<SessionId>()
+    const native = historyArchives(f.ctx, archived)
+    await f.repository.coordination.reserveThread(f.create, '/project')
+    await f.repository.coordination.completeThread(f.create.operationId, sessionId, 0)
+    const resource = node('group-resource')
+    await f.repository.execute(request('resource', 3, { kind: 'add-node', node: resource }))
+    const group = { id: 'chat-group' as CanvasGroupId, title: 'Conversation' }
+    await f.repository.execute(request('group-chat', 4, { kind: 'group-nodes', group, nodeIds: [f.chat.id, resource.id] }))
+    const coordinator = new CanvasChatCoordinator(f.ctx, f.repository)
+    cleanup.push(() => coordinator.close())
+    const remove = request('remove-chat-group', 5, { kind: 'remove-selection', nodeIds: [f.chat.id], groupIds: [group.id] })
+    const invalidBatch = { ...request('invalid-group-delete', 5, { kind: 'batch', ops: [
+      { op: 'node.remove', id: f.chat.id },
+      { op: 'node.add', id: node('orphan').id, typeId: resource.typeId, dataVersion: 1, data: resource.data,
+        position: { x: 0, y: 0 }, groupId: 'missing-group' as CanvasGroupId },
+    ] }), confirmed: true }
+    expect(await coordinator.execute(invalidBatch)).toMatchObject({ ok: false, code: 'invalid-command' })
+    expect(native.archiveSession).not.toHaveBeenCalled()
+    expect(f.repository.coordination.pendingDeletions()).toEqual([])
+    expect(await f.repository.execute(remove)).toMatchObject({ ok: false, code: 'invalid-command' })
+    expect(await coordinator.execute(remove)).toMatchObject({ ok: false, code: 'confirmation-required' })
+    expect(native.archiveSession).not.toHaveBeenCalled()
+    expect(await coordinator.execute({ ...remove, confirmed: true })).toMatchObject({ ok: true })
+    expect(f.repository.snapshot().canvases[0]).toMatchObject({ revision: 6, nodes: [] })
+    expect(f.repository.snapshot().canvases[0]?.groups).toBeUndefined()
+    expect(native.archiveSession).toHaveBeenCalledExactlyOnceWith(sessionId, { stopActivity: true })
+    expect(await coordinator.execute(request('undo-chat-group', 6, { kind: 'history', targetOperationId: remove.operationId, direction: 'undo' })))
+      .toMatchObject({ ok: true })
+    expect(f.repository.snapshot().canvases[0]).toMatchObject({ groups: [group], nodes: [
+      { id: f.chat.id, groupId: group.id }, { id: resource.id, groupId: group.id },
+    ] })
+    expect(native.unarchiveSession).toHaveBeenCalledExactlyOnceWith(sessionId)
   })
 })

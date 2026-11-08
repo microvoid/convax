@@ -13,6 +13,8 @@ export type CanvasKeyboardAction =
   | { readonly kind: 'duplicate' }
   | { readonly kind: 'undo' }
   | { readonly kind: 'redo' }
+  | { readonly kind: 'group' }
+  | { readonly kind: 'ungroup' }
   | { readonly kind: 'move'; readonly x: number; readonly y: number }
 
 const PROTECTED_CONTROL = 'input, textarea, select, button, a, [role="button"], [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"], [role="dialog"], [role="menu"], [data-convax-input-owner], [data-canvas-native-shortcuts], .xterm'
@@ -37,6 +39,7 @@ export function resolveCanvasKeyboardAction(event: KeyboardEvent, root: HTMLElem
   if (event.metaKey || event.ctrlKey) {
     if (event.altKey || event.repeat) return null
     if (key === 'z') return { kind: event.shiftKey ? 'redo' : 'undo' }
+    if (key === 'g') return { kind: event.shiftKey ? 'ungroup' : 'group' }
     if (event.ctrlKey && !event.metaKey && !event.shiftKey && key === 'y') return { kind: 'redo' }
     if (!event.shiftKey && key === 'a') return { kind: 'select-all' }
     if (!event.shiftKey && key === 'c') return owner.getSelection()?.isCollapsed === false ? null : { kind: 'copy' }

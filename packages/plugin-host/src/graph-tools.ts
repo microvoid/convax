@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { ConvaxHost } from './index.ts'
-import type { CanvasId, CanvasNodeId, CanvasNodeTypeId, CanvasConnectionId } from './types.ts'
+import type { CanvasId, CanvasNodeId, CanvasNodeTypeId, CanvasConnectionId, CanvasGroupId } from './types.ts'
 import { canvasCommitRequestSchema } from './schema.ts'
 import { projectCanvasGraph } from './graph-query.ts'
 
@@ -17,9 +17,12 @@ const branch = <const O extends string, const P extends object>(op: O, propertie
 }) as const
 const OPERATIONS = [
   branch('canvas.add', { title: STRING }), branch('canvas.set', { title: STRING }), branch('canvas.remove', {}),
-  branch('node.add', { id: STRING, typeId: STRING, dataVersion: INTEGER, data: DATA, position: { ...POSITION, required: true } }),
-  branch('node.set', { id: STRING, ifRevision: { type: 'integer' }, dataVersion: { type: 'integer' }, data: { type: 'json' }, position: POSITION }),
+  branch('node.add', { id: STRING, typeId: STRING, dataVersion: INTEGER, data: DATA, position: { ...POSITION, required: true }, groupId: { type: 'string' } }),
+  branch('node.set', { id: STRING, ifRevision: { type: 'integer' }, dataVersion: { type: 'integer' }, data: { type: 'json' }, position: POSITION,
+    groupId: { type: 'json', description: 'Group identity, or null to remove membership.' } }),
   branch('node.remove', { id: STRING }),
+  branch('group.add', { id: STRING, title: STRING }), branch('group.set', { id: STRING, title: STRING }),
+  branch('group.remove', { id: STRING }), branch('group.move', { id: STRING, delta: { ...POSITION, required: true } }),
   branch('edge.add', { id: STRING, source: STRING, sourcePort: STRING, target: STRING, targetPort: STRING,
     purpose: { type: 'string', enum: ['input', 'delivery'], required: true } }),
   branch('edge.remove', { id: STRING }),
@@ -46,17 +49,17 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
   ctx.tools.register(defineTool({
     name: 'convax_graph', presentCall: () => ({ card: 'generic', title: 'Read canvas graph' }),
     description: 'Read saved Convax state, independent of open views. By default return canvas summaries and the bound Chat canvas identity/revision. '
-      + 'Request include collections explicitly: nodes, connections, nodeTypes or issues. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. '
+      + 'Request include collections explicitly: nodes, connections, groups, nodeTypes or issues. Groups organize nodes through groupId; all node positions are world coordinates. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. '
       + 'Select nodes by IDs/types, connections by IDs, or incidentTo nodes and their one-hop endpoints. Node/type filters intersect; connections form an induced subgraph. '
       + 'Field projection always retains object IDs. Omitted collections are not empty collections. File records contain paths, not file contents.',
     parameters: {
       canvasId: { type: 'string', description: 'Omit for this Session Chat canvas. Unbound Sessions receive workspace summaries.' },
-      include: { type: 'array', items: { type: 'string', enum: ['canvases', 'nodes', 'connections', 'nodeTypes', 'issues'] } },
+      include: { type: 'array', items: { type: 'string', enum: ['canvases', 'nodes', 'connections', 'groups', 'nodeTypes', 'issues'] } },
       selection: { type: 'object', additionalProperties: false, properties: {
-        nodeIds: identityList, typeIds: identityList, connectionIds: identityList, incidentTo: identityList,
+        nodeIds: identityList, typeIds: identityList, connectionIds: identityList, incidentTo: identityList, groupIds: identityList,
       } },
       fields: { type: 'object', additionalProperties: false, properties: {
-        nodes: { type: 'array', items: { type: 'string', enum: ['id', 'typeId', 'dataVersion', 'data', 'position', 'revision'] } },
+        nodes: { type: 'array', items: { type: 'string', enum: ['id', 'typeId', 'dataVersion', 'data', 'position', 'revision', 'groupId'] } },
         connections: { type: 'array', items: { type: 'string', enum: ['id', 'source', 'sourcePort', 'target', 'targetPort', 'purpose'] } },
       } },
     },
@@ -64,8 +67,8 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
     execute(args, exec) {
       exec.signal.throwIfAborted()
       const canvasId = canvasTarget(host, exec, args.canvasId)
-      if (canvasId === null && args.include?.some(collection => collection === 'nodes' || collection === 'connections')) {
-        throw new Error('An explicit canvasId is required to read nodes or connections from an unbound Session')
+      if (canvasId === null && args.include?.some(collection => collection === 'nodes' || collection === 'connections' || collection === 'groups')) {
+        throw new Error('An explicit canvasId is required to read nodes, connections or groups from an unbound Session')
       }
       const selection = args.selection
       const graph = projectCanvasGraph(host.workspace(), canvasId, {
@@ -76,6 +79,7 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
           ...(selection.typeIds === undefined ? {} : { typeIds: selection.typeIds.map(id => id as CanvasNodeTypeId) }),
           ...(selection.connectionIds === undefined ? {} : { connectionIds: selection.connectionIds.map(id => id as CanvasConnectionId) }),
           ...(selection.incidentTo === undefined ? {} : { incidentTo: selection.incidentTo.map(id => id as CanvasNodeId) }),
+          ...(selection.groupIds === undefined ? {} : { groupIds: selection.groupIds.map(id => id as CanvasGroupId) }),
         } }),
       })
       const binding = exec.agent === undefined ? undefined : host.repository.bindingOf(exec.agent.id)
@@ -90,6 +94,7 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
       + 'node.set replaces data completely and requires dataVersion when replacing data; ifRevision checks the node at that operation. '
       + 'canvas.add requires an explicit new canvasId and revision zero. history must appear alone. '
       + 'Removing nodes removes their incident connections but preserves source files. Edges never send prompts or insert composer references. '
+      + 'group.add followed by node.set groupId creates a logical group in the same batch; group.remove only ungroups members. group.move translates every member once in world coordinates. Empty groups are removed at commit. '
       + 'Chat removal uses recoverable stop/archive coordination; confirmed grants consent. Pending external work is reported rather than described as rolled back.',
     parameters: {
       canvasId: { type: 'string', description: 'Omit to edit this Session Chat canvas. Creation and unbound Sessions require an explicit identity.' },

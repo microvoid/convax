@@ -75,7 +75,11 @@ try {
       '5. node.add model-note with typeId fixture.graph-note, dataVersion 1, data {label:"Created through generic commit"}, position {x:1200,y:600}.',
       '6. node.set model-note ifRevision 1, dataVersion 1, data {label:"Updated through generic commit"}.',
       '7. node.remove model-note.',
-      'Read the final default canvas with include ["nodes","connections"] to verify it, then reply DONE.',
+      '8. group.add model-group with title "References".',
+      '9. node.set model-file groupId "model-group".',
+      '10. node.set model-extension groupId "model-group".',
+      '11. group.move model-group with delta {x:30,y:40}.',
+      'Read the final default canvas with include ["nodes","connections","groups"] to verify it, then reply DONE.',
     ].join('\n') }],
   }, new AbortController().signal)
   const agent = ctx.agents.get(thread.sessionId)
@@ -90,8 +94,11 @@ try {
   const graph = host.workspace().canvases.find(canvas => canvas.id === canvasId)
   assert(graph !== undefined)
   assert.deepEqual(graph.nodes.find(node => node.id === chatId)?.position, { x: 100, y: 200 })
-  assert.deepEqual(graph.nodes.find(node => node.id === 'model-file')?.position, { x: 500, y: 200 })
-  assert.deepEqual(graph.nodes.find(node => node.id === extensionId)?.position, { x: 900, y: 600 })
+  assert.deepEqual(graph.nodes.find(node => node.id === 'model-file')?.position, { x: 530, y: 240 })
+  assert.deepEqual(graph.nodes.find(node => node.id === extensionId)?.position, { x: 930, y: 640 })
+  assert.deepEqual(graph.groups, [{ id: 'model-group', title: 'References' }])
+  assert.equal(graph.nodes.find(node => node.id === 'model-file')?.groupId, 'model-group')
+  assert.equal(graph.nodes.find(node => node.id === extensionId)?.groupId, 'model-group')
   assert.deepEqual(graph.nodes.find(node => node.id === extensionId)?.data, { label: 'Keep this extension payload' })
   assert.equal(graph.connections.find(edge => edge.id === 'model-link')?.target, chatId)
   assert(!graph.nodes.some(node => node.id === 'model-note'))

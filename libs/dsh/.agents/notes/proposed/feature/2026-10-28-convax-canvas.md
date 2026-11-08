@@ -12,6 +12,8 @@ The [plugin development proposal](../architecture/2026-10-30-convax-plugin-devel
 
 The [window mirror proposal](2026-11-02-convax-window-mirror.md) adds specifically bound, directly operable application windows and send-time screenshot references.
 
+The [grouping decision](../../implemented/architecture/2026-11-08-convax-canvas-groups.md) owns logical node membership, world coordinates and window-derived group frames. This broader proposal retains its independent product and integration decisions.
+
 ## Proposal
 
 The product behavior below is agreed. Keep DSH unchanged wherever its public extension points already meet the requirement; a Convax-specific requirement alone does not justify a DSH runtime API. Convax owns graph transactions, schema upgrades, thread-operation recovery and deletion coordination. A demonstrated DSH defect can be fixed separately with its own reproduction and tests.

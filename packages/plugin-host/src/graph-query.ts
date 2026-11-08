@@ -1,5 +1,5 @@
 /** Detached graph projections for Agent reads; view selection and camera state stay client-owned. */
-import type { CanvasConnection, CanvasData, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasWorkspace } from './types.ts'
+import type { CanvasConnection, CanvasData, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasWorkspace, CanvasGroupId } from './types.ts'
 
 /** Select an induced subgraph or the endpoints of explicitly selected connections. */
 export interface CanvasGraphSelection {
@@ -11,6 +11,8 @@ export interface CanvasGraphSelection {
   connectionIds?: CanvasConnection['id'][]
   /** Read connections touching these nodes and their endpoint nodes. */
   incidentTo?: CanvasNodeId[]
+  /** Restrict nodes and group records to these logical groups. */
+  groupIds?: CanvasGroupId[]
 }
 
 /** Optional projections; omitted node or connection fields retain their complete records. */
@@ -28,7 +30,7 @@ export interface CanvasGraphQuery {
   /** Fields retained in each requested record collection. */
   fields?: CanvasGraphFields
   /** Collections to return; omission returns only canvas summaries. */
-  include?: ('canvases' | 'nodes' | 'connections' | 'nodeTypes' | 'issues')[]
+  include?: ('canvases' | 'nodes' | 'connections' | 'groups' | 'nodeTypes' | 'issues')[]
 }
 
 function project(record: CanvasData & { id: string }, fields: string[] | undefined): CanvasData {
@@ -51,6 +53,7 @@ export function projectCanvasGraph(workspace: CanvasWorkspace, canvasId: CanvasI
   const selection = query.selection
   const selectedNode = (node: CanvasNode): boolean => (selection?.nodeIds === undefined || selection.nodeIds.includes(node.id))
     && (selection?.typeIds === undefined || selection.typeIds.includes(node.typeId))
+    && (selection?.groupIds === undefined || node.groupId !== undefined && selection.groupIds.includes(node.groupId))
   let nodes = (canvas?.nodes ?? []).filter(selectedNode)
   const nodeIds = new Set(nodes.map(node => node.id))
   const edges = (canvas?.connections ?? []).filter(edge =>
@@ -66,6 +69,8 @@ export function projectCanvasGraph(workspace: CanvasWorkspace, canvasId: CanvasI
     canvasId: canvas?.id ?? null, revision: canvas?.revision ?? null, title: canvas?.title ?? null,
     projection: {
       nodes: include.has('nodes'), connections: include.has('connections'), nodeTypes: include.has('nodeTypes'), issues: include.has('issues'),
+      groups: include.has('groups'),
+      completeGroups: canvas !== undefined && include.has('groups') && selection === undefined,
       completeNodes: canvas !== undefined && include.has('nodes') && selection === undefined && query.fields?.nodes === undefined,
       completeConnections: canvas !== undefined && include.has('connections') && selection === undefined && query.fields?.connections === undefined,
       nodeFields: query.fields?.nodes ?? null, connectionFields: query.fields?.connections ?? null,
@@ -74,6 +79,8 @@ export function projectCanvasGraph(workspace: CanvasWorkspace, canvasId: CanvasI
       id, title, revision, ...(archived === undefined ? {} : { archived }),
     })) } : {}),
     ...(include.has('nodes') ? { nodes: nodes.map(node => project({ ...node, position: { ...node.position } }, query.fields?.nodes)) } : {}),
+    ...(include.has('groups') ? { groups: (canvas?.groups ?? []).filter(group => selection === undefined
+      || nodes.some(node => node.groupId === group.id)).map(group => ({ ...group })) } : {}),
     ...(include.has('connections') ? { connections: edges.map(edge => project({ ...edge }, query.fields?.connections)) } : {}),
     ...(include.has('nodeTypes') ? { nodeTypes: workspace.nodeTypes.map(type => ({ ...type, ports: type.ports.map(port => ({ ...port })), description: type.description ?? null, dataSchema: type.dataSchema ?? null })) } : {}),
     ...(include.has('issues') ? { nodeIssues: workspace.nodeIssues.filter(issue => canvasId === null || issue.canvasId === canvasId).map(issue => ({ ...issue })) } : {}),

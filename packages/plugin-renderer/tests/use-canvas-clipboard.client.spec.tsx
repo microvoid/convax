@@ -2,7 +2,7 @@
 /** Deferred clipboard reads cannot apply to another canvas revision or an unmounted graph. */
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CanvasCommand, CanvasDocument, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasCommand, CanvasDocument, CanvasGroupId, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { copyCanvasSelection, type CanvasClipboardNotice, type CanvasClipboardView, type ClipboardNodeSize } from '../src/client/canvas-clipboard.ts'
 import type { ClipboardObstacle } from '../src/client/clipboard-placement.ts'
 import { useCanvasClipboard } from '../src/client/use-canvas-clipboard.ts'
@@ -62,7 +62,7 @@ describe('Canvas clipboard operation lifecycle', () => {
     const b = fixture()
     fireEvent.click(b.view.getByRole('button', { name: 'Copy' }))
     await waitFor(() => { expect(b.view.getByLabelText('Clipboard pending').textContent).toBe('false') })
-    expect(JSON.parse(writeText.mock.calls[0]![0])).toMatchObject({ kind: 'convax.canvas.nodes', version: 1 })
+    expect(JSON.parse(writeText.mock.calls[0]![0])).toMatchObject({ kind: 'convax.canvas.nodes', version: 2 })
     expect(b.report).toHaveBeenCalledExactlyOnceWith('clipboard.copied')
     expect(b.command).not.toHaveBeenCalled()
   })
@@ -80,6 +80,23 @@ describe('Canvas clipboard operation lifecycle', () => {
     expect(b.applyViews).toHaveBeenCalledExactlyOnceWith([{ nodeId: command.nodes[0]!.id, view: views[ID] }])
     expect(b.applyViews.mock.invocationCallOrder[0]).toBeLessThan(b.select.mock.invocationCallOrder[0]!)
     expect(writeText).not.toHaveBeenCalled()
+  })
+
+  it.each(['paste', 'duplicate'] as const)('commits complete group membership and fresh identities during %s', async (kind) => {
+    const groupId = 'reference-group' as CanvasGroupId
+    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References' }],
+      nodes: [{ ...document.nodes[0]!, groupId }],
+    }
+    if (kind === 'paste') readText.mockResolvedValueOnce(JSON.stringify(copyCanvasSelection(source, [ID], dimensions, views)))
+    const b = fixture(source)
+    fireEvent.click(b.view.getByRole('button', { name: kind === 'paste' ? 'Paste' : 'Duplicate' }))
+    await waitFor(() => { expect(b.view.getByLabelText('Clipboard pending').textContent).toBe('false') })
+    const command = b.command.mock.calls[0]![0]
+    if (command.kind !== 'add-subgraph') throw new Error('Expected graph copy command')
+    expect(command.groups).toHaveLength(1)
+    expect(command.groups![0]!.id).not.toBe(groupId)
+    expect(command.nodes[0]!.groupId).toBe(command.groups![0]!.id)
+    expect(b.select).toHaveBeenCalledExactlyOnceWith(command.nodes.map(node => node.id))
   })
 
   it.each(['revision', 'canvas', 'unmount'] as const)('does not write graph data when %s changes during a deferred native read', async (change) => {

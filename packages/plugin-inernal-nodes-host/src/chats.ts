@@ -112,7 +112,7 @@ export class CanvasChatCoordinator {
    * @returns Current committed graph or a retryable failure.
    */
   execute(request: CanvasCommandRequest, signal?: AbortSignal): Promise<CanvasCommandResult> {
-    if (request.command.kind === 'history' || request.command.kind === 'batch') return this.executeHistory(request, signal)
+    if (request.command.kind === 'history' || request.command.kind === 'batch' || request.command.kind === 'remove-selection') return this.executeHistory(request, signal)
     return this.executeMutation(request, signal)
   }
 

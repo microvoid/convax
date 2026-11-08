@@ -1,7 +1,7 @@
 import { defaultNodeClipboardData } from '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer/client'
 /** Clipboard parsing and clone placement preserve graph semantics without sharing Chat history. */
 import { describe, expect, it } from 'vitest'
-import type { CanvasConnectionId, CanvasDocument, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasConnectionId, CanvasDocument, CanvasGroupId, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { copyCanvasSelection, parseCanvasClipboard, type CanvasClipboardView } from '../src/client/canvas-clipboard.ts'
 import { canvasClipboardBounds, createClipboardSubgraph } from '../src/client/clipboard-placement.ts'
 
@@ -43,7 +43,7 @@ describe('Canvas clipboard protocol', () => {
   it('rejects ordinary text, unsupported versions, duplicate identities and connections outside the copied selection', () => {
     const copied = payload()
     for (const invalid of [
-      'ordinary text', '{}', JSON.stringify({ ...copied, version: 2 }), JSON.stringify({ ...copied, nodes: [] }),
+      'ordinary text', '{}', JSON.stringify({ ...copied, version: 3 }), JSON.stringify({ ...copied, nodes: [] }),
       JSON.stringify({ ...copied, nodes: [copied.nodes[0], copied.nodes[0]] }),
       JSON.stringify({ ...copied, connections: document.connections }),
       JSON.stringify({ ...copied, dimensions: {} }),
@@ -51,6 +51,44 @@ describe('Canvas clipboard protocol', () => {
       JSON.stringify({ ...copied, views: { ...copied.views, [SECOND]: { kind: 'chat', presentation: { collapsed: false, selectedThreads: ['private'] } } } }),
       JSON.stringify({ ...copied, nodes: [{ ...copied.nodes[0], id: 'constructor' }], connections: [], dimensions: {} }),
     ]) expect(parseCanvasClipboard(invalid), invalid).toBeNull()
+  })
+
+  it('reads legacy node-only clipboard records into the current protocol', () => {
+    const { groups: _groups, ...copied } = payload()
+    const legacy = { ...copied, version: 1 }
+    expect(parseCanvasClipboard(JSON.stringify(legacy))).toEqual({ ...copied, version: 2, groups: [] })
+    expect(parseCanvasClipboard(JSON.stringify({ ...legacy, groups: [] }))).toBeNull()
+  })
+
+  it('retains complete groups and detaches partial groups without moving their members', () => {
+    const groupId = 'references' as CanvasGroupId
+    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References' }],
+      nodes: document.nodes.map(node => node.id === EXTERNAL ? node : { ...node, groupId }),
+    }
+    const copied = copyCanvasSelection(source, [FIRST, SECOND], dimensions, views, defaultNodeClipboardData)!
+    expect(copied.groups).toEqual(source.groups)
+    expect(copied.groups[0]).not.toBe(source.groups![0])
+    expect(copied.nodes.map(node => node.groupId)).toEqual([groupId, groupId])
+    expect(copied.nodes.map(node => node.position)).toEqual(document.nodes.slice(0, 2).map(node => node.position))
+    expect(parseCanvasClipboard(JSON.stringify(copied))).toEqual(copied)
+    const partial = copyCanvasSelection(source, [FIRST], dimensions, views)!
+    expect(partial.groups).toEqual([])
+    expect(partial.nodes[0]).not.toHaveProperty('groupId')
+    expect(partial.nodes[0]!.position).toEqual(document.nodes[0]!.position)
+    expect(source.nodes[0]!.groupId).toBe(groupId)
+  })
+
+  it('rejects duplicated, empty and missing clipboard groups', () => {
+    const copied = payload()
+    const group = { id: 'references', title: 'References' }
+    const nodes = copied.nodes.map(node => ({ ...node, groupId: group.id }))
+    for (const invalid of [
+      { ...copied, nodes, groups: [] },
+      { ...copied, nodes, groups: [group, group] },
+      { ...copied, groups: [group] },
+      { ...copied, nodes, groups: [{ ...group, title: ' ' }] },
+      { ...copied, nodes, version: 1 },
+    ]) expect(parseCanvasClipboard(JSON.stringify(invalid))).toBeNull()
   })
 
   it('rejects arithmetic overflow in individual nodes and in the combined selection without imposing coordinate limits', () => {
@@ -65,6 +103,24 @@ describe('Canvas clipboard protocol', () => {
 })
 
 describe('Copied graph placement', () => {
+  it('allocates independent groups and remaps their members with internal connections in one command', () => {
+    const groupId = 'references' as CanvasGroupId
+    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References' }],
+      nodes: document.nodes.map(node => node.id === EXTERNAL ? node : { ...node, groupId }),
+    }
+    const copied = copyCanvasSelection(source, [FIRST, SECOND], dimensions, views, defaultNodeClipboardData)!
+    let next = 0
+    const command = createClipboardSubgraph(copied, { x: 800, y: 500 }, [], () => `new-${next++}`, defaultNodeClipboardData)
+    expect(command.groups).toEqual([{ id: 'new-0', title: 'References' }])
+    expect(command.nodes.map(node => ({ id: node.id, groupId: node.groupId, position: node.position }))).toEqual([
+      { id: 'new-1', groupId: 'new-0', position: { x: 800, y: 500 } },
+      { id: 'new-2', groupId: 'new-0', position: { x: 1040, y: 560 } },
+    ])
+    expect(command.connections[0]).toMatchObject({ id: 'new-3', source: 'new-1', target: 'new-2' })
+    expect(command.nodes[1]!.data).toEqual({ title: 'Project discussion', cwd: '/project' })
+    expect(copied.nodes[0]!.groupId).toBe(groupId)
+  })
+
   it.each([true, false, undefined, 'true'])('preserves only an explicit system-title marker through copy and paste (%s)', (defaultTitle) => {
     const source = structuredClone(document)
     source.nodes[1]!.data = { title: 'Untitled chat', cwd: '/project',

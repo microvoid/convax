@@ -1,6 +1,6 @@
 /** Canvas, node and selection actions use the shared viewport-fitting menu. */
 import { Menu, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasGroup, CanvasGroupId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { WorkspaceProps } from './props.ts'
 
 /**
@@ -11,6 +11,7 @@ import type { WorkspaceProps } from './props.ts'
 export function CanvasContextMenu({
   point, targetCount, busy, history, replayHistory, t, close, creations,
   focus, remove, selectAll, fit, copy, paste, duplicate,
+  groupCount = 0, groups = [], canRemoveFromGroup = false, canGroup = true, group, ungroup, renameGroup, assignGroup,
 }: {
   readonly point: CanvasPoint
   readonly targetCount: number
@@ -27,6 +28,14 @@ export function CanvasContextMenu({
   readonly copy: () => void
   readonly paste: () => void
   readonly duplicate: () => void
+  readonly groupCount?: number
+  readonly groups?: readonly CanvasGroup[]
+  readonly canRemoveFromGroup?: boolean
+  readonly canGroup?: boolean
+  readonly group?: (() => void) | undefined
+  readonly ungroup?: (() => void) | undefined
+  readonly renameGroup?: (() => void) | undefined
+  readonly assignGroup?: ((groupId: CanvasGroupId | null) => void) | undefined
 }) {
   return <Menu open portal autoFocus anchor={<span data-convax-context-menu="" data-target-count={targetCount} aria-hidden="true" />}
     getAnchorRect={() => new DOMRect(point.x, point.y, 0, 0)} onClose={close}
@@ -42,7 +51,13 @@ export function CanvasContextMenu({
       { id: 'copy', label: t('clipboard.copy'), disabled: busy },
       { id: 'duplicate', label: t('clipboard.duplicate'), disabled: busy },
       { id: 'paste', label: t('clipboard.paste'), disabled: busy },
-      { id: 'remove', label: t('selection.remove'), disabled: busy, danger: true },
+      ...(targetCount >= 2 && canGroup && group !== undefined ? [{ id: 'group', label: t('group.create'), disabled: busy }] : []),
+      ...(groupCount > 0 && ungroup !== undefined ? [{ id: 'ungroup', label: t('group.ungroup'), disabled: busy }] : []),
+      ...(renameGroup !== undefined ? [{ id: 'rename-group', label: t('group.rename'), disabled: busy }] : []),
+      ...(assignGroup !== undefined && groups.length > 0 ? [{ id: 'assign-group', label: t('group.addTo'), disabled: busy,
+        submenu: groups.map(item => ({ id: `group:${item.id}`, label: item.title, disabled: busy })) }] : []),
+      ...(canRemoveFromGroup && assignGroup !== undefined ? [{ id: 'leave-group', label: t('group.removeFrom'), disabled: busy }] : []),
+      { id: 'remove', label: t(groupCount > 0 ? 'group.delete' : 'selection.remove'), disabled: busy, danger: true },
       { type: 'separator', id: 'view' },
       { id: 'all', label: t('canvas.selectAll') },
       { id: 'fit', label: t('canvas.zoom.fit') },
@@ -60,6 +75,11 @@ export function CanvasContextMenu({
       else if (id === 'copy') copy()
       else if (id === 'paste') paste()
       else if (id === 'duplicate') duplicate()
+      else if (id === 'group') group?.()
+      else if (id === 'ungroup') ungroup?.()
+      else if (id === 'rename-group') renameGroup?.()
+      else if (id === 'leave-group') assignGroup?.(null)
+      else if (id.startsWith('group:')) assignGroup?.(id.slice(6) as CanvasGroupId)
       else if (id === 'undo' || id === 'redo') replayHistory(id)
     }} />
 }

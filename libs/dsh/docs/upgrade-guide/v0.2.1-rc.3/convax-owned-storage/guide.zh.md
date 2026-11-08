@@ -13,7 +13,7 @@ Convax 在 `$DSH_HOME/storages/convax-canvas.sqlite` 中保存图与 thread Sess
 
 产品 bundle 提供 `databasePath` 和 `legacyDatabasePath`。迁移读取并保留 `$DSH_HOME/storages/convax.sqlite`，保留画布、绑定、回执、待完成操作和节点升级副本。DSH 保留 Session 历史。前驱写入者仍活动、格式不兼容或 Session 身份冲突时，迁移明确失败。
 
-自有 SQLite schema 使用版本 7。版本 1–6 升级时保留升级前备份；旧版 Host 拒绝打开升级后的数据库。新画布在 `canvasDirectoryRoot` 下分配本机目录，默认根目录为 `~/Documents/convax`；目录准备先于图发布，旧画布在首次使用时补建。已有目录分配和 Chat 工作目录在升级或根目录配置变化后保持不变。删除画布保留文件。画布归档状态会持久化，并独立于 Session 归档。永久删除画布会清除图的撤销记录，保留 Session 日志和源文件。
+SQLite schema 9 接受版本 1–8，升级时保留事前备份；旧版 Host 拒绝打开升级后的数据库。回退见[分组指南](../convax-canvas-groups/guide.zh.md)。新画布在 `canvasDirectoryRoot` 下分配本机目录，默认根目录为 `~/Documents/convax`；目录准备先于图发布，旧画布在首次使用时补建。已有目录分配和 Chat 工作目录在升级或根目录配置变化后保持不变。删除画布保留文件。画布归档状态会持久化，并独立于 Session 归档。永久删除画布会清除图的撤销记录，保留 Session 日志和源文件。
 
 ## 迁移
 

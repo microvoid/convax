@@ -19,12 +19,21 @@ When the canvas owns focus:
 | --- | --- |
 | Select all cards | Cmd/Ctrl+A |
 | Copy, paste, duplicate | Cmd/Ctrl+C, Cmd/Ctrl+V, Cmd/Ctrl+D |
-| Move selected cards | Arrow keys |
+| Group / ungroup | Cmd/Ctrl+G / Cmd/Ctrl+Shift+G |
+| Move selected cards or groups | Arrow keys |
 | Remove selected cards or connections | Delete or Backspace |
 | Undo / redo graph edits | Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z |
 | Fit canvas | Cmd/Ctrl+0 |
 
 Inputs, conversation controls, terminals, menus, and IME composition retain their native keys. Undo changes the graph; it does not rewind sent messages or filesystem writes.
+
+## Group cards
+
+Select at least two cards, then choose **Group selection** in the selection toolbar or context menu. Drag the group title to move the whole group, with alignment guides. The frame follows the current sizes of its cards; you can still edit, move, and resize each card independently.
+
+Double-click the group title or choose **Rename group** to rename it. A card’s context menu offers **Add to group** and **Remove from group**. Moving across a frame does not change membership. Groups cannot contain other groups, fold, or resize their contents together.
+
+**Ungroup** keeps the cards and their connections. **Delete group and contents** removes the members; deleting Chats retains the existing stop-and-archive confirmation. Copying or duplicating all group members preserves the name under a new group identity. Copying only part of a group makes independent cards. Group edits support graph undo and redo.
 
 ## Manage saved canvases
 

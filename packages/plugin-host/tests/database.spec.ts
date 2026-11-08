@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CanvasDatabase } from '../src/database.ts'
-import { canvasTables } from '../src/schema.ts'
+import { canvasTables, CANVAS_SCHEMA_VERSION } from '../src/schema.ts'
 import type { CanvasId, CanvasOperationId } from '../src/types.ts'
 
 const historyTables = ['history', 'node_revisions', 'retired_connections', 'restorations'] as const
@@ -165,7 +165,7 @@ describe('Convax-owned database', () => {
     expect(reopened.migrationWarnings).toEqual(upgraded.migrationWarnings)
   })
 
-  it.each([4, 5, 6, 7])('upgrades version %i without rewriting graphs or history and preserves the complete previous database', async (version) => {
+  it.each([4, 5, 6, 7, 8])('upgrades version %i without rewriting graphs or history and preserves the complete previous database', async (version) => {
     const f = await fixture()
     const owned = await f.open()
     await owned.close()
@@ -184,7 +184,7 @@ describe('Convax-owned database', () => {
     expect(upgraded.global.get()).toEqual(graph)
     expect(upgraded.table('history').get('rename' as CanvasOperationId)).toEqual(history)
     expect(upgraded.table('directories').size).toBe(version < 7 ? 0 : 1)
-    if (version === 7) expect(upgraded.table('directories').get('saved-canvas' as CanvasId)).toEqual({ path: '/saved/project' })
+    if (version >= 7) expect(upgraded.table('directories').get('saved-canvas' as CanvasId)).toEqual({ path: '/saved/project' })
     const copies = await readdir(`${f.path}.upgrades`)
     expect(copies).toHaveLength(1)
     const saved = new DatabaseSync(join(`${f.path}.upgrades`, copies[0]!, 'database.sqlite'), { readOnly: true })
@@ -195,14 +195,14 @@ describe('Convax-owned database', () => {
     } finally { saved.close() }
     await upgraded.close()
     const current = new DatabaseSync(f.path, { readOnly: true })
-    try { expect(current.prepare("SELECT version FROM units WHERE name='convax'").get()?.['version']).toBe(8) } finally { current.close() }
+    try { expect(current.prepare("SELECT version FROM units WHERE name='convax'").get()?.['version']).toBe(CANVAS_SCHEMA_VERSION) } finally { current.close() }
     expect((await f.open()).global.get()).toEqual(graph)
     expect(await readdir(`${f.path}.upgrades`)).toEqual(copies)
   })
 
-  it('imports a validated legacy graph once, preserves the original ledger, and reopens its own later commits', async () => {
+  it.each([2, 8])('imports a validated version %i legacy graph once, preserves its ledger, and reopens its own later commits', async (version) => {
     const f = await fixture()
-    legacy(f.legacyPath)
+    legacy(f.legacyPath, version)
     const original = await readFile(f.legacyPath)
     const database = await f.open()
     expect(database.global.get()).toEqual({ revision: 4, canvases: [] })

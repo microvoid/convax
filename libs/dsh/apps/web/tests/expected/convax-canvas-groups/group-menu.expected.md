@@ -1,0 +1,16 @@
+- menu:
+  - menuitem "Focus selection"
+  - menuitem "Copy"
+  - menuitem "Duplicate"
+  - menuitem "Paste"
+  - menuitem "Ungroup"
+  - menuitem "Rename group"
+  - menuitem "Add to group"
+  - menuitem "Remove from group"
+  - menuitem "Delete group and contents"
+  - separator
+  - menuitem "Select all"
+  - menuitem "Fit canvas"
+  - separator
+  - menuitem "Undo"
+  - menuitem "Redo" [disabled]

@@ -4,7 +4,7 @@ import { defaultNodeCreations, defaultNodePresentation } from '@deepseek-ai/dsh-
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasGroupId, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { CanvasGraph, type CanvasGraphProps } from '../src/client/CanvasGraph.tsx'
 import { resolveCanvasKeyboardAction } from '../src/client/canvas-keyboard.ts'
 import { en, type ConvaxKey } from '../src/client/locales.ts'
@@ -44,13 +44,14 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
-async function fixture() {
+async function fixture(grouped = false) {
   const command = vi.fn<CanvasGraphProps['command']>(async () => true)
   const props: CanvasGraphProps = {
     document: {
       id: 'keyboard-canvas' as CanvasId, title: 'Board', revision: 1, connections: [],
+      ...(grouped ? { groups: [{ id: 'group' as CanvasGroupId, title: 'References' }] } : {}),
       nodes: [FIRST, SECOND].map((id, index) => ({
-        id, typeId: TYPE, dataVersion: 1, data: {}, position: { x: 40 + index * 300, y: 40 }, revision: 1,
+        id, typeId: TYPE, dataVersion: 1, data: {}, ...(grouped ? { groupId: 'group' as CanvasGroupId } : {}), position: { x: 40 + index * 300, y: 40 }, revision: 1,
       })),
     },
     chats: [], nodeTypes: [{ id: TYPE, dataVersion: 1, ports: [] }], nodeIssues: [],
@@ -370,5 +371,85 @@ describe('Canvas history controls', () => {
     expect(b.view.getByRole('button', { name: 'Undo' }).hasAttribute('disabled')).toBe(true)
     expect(b.press('z', { metaKey: true }).defaultPrevented).toBe(false)
     expect(b.props.replayHistory).toHaveBeenCalledTimes(calls)
+  })
+})
+
+
+describe('Canvas group interactions', () => {
+  it.each(['revision', 'canvas', 'inactive'] as const)('cancels a grouped member drag when its %s changes', async (change) => {
+    const b = await fixture(true)
+    b.press('a', { metaKey: true })
+    const node = b.node()
+    const ownerWindow = node.ownerDocument.defaultView!
+    fireEvent.click(node, { ctrlKey: true })
+    b.pointer(node, 'mousedown', 40, 40)
+    b.pointer(ownerWindow, 'mousemove', 42, 40)
+    b.pointer(ownerWindow, 'mousemove', 140, 140)
+    await waitFor(() => { expect(node.style.transform).not.toBe('translate(40px,40px)') })
+    expect(b.command).not.toHaveBeenCalled()
+    const added = { ...b.props.document.nodes[0]!, id: 'third' as CanvasNodeId, position: { x: 650, y: 40 } }
+    const next = { ...b.props, active: change !== 'inactive', document: {
+      ...b.props.document,
+      ...(change === 'canvas' ? { id: 'other-canvas' as CanvasId } : {}),
+      ...(change === 'revision' ? { revision: 2, nodes: [...b.props.document.nodes, added] } : {}),
+    } }
+    b.view.rerender(<CanvasGraph {...next} />)
+    expect(node.style.transform).toBe('translate(40px,40px)')
+    b.pointer(ownerWindow, 'mousemove', 170, 180)
+    expect(node.style.transform).toBe('translate(40px,40px)')
+    expect(b.view.container.querySelector('[data-convax-snap-guide]')).toBeNull()
+    b.pointer(ownerWindow, 'mouseup', 170, 180)
+    expect(b.command).not.toHaveBeenCalled()
+  })
+
+  it('groups a node selection with the shortcut and leaves native text inputs in control', async () => {
+    const b = await fixture()
+    b.press('a', { metaKey: true })
+    expect(b.press('g', { metaKey: true }).defaultPrevented).toBe(true)
+    expect(b.command.mock.calls[0]?.[0]).toMatchObject({ kind: 'group-nodes', group: { title: 'Group' }, nodeIds: [FIRST, SECOND] })
+    await act(async () => {})
+    const input = b.view.getAllByRole('textbox')[0]!
+    input.focus()
+    const calls = b.command.mock.calls.length
+    expect(b.press('g', { metaKey: true }, input).defaultPrevented).toBe(false)
+    expect(b.command).toHaveBeenCalledTimes(calls)
+    input.blur()
+    for (const kind of ['chat', 'terminal']) {
+      const native = document.createElement('div')
+      native.tabIndex = 0
+      if (kind === 'chat') native.dataset.convaxInputOwner = 'chat'
+      else native.className = 'xterm'
+      b.graph.append(native); native.focus()
+      expect(b.press('g', { metaKey: true }, native).defaultPrevented).toBe(false)
+      expect(b.press('g', { ctrlKey: true, shiftKey: true }, native).defaultPrevented).toBe(false)
+      expect(b.command).toHaveBeenCalledTimes(calls)
+      native.remove()
+    }
+  })
+
+  it('recognizes a full member selection as a group and submits one deduplicated move and ungroup', async () => {
+    const b = await fixture(true)
+    b.press('a', { metaKey: true })
+    expect(b.view.container.querySelector('[data-convax-group="group"]')?.hasAttribute('data-selected')).toBe(true)
+    expect(b.view.queryByRole('button', { name: 'Group selection' })).toBeNull()
+    b.press('ArrowRight')
+    expect(b.command).toHaveBeenCalledExactlyOnceWith({ kind: 'move-selection', nodeIds: [], groupIds: ['group'], delta: { x: 5, y: 0 } })
+    await act(async () => {})
+    b.press('g', { ctrlKey: true, shiftKey: true })
+    expect(b.command).toHaveBeenLastCalledWith({ kind: 'ungroup', groupIds: ['group'] })
+  })
+
+  it('renames from the title and exposes explicit member removal without changing positions', async () => {
+    const b = await fixture(true)
+    const header = b.view.container.querySelector<HTMLElement>('[data-convax-group-header="group"]')!
+    fireEvent.doubleClick(header)
+    fireEvent.change(b.view.getByRole('textbox', { name: 'Group name' }), { target: { value: '  Research  ' } })
+    fireEvent.click(b.view.getByRole('button', { name: 'Save' }))
+    expect(b.command).toHaveBeenCalledExactlyOnceWith({ kind: 'rename-group', groupId: 'group', title: 'Research' })
+    await act(async () => {})
+    fireEvent.contextMenu(b.node(), { clientX: 50, clientY: 50 })
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Remove from group' }))
+    expect(b.command).toHaveBeenLastCalledWith({ kind: 'set-node-group', nodeIds: [FIRST], groupId: null })
+    expect(b.node().style.transform).toBe('translate(40px,40px)')
   })
 })

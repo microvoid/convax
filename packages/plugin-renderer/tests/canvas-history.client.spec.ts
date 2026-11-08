@@ -1,6 +1,6 @@
 /** Local history preserves resource viewing state without capturing remote edits. */
 import { describe, expect, it } from 'vitest'
-import type { CanvasDocument, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasCommand, CanvasDocument, CanvasGroupId, CanvasId, CanvasNodeId, CanvasNodeTypeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { recordsCanvasHistory, removedResourceViews, restoredResourceViews } from '../src/client/canvas-history.ts'
 
 function canvas(ids: string[]): CanvasDocument {
@@ -23,6 +23,21 @@ describe('Canvas local history metadata', () => {
     expect(recordsCanvasHistory({ kind: 'add-subgraph', nodes: [], connections: [] })).toBe(true)
     expect(recordsCanvasHistory({ kind: 'batch', ops: [{ op: 'canvas.set', title: 'Renamed' }] })).toBe(false)
     expect(recordsCanvasHistory({ kind: 'batch', ops: [{ op: 'node.set', id: 'node' as CanvasNodeId, position: { x: 20, y: 0 } }] })).toBe(true)
+  })
+
+  it('records group membership, title and selection changes as graph history', () => {
+    const groupId = 'references' as CanvasGroupId
+    const nodeId = 'node' as CanvasNodeId
+    const commands: CanvasCommand[] = [
+      { kind: 'group-nodes', group: { id: groupId, title: 'References' }, nodeIds: [nodeId] },
+      { kind: 'rename-group', groupId, title: 'Sources' },
+      { kind: 'ungroup', groupIds: [groupId] },
+      { kind: 'set-node-group', nodeIds: [nodeId], groupId: null },
+      { kind: 'move-selection', nodeIds: [], groupIds: [groupId], delta: { x: 10, y: 20 } },
+      { kind: 'remove-selection', nodeIds: [], groupIds: [groupId] },
+      { kind: 'batch', ops: [{ op: 'group.set', id: groupId, title: 'Sources' }] },
+    ]
+    for (const command of commands) expect(recordsCanvasHistory(command), command.kind).toBe(true)
   })
 
   it('captures only removed views and restores reintroduced or missing views after a late receipt', () => {

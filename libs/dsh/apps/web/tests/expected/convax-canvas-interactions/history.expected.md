@@ -33,7 +33,11 @@
       - button "Expand history-reference"
       - text: history-reference Folder
       - button "Resize preview"
-  - button "Remove selected references"
+  - toolbar "Actions for notes.txt":
+    - button "Expand preview"
+    - button "Show in file manager"
+    - separator
+    - button "Remove reference"
   - img
   - button "Add folder or files"
   - button "Terminal"

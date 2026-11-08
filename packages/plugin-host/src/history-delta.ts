@@ -1,6 +1,6 @@
 /** Field-level graph history preserves edits outside the original operation. */
 import { isDeepStrictEqual } from 'node:util'
-import type { CanvasConnection, CanvasData, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPoint, CanvasTitleFormat } from './types.ts'
+import type { CanvasConnection, CanvasData, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPoint, CanvasTitleFormat, CanvasGroup, CanvasGroupId } from './types.ts'
 
 /** Values inspected and replaced by one reversible edit. */
 export interface CanvasFieldChange<T> {
@@ -23,7 +23,13 @@ export type CanvasNodeDelta =
     typeId: CanvasNodeTypeId
     position?: CanvasFieldChange<CanvasPoint>
     data?: CanvasFieldChange<CanvasHistoryData>
+    groupId?: CanvasFieldChange<CanvasGroupId | null>
   }
+
+/** Structural group records have no provider payload or window geometry. */
+export type CanvasGroupDelta =
+  | { kind: 'added' | 'removed'; group: CanvasGroup; index: number }
+  | { kind: 'updated'; groupId: CanvasGroupId; title: CanvasFieldChange<string> }
 
 /** Connections keep their immutable identities and original drawing order. */
 export interface CanvasConnectionDelta {
@@ -38,6 +44,7 @@ export interface CanvasDelta {
   titleFormat?: CanvasFieldChange<CanvasTitleFormat | null>
   nodes: CanvasNodeDelta[]
   connections: CanvasConnectionDelta[]
+  groups?: CanvasGroupDelta[]
 }
 
 function nodeContent(node: CanvasNode): Omit<CanvasNode, 'revision'> {
@@ -71,8 +78,10 @@ export function buildCanvasDelta(before: CanvasDocument, after: CanvasDocument):
     const data = original.dataVersion === node.dataVersion && isDeepStrictEqual(original.data, node.data) ? undefined
       : { before: { dataVersion: original.dataVersion, data: structuredClone(original.data) },
         after: { dataVersion: node.dataVersion, data: structuredClone(node.data) } }
-    if (position !== undefined || data !== undefined) delta.nodes.push({ kind: 'updated', nodeId: node.id, typeId: node.typeId,
-      ...(position === undefined ? {} : { position }), ...(data === undefined ? {} : { data }) })
+    const groupId = original.groupId === node.groupId ? undefined : { before: original.groupId ?? null, after: node.groupId ?? null }
+    if (position !== undefined || data !== undefined || groupId !== undefined) delta.nodes.push({ kind: 'updated', nodeId: node.id, typeId: node.typeId,
+      ...(position === undefined ? {} : { position }), ...(data === undefined ? {} : { data }),
+      ...(groupId === undefined ? {} : { groupId }) })
   })
   const oldEdges = new Map(before.connections.map(edge => [edge.id, edge]))
   const newEdges = new Map(after.connections.map(edge => [edge.id, edge]))
@@ -84,6 +93,18 @@ export function buildCanvasDelta(before: CanvasDocument, after: CanvasDocument):
     if (original === undefined) delta.connections.push({ kind: 'added', connection: structuredClone(connection), index })
     else if (!isDeepStrictEqual(original, connection)) throw new TypeError('History cannot replace an existing connection')
   })
+  const groups: CanvasGroupDelta[] = []
+  const previousGroups = new Map((before.groups ?? []).map(group => [group.id, group]))
+  const nextGroups = new Map((after.groups ?? []).map(group => [group.id, group]))
+  for (const [index, group] of (before.groups ?? []).entries()) {
+    if (!nextGroups.has(group.id)) groups.push({ kind: 'removed', group: structuredClone(group), index })
+  }
+  for (const [index, group] of (after.groups ?? []).entries()) {
+    const original = previousGroups.get(group.id)
+    if (original === undefined) groups.push({ kind: 'added', group: structuredClone(group), index })
+    else if (original.title !== group.title) groups.push({ kind: 'updated', groupId: group.id, title: { before: original.title, after: group.title } })
+  }
+  if (groups.length > 0) delta.groups = groups
   return delta
 }
 
@@ -117,6 +138,9 @@ export function applyCanvasDelta(
       if (change.data !== undefined && !isDeepStrictEqual({ dataVersion: node.dataVersion, data: node.data }, change.data[from])) {
         return { ok: false, message: 'An edited node payload changed after this edit' }
       }
+      if (change.groupId !== undefined && (node.groupId ?? null) !== change.groupId[from]) {
+        return { ok: false, message: 'An edited node changed groups after this edit' }
+      }
     } else {
       const node = current.nodes.find(node => node.id === change.node.id)
       if (change.kind === removingKind) {
@@ -125,6 +149,14 @@ export function applyCanvasDelta(
         }
       } else if (node !== undefined) return { ok: false, message: 'A restored node identity already exists' }
     }
+  }
+  for (const change of delta.groups ?? []) {
+    const group = current.groups?.find(group => group.id === (change.kind === 'updated' ? change.groupId : change.group.id))
+    if (change.kind === 'updated') {
+      if (group === undefined || group.title !== change.title[from]) return { ok: false, message: 'An edited group changed after this edit' }
+    } else if (change.kind === removingKind) {
+      if (!isDeepStrictEqual(group, change.group)) return { ok: false, message: 'A removed group changed after this edit' }
+    } else if (group !== undefined) return { ok: false, message: 'A restored group identity already exists' }
   }
   for (const change of delta.connections) {
     const edge = current.connections.find(edge => edge.id === change.connection.id)
@@ -151,6 +183,11 @@ export function applyCanvasDelta(
     if (change === undefined) continue
     if (change.position !== undefined) node.position = structuredClone(change.position[to])
     if (change.data !== undefined) Object.assign(node, structuredClone(change.data[to]))
+    if (change.groupId !== undefined) {
+      const groupId = change.groupId[to]
+      if (groupId === null) delete node.groupId
+      else node.groupId = groupId
+    }
     node.revision = Math.max(node.revision, revisionCounters.get(node.id) ?? 0) + 1
   }
   const restoring = delta.nodes.filter((change): change is Extract<CanvasNodeDelta, { node: CanvasNode }> =>
@@ -166,6 +203,25 @@ export function applyCanvasDelta(
       return { ok: false, message: 'A restored connection endpoint no longer exists' }
     }
     canvas.connections.splice(change.index, 0, structuredClone(change.connection))
+  }
+  if (delta.groups !== undefined) {
+    const removingGroups = new Set(delta.groups.flatMap(change => change.kind === removingKind ? [change.group.id] : []))
+    const groups = (canvas.groups ?? []).filter(group => !removingGroups.has(group.id))
+    for (const change of delta.groups) {
+      if (change.kind !== 'updated') continue
+      const group = groups.find(group => group.id === change.groupId)
+      if (group !== undefined) group.title = change.title[to]
+    }
+    const restoring = delta.groups.filter((change): change is Extract<CanvasGroupDelta, { group: CanvasGroup }> =>
+      change.kind !== 'updated' && change.kind !== removingKind).sort((left, right) => left.index - right.index)
+    for (const change of restoring) groups.splice(change.index, 0, structuredClone(change.group))
+    if (groups.length === 0) delete canvas.groups
+    else canvas.groups = groups
+  }
+  const groupIds = new Set((canvas.groups ?? []).map(group => group.id))
+  if (canvas.nodes.some(node => node.groupId !== undefined && !groupIds.has(node.groupId))
+    || (canvas.groups ?? []).some(group => !canvas.nodes.some(node => node.groupId === group.id))) {
+    return { ok: false, message: 'Group membership changed after this edit' }
   }
   return { ok: true, canvas }
 }

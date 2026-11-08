@@ -16,11 +16,11 @@ English | [中文](convax-graph-tools.md)
 <a id="read"></a>
 ## 读取
 
-省略 `canvasId` 时使用调用 Session 的 Chat 绑定。未绑定的 Session 可以列出画布和检查提供方，读取节点或连线需要显式目标。结果描述已保存状态，与打开的 tab、视口和选中状态无关。
+省略 `canvasId` 时使用调用 Session 的 Chat 绑定。未绑定的 Session 可以列出画布和检查提供方，读取节点、连线或分组需要显式目标。结果描述已保存状态，与打开的 tab、视口和选中状态无关。
 
-默认响应包含画布摘要，以及目标身份、标题和修订号。`include` 选择 `canvases`、`nodes`、`connections`、`nodeTypes` 和 `issues`。未请求的集合不出现，不表示空集合。`projection` 字段声明包含范围与完整性。
+默认响应包含画布摘要，以及目标身份、标题和修订号。`include` 选择 `canvases`、`nodes`、`connections`、`groups`、`nodeTypes` 和 `issues`。未请求的集合不出现，不表示空集合。`projection` 字段声明包含范围与完整性。
 
-`selection.nodeIds` 与 `selection.typeIds` 取交集。连线的两个端点必须都在该节点集合内。`selection.connectionIds` 进一步筛选连线及端点；`selection.incidentTo` 选择触及指定节点的边、端点及指定节点。`fields.nodes` 与 `fields.connections` 选择记录字段，始终保留 `id`。文件数据包含路径，不包含内容。
+`selection.nodeIds`、`selection.typeIds` 与 `selection.groupIds` 取交集。分组筛选选择成员节点，请求的 `groups` 返回结果选区涉及分组的身份与标题。节点的 `groupId` 字段暴露成员归属，所有位置均使用世界坐标。连线的两个端点必须都在该节点集合内。`selection.connectionIds` 进一步筛选连线及端点；`selection.incidentTo` 选择触及指定节点的边、端点及指定节点。`fields.nodes` 与 `fields.connections` 选择记录字段，始终保留 `id`。文件数据包含路径，不包含内容。
 
 ```json
 {"include":["nodes","connections","nodeTypes"],"selection":{"incidentTo":["note"]},"fields":{"nodes":["typeId","data","revision"]}}
@@ -36,14 +36,18 @@ English | [中文](convax-graph-tools.md)
 | `canvas.add` | `title`；只能是第一项，目标必须是新画布。 |
 | `canvas.set` | `title`；替换标题。 |
 | `canvas.remove` | 移除目标图，保留可恢复历史。 |
-| `node.add` | `id`、`typeId`、`dataVersion`、`data`、`position`；支持任意已启用提供方。 |
-| `node.set` | `id` 及至少 `data` 或 `position`；替换数据要求 `dataVersion`。可选 `ifRevision`。 |
+| `node.add` | `id`、`typeId`、`dataVersion`、`data`、`position`；支持任意已启用提供方。可选 `groupId` 分配到已有组。 |
+| `node.set` | `id` 及至少 `data`、`position` 或 `groupId`；替换数据要求 `dataVersion`。可选 `ifRevision`；`groupId: null` 移除归属。 |
 | `node.remove` | `id`；同时移除关联边，保留源文件。 |
+| `group.add` | `id`、`title`；添加逻辑分组元数据。同批分配成员，空组在提交时移除。 |
+| `group.set` | `id`、`title`；重命名分组。 |
+| `group.remove` | `id`；解除成员归属，不移除节点或连线。 |
+| `group.move` | `id`、`delta: { x, y }`；使用世界坐标平移成员。 |
 | `edge.add` | `id`、`source`、`sourcePort`、`target`、`targetPort`、`purpose`（`input` 或 `delivery`）。 |
 | `edge.remove` | `id`；移除一条已有连线。 |
 | `history` | `targetOperationId`、`direction`（`undo` 或 `redo`）；必须单独提交。 |
 
-操作在独立图副本上顺序执行，后续操作能看到前面的新增记录与修订号。`node.set.data` 完整替换提供方载荷，不做合并。一次 `node.set` 即使同时修改数据和位置，也只推进一次节点修订号。提供方解析器、载荷版本、端口与值类型检查仍然生效。
+操作在独立图副本上顺序执行，后续操作能看到前面的新增记录与修订号。`node.set.data` 完整替换提供方载荷，不做合并。一次 `node.set` 即使同时修改数据、位置和成员归属，也只推进一次节点修订号。提供方解析器、载荷版本、端口与值类型检查仍然生效。
 
 图校验失败不发布任何修改，也不消耗重试身份。成功时原子提交图、一条回执和一条历史，并只推进一次画布修订号。回执包含 `ok`、`canvasId`、`operationId`、`revision` 及可空 `error`；错误包含稳定的 `code`、`message`，单项失败还返回从零开始的 `opIndex`。回执不返回整张图。
 

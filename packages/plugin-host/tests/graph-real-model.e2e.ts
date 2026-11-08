@@ -27,11 +27,12 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('Convax graph tools with a real m
           const graph = graphSchema.parse(JSON.parse(row.value)).canvases.find(canvas => canvas.id === 'model-graph')
           expect(graph?.nodes.find(node => node.id === 'model-chat')?.position).toEqual({ x: 100, y: 200 })
           expect(graph?.nodes.find(node => node.id === 'model-file')).toMatchObject({
-            position: { x: 500, y: 200 }, data: { path: await realpath(join(cwd, 'input.txt')) },
+            position: { x: 530, y: 240 }, data: { path: await realpath(join(cwd, 'input.txt')) }, groupId: 'model-group',
           })
           expect(graph?.nodes.find(node => node.id === 'model-extension')).toMatchObject({
-            position: { x: 900, y: 600 }, data: { label: 'Keep this extension payload' },
+            position: { x: 930, y: 640 }, data: { label: 'Keep this extension payload' }, groupId: 'model-group',
           })
+          expect(graph?.groups).toEqual([{ id: 'model-group', title: 'References' }])
           expect(graph?.connections).toMatchObject([{ id: 'model-link', source: 'model-file', target: 'model-chat', purpose: 'input' }])
         } finally { database.close() }
         expect(await readFile(join(cwd, 'input.txt'), 'utf8')).toBe('Unchanged graph reference\n')

@@ -7,6 +7,8 @@ import type {} from '@deepseek-ai/dsh-typert-protocol'
 export type CanvasId = Branded<'ConvaxCanvasId'>
 /** Node identity, unique within the repository. */
 export type CanvasNodeId = Branded<'ConvaxCanvasNodeId'>
+/** Stable identity of a structural canvas group. */
+export type CanvasGroupId = Branded<'ConvaxCanvasGroupId'>
 /** Connection identity, unique within the repository. */
 export type CanvasConnectionId = Branded<'ConvaxConnectionId'>
 /** Idempotent command identity. */
@@ -42,8 +44,15 @@ export interface CanvasNode {
   data: CanvasData
   /** Position independent of the graph library. */
   position: CanvasPoint
+  /** Immediate logical group; positions remain in world coordinates. */
+  groupId?: CanvasGroupId
   /** Revision of this node. */
   revision: number
+}
+/** Structural organization independent of node providers and window geometry. */
+export interface CanvasGroup {
+  id: CanvasGroupId
+  title: string
 }
 /** Durable directed connection between named ports. */
 export interface CanvasConnection {
@@ -79,6 +88,8 @@ export interface CanvasDocument {
   revision: number
   /** Durable nodes, including those whose providers are unavailable. */
   nodes: CanvasNode[]
+  /** Logical groups; absence is equivalent to an empty collection. */
+  groups?: CanvasGroup[]
   /** Durable relationships. */
   connections: CanvasConnection[]
 }
@@ -238,10 +249,17 @@ export type CanvasCommand =
     kind: 'add-subgraph'
     /** New envelopes with caller-allocated identities; committed revisions start at one. */
     nodes: CanvasNode[]
+    groups?: CanvasGroup[] | undefined
     /** Connections validated after every new node is present. */
     connections: CanvasConnection[]
   }
   | { kind: 'move-nodes'; nodes: { id: CanvasNodeId; position: CanvasPoint }[] }
+  | { kind: 'group-nodes'; group: CanvasGroup; nodeIds: CanvasNodeId[] }
+  | { kind: 'rename-group'; groupId: CanvasGroupId; title: string }
+  | { kind: 'ungroup'; groupIds: CanvasGroupId[] }
+  | { kind: 'set-node-group'; nodeIds: CanvasNodeId[]; groupId: CanvasGroupId | null }
+  | { kind: 'move-selection'; nodeIds: CanvasNodeId[]; groupIds: CanvasGroupId[]; delta: CanvasPoint }
+  | { kind: 'remove-selection'; nodeIds: CanvasNodeId[]; groupIds: CanvasGroupId[] }
   | { kind: 'arrange-nodes'; nodeIds: CanvasNodeId[]; origin: CanvasPoint; columns: number; columnGap: number; rowGap: number }
   | { kind: 'remove-nodes'; nodeIds: CanvasNodeId[] }
   | { kind: 'update-node'; nodeId: CanvasNodeId; dataVersion: number; data: CanvasData }
@@ -255,9 +273,13 @@ export type CanvasGraphOperation =
   | { op: 'canvas.add'; title: string }
   | { op: 'canvas.set'; title: string }
   | { op: 'canvas.remove' }
-  | { op: 'node.add'; id: CanvasNodeId; typeId: CanvasNodeTypeId; dataVersion: number; data: CanvasData; position: CanvasPoint }
-  | { op: 'node.set'; id: CanvasNodeId; ifRevision?: number | undefined; dataVersion?: number | undefined; data?: CanvasData | undefined; position?: CanvasPoint | undefined }
+  | { op: 'node.add'; id: CanvasNodeId; typeId: CanvasNodeTypeId; dataVersion: number; data: CanvasData; position: CanvasPoint; groupId?: CanvasGroupId | undefined }
+  | { op: 'node.set'; id: CanvasNodeId; ifRevision?: number | undefined; dataVersion?: number | undefined; data?: CanvasData | undefined; position?: CanvasPoint | undefined; groupId?: CanvasGroupId | null | undefined }
   | { op: 'node.remove'; id: CanvasNodeId }
+  | { op: 'group.add'; id: CanvasGroupId; title: string }
+  | { op: 'group.set'; id: CanvasGroupId; title: string }
+  | { op: 'group.remove'; id: CanvasGroupId }
+  | { op: 'group.move'; id: CanvasGroupId; delta: CanvasPoint }
   | { op: 'edge.add'; id: CanvasConnectionId; source: CanvasNodeId; sourcePort: string; target: CanvasNodeId; targetPort: string; purpose: 'input' | 'delivery' }
   | { op: 'edge.remove'; id: CanvasConnectionId }
   | { op: 'history'; targetOperationId: CanvasOperationId; direction: 'undo' | 'redo' }
