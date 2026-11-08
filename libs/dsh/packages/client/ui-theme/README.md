@@ -73,6 +73,8 @@ In pointer modality, `html[data-input-modality='pointer'] body :focus-visible:no
 
 Menu icons use `--dsw-alias-menu-icon`: neutral-bluish 800 in light mode and `label-primary-dimmed` in dark mode.
 
+The `--dsw-alias-canvas-group-{blue,green,yellow,orange,purple,pink}` tokens provide theme-resolved group palette colors; canvas consumers use these aliases rather than embedding color literals.
+
 The `--dsw-alias-illustration-*` tokens separate layered decorative artwork backgrounds, foreground surfaces, backing layers, shadows, inset fills, and details. Clock faces use the inset fill. The dark palette keeps foreground surfaces brighter than backing layers and backgrounds; inset fills and shadows share the backing tone.
 
 `base.css` suppresses only the outline of focused elements marked `data-dsh-automatic-focus` by the [primitive focus helper](../ui-primitives/README.md); ordinary keyboard focus styling, borders, shadows, and error states remain intact.

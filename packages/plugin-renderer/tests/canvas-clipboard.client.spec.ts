@@ -43,7 +43,7 @@ describe('Canvas clipboard protocol', () => {
   it('rejects ordinary text, unsupported versions, duplicate identities and connections outside the copied selection', () => {
     const copied = payload()
     for (const invalid of [
-      'ordinary text', '{}', JSON.stringify({ ...copied, version: 3 }), JSON.stringify({ ...copied, nodes: [] }),
+      'ordinary text', '{}', JSON.stringify({ ...copied, version: 4 }), JSON.stringify({ ...copied, nodes: [] }),
       JSON.stringify({ ...copied, nodes: [copied.nodes[0], copied.nodes[0]] }),
       JSON.stringify({ ...copied, connections: document.connections }),
       JSON.stringify({ ...copied, dimensions: {} }),
@@ -56,13 +56,13 @@ describe('Canvas clipboard protocol', () => {
   it('reads legacy node-only clipboard records into the current protocol', () => {
     const { groups: _groups, ...copied } = payload()
     const legacy = { ...copied, version: 1 }
-    expect(parseCanvasClipboard(JSON.stringify(legacy))).toEqual({ ...copied, version: 2, groups: [] })
+    expect(parseCanvasClipboard(JSON.stringify(legacy))).toEqual({ ...copied, version: 3, groups: [] })
     expect(parseCanvasClipboard(JSON.stringify({ ...legacy, groups: [] }))).toBeNull()
   })
 
   it('retains complete groups and detaches partial groups without moving their members', () => {
     const groupId = 'references' as CanvasGroupId
-    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References' }],
+    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References', color: 'purple' }],
       nodes: document.nodes.map(node => node.id === EXTERNAL ? node : { ...node, groupId }),
     }
     const copied = copyCanvasSelection(source, [FIRST, SECOND], dimensions, views, defaultNodeClipboardData)!
@@ -76,6 +76,20 @@ describe('Canvas clipboard protocol', () => {
     expect(partial.nodes[0]).not.toHaveProperty('groupId')
     expect(partial.nodes[0]!.position).toEqual(document.nodes[0]!.position)
     expect(source.nodes[0]!.groupId).toBe(groupId)
+  })
+
+  it('reads uncolored version two groups and rejects colors outside the version three palette', () => {
+    const copied = payload()
+    const group = { id: 'references' as CanvasGroupId, title: 'References' }
+    const nodes = copied.nodes.map(node => ({ ...node, groupId: group.id }))
+    const legacy = { ...copied, version: 2, nodes, groups: [group] }
+    expect(parseCanvasClipboard(JSON.stringify(legacy))).toEqual({ ...legacy, version: 3 })
+    const colored = { ...legacy, version: 3, groups: [{ ...group, color: 'pink' }] }
+    expect(parseCanvasClipboard(JSON.stringify(colored))).toEqual(colored)
+    for (const color of ['red', '', null, '#ff00ff']) {
+      expect(parseCanvasClipboard(JSON.stringify({ ...colored, groups: [{ ...group, color }] }))).toBeNull()
+    }
+    expect(parseCanvasClipboard(JSON.stringify({ ...colored, version: 2 }))).toBeNull()
   })
 
   it('rejects duplicated, empty and missing clipboard groups', () => {
@@ -105,13 +119,13 @@ describe('Canvas clipboard protocol', () => {
 describe('Copied graph placement', () => {
   it('allocates independent groups and remaps their members with internal connections in one command', () => {
     const groupId = 'references' as CanvasGroupId
-    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References' }],
+    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References', color: 'green' }],
       nodes: document.nodes.map(node => node.id === EXTERNAL ? node : { ...node, groupId }),
     }
     const copied = copyCanvasSelection(source, [FIRST, SECOND], dimensions, views, defaultNodeClipboardData)!
     let next = 0
     const command = createClipboardSubgraph(copied, { x: 800, y: 500 }, [], () => `new-${next++}`, defaultNodeClipboardData)
-    expect(command.groups).toEqual([{ id: 'new-0', title: 'References' }])
+    expect(command.groups).toEqual([{ id: 'new-0', title: 'References', color: 'green' }])
     expect(command.nodes.map(node => ({ id: node.id, groupId: node.groupId, position: node.position }))).toEqual([
       { id: 'new-1', groupId: 'new-0', position: { x: 800, y: 500 } },
       { id: 'new-2', groupId: 'new-0', position: { x: 1040, y: 560 } },

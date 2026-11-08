@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { CanvasRepository } from '../src/repository.ts'
 import { CanvasNodeRegistry } from '../src/registry.ts'
-import { canvasCommandRequestSchema, graphSchema } from '../src/schema.ts'
+import { canvasCommandRequestSchema, canvasGraphOperationSchema, graphSchema } from '../src/schema.ts'
 import { CanvasDatabase } from '../src/database.ts'
 import { ConvaxHost, apply as applyHost } from '../src/index.ts'
 import { createFileDeliveryOutput } from '../../plugin-inernal-nodes-host/src/file-delivery.ts'
@@ -27,7 +27,7 @@ import { CanvasSessionMaterializer } from '../../plugin-inernal-nodes-host/src/s
 import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import type { OfficeToPdfRequest, OfficeToPdfResult } from '@deepseek-ai/dsh-office-to-pdf'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
-import type { CanvasCommand, CanvasCommandRequest, CanvasConnectionId, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasOperationId, CanvasThreadRequest, CanvasGroupId } from '../src/types.ts'
+import type { CanvasCommand, CanvasCommandRequest, CanvasConnectionId, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasOperationId, CanvasThreadRequest, CanvasGroupId, CanvasGroupColor } from '../src/types.ts'
 
 
 interface TestSessionCreateRequest {
@@ -1962,7 +1962,8 @@ describe('Logical canvas groups', () => {
   it('copies subgraph groups and remaps every whole-canvas group identity independently', async () => {
     const f = await groupingFixture()
     const copiedNodes = f.nodes.slice(0, 2).map((value, index) => ({ ...value, id: `copy-${index}` as CanvasNodeId, groupId: f.group.id }))
-    expect(await f.repository.execute(request('paste-group', 2, { kind: 'add-subgraph', nodes: copiedNodes, groups: [f.group], connections: [] })))
+    const colored = { ...f.group, color: 'purple' as const }
+    expect(await f.repository.execute(request('paste-group', 2, { kind: 'add-subgraph', nodes: copiedNodes, groups: [colored], connections: [] })))
       .toMatchObject({ ok: true })
     const source = f.current()
     const copyId = 'group-copy' as CanvasId
@@ -1972,6 +1973,7 @@ describe('Logical canvas groups', () => {
     expect(copy.groups).toHaveLength(1)
     expect(copy.groups![0]!.id).not.toBe(f.group.id)
     expect(copy.groups![0]!.title).toBe(f.group.title)
+    expect(copy.groups![0]!.color).toBe('purple')
     expect(copy.nodes.filter(node => node.groupId !== undefined)).toHaveLength(2)
     expect(copy.nodes.filter(node => node.groupId !== undefined).every(node => node.groupId === copy.groups![0]!.id)).toBe(true)
     expect(copy.nodes.map(node => node.position)).toEqual(source.nodes.map(node => node.position))
@@ -2013,5 +2015,99 @@ describe('Logical canvas groups', () => {
       { id: f.chat.id, groupId: group.id }, { id: resource.id, groupId: group.id },
     ] })
     expect(native.unarchiveSession).toHaveBeenCalledExactlyOnceWith(sessionId)
+  })
+})
+
+describe('Canvas group colors', () => {
+  it('colors all selected groups atomically without providers and preserves positions, membership and node revisions', async () => {
+    const f = await groupingFixture()
+    const other = 'other-colored-group' as CanvasGroupId
+    await f.repository.execute(request('colored-groups', 2, { kind: 'batch', ops: [
+      { op: 'group.add', ...f.group, color: 'pink' },
+      { op: 'node.set', id: f.nodes[0]!.id, groupId: f.group.id },
+      { op: 'node.set', id: f.nodes[1]!.id, groupId: f.group.id },
+      { op: 'group.add', id: other, title: 'Other' },
+      { op: 'node.set', id: f.nodes[2]!.id, groupId: other },
+    ] }))
+    await f.unregisterType()
+    const nodes = structuredClone(f.current().nodes)
+    for (const color of ['blue', 'green', 'yellow', 'orange', 'purple', 'pink'] satisfies CanvasGroupColor[]) {
+      const paint = request(`paint-${color}`, f.current().revision, { kind: 'set-group-color', groupIds: [f.group.id, other], color })
+      expect(canvasCommandRequestSchema.parse(paint)).toEqual(paint)
+      expect(await f.repository.execute(paint)).toMatchObject({ ok: true })
+      expect(f.current().groups?.map(group => group.color)).toEqual([color, color])
+      expect(f.current().nodes).toEqual(nodes)
+      const saved = f.repository.snapshot()
+      expect(await f.repository.execute(paint)).toMatchObject({ ok: true, workspace: saved })
+    }
+    expect(f.domain.table('history').get('paint-pink' as CanvasOperationId)?.delta.groups).toHaveLength(2)
+    expect(await f.repository.execute(request('undo-palette', f.current().revision, {
+      kind: 'history', targetOperationId: 'paint-pink' as CanvasOperationId, direction: 'undo',
+    }))).toMatchObject({ ok: true })
+    expect(f.current().groups?.map(group => group.color)).toEqual(['purple', 'purple'])
+    expect(await f.repository.execute(request('redo-palette', f.current().revision, {
+      kind: 'history', targetOperationId: 'paint-pink' as CanvasOperationId, direction: 'redo',
+    }))).toMatchObject({ ok: true })
+    expect(f.current().groups?.map(group => group.color)).toEqual(['pink', 'pink'])
+    await f.close()
+    const reopened = await f.open()
+    expect(reopened.repository.snapshot().canvases[0]?.groups?.map(group => group.color)).toEqual(['pink', 'pink'])
+  })
+
+  it('undoes color and title fields independently, resets to neutral and restores reset history', async () => {
+    const f = await groupingFixture()
+    const issue = (id: string, command: CanvasCommand) => f.repository.execute(request(id, f.current().revision, command))
+    await issue('group', { kind: 'group-nodes', group: f.group, nodeIds: [f.nodes[0]!.id, f.nodes[1]!.id] })
+    await issue('color', { kind: 'set-group-color', groupIds: [f.group.id], color: 'blue' })
+    await issue('rename', { kind: 'rename-group', groupId: f.group.id, title: 'Concurrent name' })
+    expect(f.current().groups).toEqual([{ ...f.group, title: 'Concurrent name', color: 'blue' }])
+    expect(await issue('undo-color', { kind: 'history', targetOperationId: 'color' as CanvasOperationId, direction: 'undo' }))
+      .toMatchObject({ ok: true })
+    expect(f.current().groups).toEqual([{ ...f.group, title: 'Concurrent name' }])
+    expect(await issue('redo-color', { kind: 'history', targetOperationId: 'color' as CanvasOperationId, direction: 'redo' }))
+      .toMatchObject({ ok: true })
+    expect(await issue('undo-rename', { kind: 'history', targetOperationId: 'rename' as CanvasOperationId, direction: 'undo' }))
+      .toMatchObject({ ok: true })
+    expect(f.current().groups).toEqual([{ ...f.group, color: 'blue' }])
+    expect(await issue('reset', { kind: 'set-group-color', groupIds: [f.group.id], color: null })).toMatchObject({ ok: true })
+    expect(f.current().groups?.[0]).not.toHaveProperty('color')
+    expect(await issue('undo-reset', { kind: 'history', targetOperationId: 'reset' as CanvasOperationId, direction: 'undo' }))
+      .toMatchObject({ ok: true })
+    expect(f.current().groups).toEqual([{ ...f.group, color: 'blue' }])
+    await issue('external-color', { kind: 'set-group-color', groupIds: [f.group.id], color: 'green' })
+    const before = f.repository.snapshot()
+    expect(await issue('conflicting-color-undo', { kind: 'history', targetOperationId: 'color' as CanvasOperationId, direction: 'undo' }))
+      .toMatchObject({ ok: false, code: 'conflict' })
+    expect(f.repository.snapshot()).toEqual(before)
+  })
+
+  it('rejects unsupported colors, missing groups and empty group patches without partial effects or retry receipts', async () => {
+    const f = await groupingFixture()
+    await f.repository.execute(request('group', 2, { kind: 'group-nodes', group: { ...f.group, color: 'purple' },
+      nodeIds: [f.nodes[0]!.id, f.nodes[1]!.id] }))
+    const invalid: CanvasCommand[] = [
+      { kind: 'set-group-color', groupIds: [f.group.id], color: 'red' as CanvasGroupColor },
+      { kind: 'set-group-color', groupIds: [f.group.id, 'missing' as CanvasGroupId], color: 'orange' },
+      { kind: 'batch', ops: [{ op: 'group.set', id: f.group.id }] },
+      { kind: 'batch', ops: [{ op: 'group.set', id: f.group.id, title: 'Changed', color: 'red' as CanvasGroupColor }] },
+      { kind: 'batch', ops: [{ op: 'group.set', id: f.group.id, color: 'yellow' }, { op: 'group.set', id: 'missing' as CanvasGroupId, color: null }] },
+    ]
+    const before = f.repository.snapshot()
+    for (const [index, command] of invalid.entries()) {
+      const id = `invalid-color-${index}`
+      expect(await f.repository.execute(request(id, 3, command))).toMatchObject({ ok: false })
+      expect(f.repository.snapshot()).toEqual(before)
+      expect(f.domain.table('operations').get(id as CanvasOperationId)).toBeUndefined()
+    }
+    expect(canvasGraphOperationSchema.safeParse({ op: 'group.set', id: f.group.id }).success).toBe(false)
+    expect(canvasGraphOperationSchema.safeParse({ op: 'group.set', id: f.group.id, color: 'red' }).success).toBe(false)
+    expect(canvasGraphOperationSchema.safeParse({ op: 'group.set', id: f.group.id, color: null }).success).toBe(true)
+    expect(await f.repository.execute(request('valid-color-patch', 3, { kind: 'batch', ops: [
+      { op: 'group.set', id: f.group.id, title: 'Changed', color: 'orange' },
+    ] }))).toMatchObject({ ok: true })
+    expect(f.current().groups).toEqual([{ ...f.group, title: 'Changed', color: 'orange' }])
+    expect(await f.repository.execute(request('neutral-patch', 4, { kind: 'batch', ops: [{ op: 'group.set', id: f.group.id, color: null }] })))
+      .toMatchObject({ ok: true })
+    expect(f.current().groups).toEqual([{ ...f.group, title: 'Changed' }])
   })
 })

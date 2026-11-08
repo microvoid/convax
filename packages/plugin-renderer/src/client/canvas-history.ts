@@ -14,7 +14,7 @@ export function recordsCanvasHistory(command: CanvasCommand): boolean {
     case 'set-archived': case 'duplicate': case 'purge': return false
     case 'add-node': case 'add-subgraph': case 'move-nodes': case 'arrange-nodes': case 'remove-nodes':
     case 'update-node': case 'add-connection': case 'remove-connections': case 'move-selection': case 'remove-selection':
-    case 'group-nodes': case 'rename-group': case 'ungroup': case 'set-node-group': return true
+    case 'group-nodes': case 'rename-group': case 'set-group-color': case 'ungroup': case 'set-node-group': return true
     case 'batch': return command.ops.some(operation => operation.op.startsWith('node.') || operation.op.startsWith('edge.') || operation.op.startsWith('group.'))
     default: return assertNever(command)
   }

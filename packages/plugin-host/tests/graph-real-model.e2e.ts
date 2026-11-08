@@ -32,7 +32,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('Convax graph tools with a real m
           expect(graph?.nodes.find(node => node.id === 'model-extension')).toMatchObject({
             position: { x: 930, y: 640 }, data: { label: 'Keep this extension payload' }, groupId: 'model-group',
           })
-          expect(graph?.groups).toEqual([{ id: 'model-group', title: 'References' }])
+          expect(graph?.groups).toEqual([{ id: 'model-group', title: 'References', color: 'blue' }])
           expect(graph?.connections).toMatchObject([{ id: 'model-link', source: 'model-file', target: 'model-chat', purpose: 'input' }])
         } finally { database.close() }
         expect(await readFile(join(cwd, 'input.txt'), 'utf8')).toBe('Unchanged graph reference\n')

@@ -62,7 +62,7 @@ describe('Canvas clipboard operation lifecycle', () => {
     const b = fixture()
     fireEvent.click(b.view.getByRole('button', { name: 'Copy' }))
     await waitFor(() => { expect(b.view.getByLabelText('Clipboard pending').textContent).toBe('false') })
-    expect(JSON.parse(writeText.mock.calls[0]![0])).toMatchObject({ kind: 'convax.canvas.nodes', version: 2 })
+    expect(JSON.parse(writeText.mock.calls[0]![0])).toMatchObject({ kind: 'convax.canvas.nodes', version: 3 })
     expect(b.report).toHaveBeenCalledExactlyOnceWith('clipboard.copied')
     expect(b.command).not.toHaveBeenCalled()
   })
@@ -84,7 +84,7 @@ describe('Canvas clipboard operation lifecycle', () => {
 
   it.each(['paste', 'duplicate'] as const)('commits complete group membership and fresh identities during %s', async (kind) => {
     const groupId = 'reference-group' as CanvasGroupId
-    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References' }],
+    const source: CanvasDocument = { ...document, groups: [{ id: groupId, title: 'References', color: 'orange' }],
       nodes: [{ ...document.nodes[0]!, groupId }],
     }
     if (kind === 'paste') readText.mockResolvedValueOnce(JSON.stringify(copyCanvasSelection(source, [ID], dimensions, views)))
@@ -95,6 +95,7 @@ describe('Canvas clipboard operation lifecycle', () => {
     if (command.kind !== 'add-subgraph') throw new Error('Expected graph copy command')
     expect(command.groups).toHaveLength(1)
     expect(command.groups![0]!.id).not.toBe(groupId)
+    expect(command.groups![0]!.color).toBe('orange')
     expect(command.nodes[0]!.groupId).toBe(command.groups![0]!.id)
     expect(b.select).toHaveBeenCalledExactlyOnceWith(command.nodes.map(node => node.id))
   })

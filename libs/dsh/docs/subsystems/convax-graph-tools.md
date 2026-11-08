@@ -20,7 +20,7 @@ Omitting `canvasId` resolves the calling Session’s Chat binding. An unbound Se
 
 The default response contains canvas summaries and the target identity, title and revision. `include` selects `canvases`, `nodes`, `connections`, `groups`, `nodeTypes` and `issues`. Omitted collections are absent, not empty. The `projection` fields declare inclusion and completeness.
 
-`selection.nodeIds`, `selection.typeIds` and `selection.groupIds` intersect. Group filters select member nodes; requested `groups` contain identities and titles for groups represented in the resulting selection. Node `groupId` fields expose membership, and all positions are world coordinates. Connections must have both endpoints in that node selection. `selection.connectionIds` further filters edges and their endpoint nodes; `selection.incidentTo` selects touching edges, their endpoints and the named nodes. `fields.nodes` and `fields.connections` select record fields; `id` always remains. File data contains paths, not contents.
+`selection.nodeIds`, `selection.typeIds` and `selection.groupIds` intersect. Group filters select member nodes; requested `groups` contain identities, titles and optional palette colors for groups represented in the resulting selection. Node `groupId` fields expose membership, and all positions are world coordinates. Connections must have both endpoints in that node selection. `selection.connectionIds` further filters edges and their endpoint nodes; `selection.incidentTo` selects touching edges, their endpoints and the named nodes. `fields.nodes` and `fields.connections` select record fields; `id` always remains. File data contains paths, not contents.
 
 ```json
 {"include":["nodes","connections","nodeTypes"],"selection":{"incidentTo":["note"]},"fields":{"nodes":["typeId","data","revision"]}}
@@ -39,13 +39,15 @@ A request contains `canvasId` (optional for a bound Session), `expectedRevision`
 | `node.add` | `id`, `typeId`, `dataVersion`, `data`, `position`; any active provider. Optional `groupId` assigns an existing group. |
 | `node.set` | `id`, at least `data`, `position` or `groupId`; replacement data requires `dataVersion`. Optional `ifRevision`; `groupId: null` removes membership. |
 | `node.remove` | `id`; also removes incident edges, preserving source files. |
-| `group.add` | `id`, `title`; adds logical group metadata. Assign members in the same batch; empty groups are removed at commit. |
-| `group.set` | `id`, `title`; renames a group. |
+| `group.add` | `id`, `title`, optional palette `color`; adds logical group metadata. Assign members in the same batch; empty groups are removed at commit. |
+| `group.set` | `id`, at least `title` or `color`; changes only supplied fields. `color: null` restores default gray. |
 | `group.remove` | `id`; ungroups members without removing nodes or connections. |
 | `group.move` | `id`, `delta: { x, y }`; translates members in world coordinates. |
 | `edge.add` | `id`, `source`, `sourcePort`, `target`, `targetPort`, `purpose` (`input` or `delivery`). |
 | `edge.remove` | `id`; removes one existing connection. |
 | `history` | `targetOperationId`, `direction` (`undo` or `redo`); must appear alone. |
+
+Group colors are `blue`, `green`, `yellow`, `orange`, `purple` or `pink`; omission means default gray. Updating several groups with `group.set` in one batch creates one undo unit.
 
 Operations execute sequentially against a detached graph; later operations see earlier additions and revisions. `node.set.data` replaces the complete provider payload, not a merge. One `node.set` advances its node once even when changing data, position and membership. Provider parsers, payload versions, endpoint ports and value kinds remain enforced.
 

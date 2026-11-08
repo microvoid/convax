@@ -173,6 +173,12 @@ body {
   --dsw-alias-bg-base: var(--dsw-static-neutral-bluish-00);
   --dsw-alias-bg-document-preview: var(--dsw-static-neutral-bluish-100);
   --dsw-alias-bg-document-selection: color-mix(in srgb, var(--dsw-static-blue-500) 40%, transparent);
+  --dsw-alias-canvas-group-blue: #3974e6;
+  --dsw-alias-canvas-group-green: #31865b;
+  --dsw-alias-canvas-group-yellow: #b18721;
+  --dsw-alias-canvas-group-orange: #c17438;
+  --dsw-alias-canvas-group-purple: #8b62c5;
+  --dsw-alias-canvas-group-pink: #b05e8e;
   --dsw-alias-label-document-preview: var(--dsw-static-neutral-bluish-700);
   --dsw-alias-bg-layer-1: var(--dsw-static-neutral-bluish-00);
   --dsw-alias-bg-layer-2: var(--dsw-static-neutral-bluish-00);
@@ -296,6 +302,12 @@ body[data-ds-dark-theme] {
   --dsw-alias-bg-base: var(--dsw-static-neutral-bluish-950);
   --dsw-alias-bg-document-preview: var(--dsw-static-neutral-bluish-950);
   --dsw-alias-bg-document-selection: color-mix(in srgb, var(--dsw-static-blue-500) 40%, transparent);
+  --dsw-alias-canvas-group-blue: #81a9ff;
+  --dsw-alias-canvas-group-green: #75c99a;
+  --dsw-alias-canvas-group-yellow: #e2c36c;
+  --dsw-alias-canvas-group-orange: #efb17d;
+  --dsw-alias-canvas-group-purple: #c2a3f0;
+  --dsw-alias-canvas-group-pink: #e7a1c9;
   --dsw-alias-label-document-preview: var(--dsw-static-neutral-bluish-300);
   --dsw-alias-bg-layer-1: var(--dsw-static-neutral-bluish-875);
   --dsw-alias-bg-layer-2: var(--dsw-static-neutral-bluish-850);

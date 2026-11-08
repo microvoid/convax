@@ -6,10 +6,10 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { CanvasDatabase, CanvasTransaction } from './database.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import type { CanvasConnection, CanvasChat, CanvasCommandRequest, CanvasCommandResult, CanvasDocument, CanvasWorkspace, CanvasId, CanvasNodeId, CanvasSessionBinding, CanvasNodeIssue, CanvasNode, CanvasMigrationId, CanvasOpenSessionRequest, CanvasOperationId, CanvasGroupId } from './types.ts'
+import type { CanvasConnection, CanvasChat, CanvasCommandRequest, CanvasCommandResult, CanvasDocument, CanvasWorkspace, CanvasId, CanvasNodeId, CanvasSessionBinding, CanvasNodeIssue, CanvasNode, CanvasMigrationId, CanvasOpenSessionRequest, CanvasOperationId, CanvasGroupId, CanvasGroup, CanvasGroupColor } from './types.ts'
 import type { CanvasNodeDefinition, CanvasNodeRegistry } from './registry.ts'
 import type { CanvasData } from './types.ts'
-import { graphSchema, type CanvasTableValue } from './schema.ts'
+import { graphSchema, canvasGroupColorSchema, type CanvasTableValue } from './schema.ts'
 import { CanvasCoordinationError as CommandFailure, CanvasCoordinationRepository } from './coordination-repository.ts'
 import { applyCanvasDelta, buildCanvasDelta } from './history-delta.ts'
 import { createChatProjection } from './chat-projection.ts'
@@ -653,10 +653,12 @@ export class CanvasRepository {
             break
           case 'group.add':
             if ((canvas.groups ?? []).some(group => group.id === op.id)) throw new CommandFailure('invalid-command', 'Group identity already exists')
-            canvas.groups = [...canvas.groups ?? [], { id: op.id, title: this.groupTitle(op.title) }]
+            canvas.groups = [...canvas.groups ?? [], this.prepareGroup(op)]
             break
           case 'group.set':
-            this.mutate(canvas, { ...request, command: { kind: 'rename-group', groupId: op.id, title: op.title } }, settled)
+            if (op.title === undefined && op.color === undefined) throw new CommandFailure('invalid-command', 'Group update requires a title or color')
+            if (op.title !== undefined) this.mutate(canvas, { ...request, command: { kind: 'rename-group', groupId: op.id, title: op.title } }, settled)
+            if (op.color !== undefined) this.mutate(canvas, { ...request, command: { kind: 'set-group-color', groupIds: [op.id], color: op.color } }, settled)
             break
           case 'group.remove':
             this.mutate(canvas, { ...request, command: { kind: 'ungroup', groupIds: [op.id] } }, settled)
@@ -699,6 +701,18 @@ export class CanvasRepository {
     const value = title.trim()
     if (value.length === 0) throw new CommandFailure('invalid-command', 'Group title is required')
     return value
+  }
+
+  private groupColor(color: CanvasGroupColor): CanvasGroupColor {
+    const parsed = canvasGroupColorSchema.safeParse(color)
+    if (!parsed.success) throw new CommandFailure('invalid-command', 'Group color is unsupported')
+    return parsed.data
+  }
+
+  private prepareGroup(group: { id: CanvasGroupId; title: string; color?: CanvasGroupColor | undefined }): CanvasGroup {
+    return { id: group.id, title: this.groupTitle(group.title),
+      ...(group.color === undefined ? {} : { color: this.groupColor(group.color) }),
+    }
   }
 
   private selectionNodes(canvas: CanvasDocument, nodeIds: readonly CanvasNodeId[], groupIds: readonly CanvasGroupId[]): CanvasNode[] {
@@ -769,9 +783,7 @@ export class CanvasRepository {
         return
       }
       case 'add-subgraph': {
-        if (command.groups !== undefined) canvas.groups = [...canvas.groups ?? [], ...command.groups.map(group => ({
-          id: group.id, title: this.groupTitle(group.title),
-        }))]
+        if (command.groups !== undefined) canvas.groups = [...canvas.groups ?? [], ...command.groups.map(group => this.prepareGroup(group))]
         const nodes = command.nodes.map(node => this.prepareNode(node))
         canvas.nodes.push(...nodes)
         for (const connection of command.connections) this.addConnection(canvas, connection)
@@ -781,7 +793,7 @@ export class CanvasRepository {
         const nodes = this.selectionNodes(canvas, command.nodeIds, [])
         if (nodes.length < 2) throw new CommandFailure('invalid-command', 'Grouping requires at least two nodes')
         if ((canvas.groups ?? []).some(group => group.id === command.group.id)) throw new CommandFailure('invalid-command', 'Group identity already exists')
-        canvas.groups = [...canvas.groups ?? [], { id: command.group.id, title: this.groupTitle(command.group.title) }]
+        canvas.groups = [...canvas.groups ?? [], this.prepareGroup(command.group)]
         for (const node of nodes) { node.groupId = command.group.id; node.revision += 1 }
         return
       }
@@ -789,6 +801,16 @@ export class CanvasRepository {
         const group = canvas.groups?.find(group => group.id === command.groupId)
         if (group === undefined) throw new CommandFailure('not-found', 'Group no longer exists')
         group.title = this.groupTitle(command.title)
+        return
+      }
+      case 'set-group-color': {
+        const color = command.color === null ? null : this.groupColor(command.color)
+        this.selectionNodes(canvas, [], command.groupIds)
+        for (const group of canvas.groups ?? []) {
+          if (!command.groupIds.includes(group.id)) continue
+          if (color === null) delete group.color
+          else group.color = color
+        }
         return
       }
       case 'ungroup': {

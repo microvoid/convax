@@ -18,6 +18,22 @@ const document: CanvasDocument = {
 const geometry = document.nodes.map(node => ({ id: node.id, ...node.position, width: 100, height: 80 }))
 
 describe('Canvas grouping', () => {
+  it('batches group colors, skips unchanged colors and rejects duplicate pending submissions', async () => {
+    const state = { ...document, groups: [...document.groups!, { id: OTHER, title: 'Other', color: 'purple' as const }] }
+    const pending = Promise.withResolvers<boolean>()
+    const command = vi.fn(() => pending.promise)
+    const controller = new CanvasGroupingController({ document: () => state, command, newId: () => OTHER })
+    expect(controller.color([GROUP, OTHER])).toBe('mixed')
+    expect(await controller.setColor([GROUP], null)).toBe(true)
+    expect(command).not.toHaveBeenCalled()
+    const change = controller.setColor([GROUP, OTHER, GROUP], 'blue')
+    expect(command).toHaveBeenCalledExactlyOnceWith({ kind: 'set-group-color', groupIds: [GROUP, OTHER], color: 'blue' })
+    expect(await controller.setColor([GROUP], 'green')).toBe(false)
+    pending.resolve(false)
+    expect(await change).toBe(false)
+    expect(state.groups.map(group => group.color ?? null)).toEqual([null, 'purple'])
+  })
+
   it('keeps a real node with the proxy-like identity available as an outside snap target', () => {
     const collision = { ...document, nodes: document.nodes.map(node => node.id === THIRD
       ? { ...node, id: 'group-selection' as CanvasNodeId } : node) }

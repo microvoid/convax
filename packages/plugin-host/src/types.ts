@@ -52,9 +52,13 @@ export interface CanvasNode {
   revision: number
 }
 /** Structural organization independent of node providers and window geometry. */
+export type CanvasGroupColor = 'blue' | 'green' | 'yellow' | 'orange' | 'purple' | 'pink'
+/** Group metadata shared by every canvas view. */
 export interface CanvasGroup {
   id: CanvasGroupId
   title: string
+  /** Absence uses the default neutral treatment. */
+  color?: CanvasGroupColor
 }
 /** Durable directed connection between named ports. */
 export interface CanvasConnection {
@@ -258,6 +262,7 @@ export type CanvasCommand =
   | { kind: 'move-nodes'; nodes: { id: CanvasNodeId; position: CanvasPoint }[] }
   | { kind: 'group-nodes'; group: CanvasGroup; nodeIds: CanvasNodeId[] }
   | { kind: 'rename-group'; groupId: CanvasGroupId; title: string }
+  | { kind: 'set-group-color'; groupIds: CanvasGroupId[]; color: CanvasGroupColor | null }
   | { kind: 'ungroup'; groupIds: CanvasGroupId[] }
   | { kind: 'set-node-group'; nodeIds: CanvasNodeId[]; groupId: CanvasGroupId | null }
   | { kind: 'move-selection'; nodeIds: CanvasNodeId[]; groupIds: CanvasGroupId[]; delta: CanvasPoint }
@@ -278,8 +283,8 @@ export type CanvasGraphOperation =
   | { op: 'node.add'; id: CanvasNodeId; typeId: CanvasNodeTypeId; dataVersion: number; data: CanvasData; position: CanvasPoint; groupId?: CanvasGroupId | undefined }
   | { op: 'node.set'; id: CanvasNodeId; ifRevision?: number | undefined; dataVersion?: number | undefined; data?: CanvasData | undefined; position?: CanvasPoint | undefined; groupId?: CanvasGroupId | null | undefined }
   | { op: 'node.remove'; id: CanvasNodeId }
-  | { op: 'group.add'; id: CanvasGroupId; title: string }
-  | { op: 'group.set'; id: CanvasGroupId; title: string }
+  | { op: 'group.add'; id: CanvasGroupId; title: string; color?: CanvasGroupColor | undefined }
+  | { op: 'group.set'; id: CanvasGroupId; title?: string | undefined; color?: CanvasGroupColor | null | undefined }
   | { op: 'group.remove'; id: CanvasGroupId }
   | { op: 'group.move'; id: CanvasGroupId; delta: CanvasPoint }
   | { op: 'edge.add'; id: CanvasConnectionId; source: CanvasNodeId; sourcePort: string; target: CanvasNodeId; targetPort: string; purpose: 'input' | 'delivery' }

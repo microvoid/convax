@@ -881,7 +881,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.keyboard.press('ControlOrMeta+C')
     await expect.poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).includes(first.id)).toBe(true)
     const copied = await page.evaluate(() => navigator.clipboard.readText())
-    expect(JSON.parse(copied)).toMatchObject({ kind: 'convax.canvas.nodes', version: 2 })
+    expect(JSON.parse(copied)).toMatchObject({ kind: 'convax.canvas.nodes', version: 3 })
     await clipboardSettled(page)
     expect(canvas(scaffold, fixture.id)).toEqual(original)
 

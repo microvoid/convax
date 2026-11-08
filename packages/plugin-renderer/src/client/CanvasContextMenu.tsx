@@ -11,7 +11,7 @@ import type { WorkspaceProps } from './props.ts'
 export function CanvasContextMenu({
   point, targetCount, busy, history, replayHistory, t, close, creations,
   focus, remove, selectAll, fit, copy, paste, duplicate,
-  groupCount = 0, groups = [], canRemoveFromGroup = false, canGroup = true, group, ungroup, renameGroup, assignGroup,
+  groupCount = 0, groups = [], canRemoveFromGroup = false, canGroup = true, group, ungroup, renameGroup, assignGroup, colorGroup,
 }: {
   readonly point: CanvasPoint
   readonly targetCount: number
@@ -36,6 +36,7 @@ export function CanvasContextMenu({
   readonly ungroup?: (() => void) | undefined
   readonly renameGroup?: (() => void) | undefined
   readonly assignGroup?: ((groupId: CanvasGroupId | null) => void) | undefined
+  readonly colorGroup?: (() => void) | undefined
 }) {
   return <Menu open portal autoFocus anchor={<span data-convax-context-menu="" data-target-count={targetCount} aria-hidden="true" />}
     getAnchorRect={() => new DOMRect(point.x, point.y, 0, 0)} onClose={close}
@@ -54,6 +55,7 @@ export function CanvasContextMenu({
       ...(targetCount >= 2 && canGroup && group !== undefined ? [{ id: 'group', label: t('group.create'), disabled: busy }] : []),
       ...(groupCount > 0 && ungroup !== undefined ? [{ id: 'ungroup', label: t('group.ungroup'), disabled: busy }] : []),
       ...(renameGroup !== undefined ? [{ id: 'rename-group', label: t('group.rename'), disabled: busy }] : []),
+      ...(colorGroup !== undefined ? [{ id: 'color-group', label: t('group.color'), disabled: busy }] : []),
       ...(assignGroup !== undefined && groups.length > 0 ? [{ id: 'assign-group', label: t('group.addTo'), disabled: busy,
         submenu: groups.map(item => ({ id: `group:${item.id}`, label: item.title, disabled: busy })) }] : []),
       ...(canRemoveFromGroup && assignGroup !== undefined ? [{ id: 'leave-group', label: t('group.removeFrom'), disabled: busy }] : []),
@@ -78,6 +80,7 @@ export function CanvasContextMenu({
       else if (id === 'group') group?.()
       else if (id === 'ungroup') ungroup?.()
       else if (id === 'rename-group') renameGroup?.()
+      else if (id === 'color-group') colorGroup?.()
       else if (id === 'leave-group') assignGroup?.(null)
       else if (id.startsWith('group:')) assignGroup?.(id.slice(6) as CanvasGroupId)
       else if (id === 'undo' || id === 'redo') replayHistory(id)

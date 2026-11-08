@@ -1,0 +1,9 @@
+.color { --convax-group-hue: var(--dsw-alias-label-tertiary); }
+.color[data-color='blue'] { --convax-group-hue: var(--dsw-alias-canvas-group-blue); }
+.color[data-color='green'] { --convax-group-hue: var(--dsw-alias-canvas-group-green); }
+.color[data-color='yellow'] { --convax-group-hue: var(--dsw-alias-canvas-group-yellow); }
+.color[data-color='orange'] { --convax-group-hue: var(--dsw-alias-canvas-group-orange); }
+.color[data-color='purple'] { --convax-group-hue: var(--dsw-alias-canvas-group-purple); }
+.color[data-color='pink'] { --convax-group-hue: var(--dsw-alias-canvas-group-pink); }
+.dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; corner-shape: round; background: var(--convax-group-hue); }
+.dot[data-mixed] { background: linear-gradient(135deg, var(--dsw-alias-label-secondary) 50%, var(--dsw-alias-bg-base) 50%); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l2); }

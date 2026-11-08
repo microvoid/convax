@@ -7,7 +7,7 @@ import {
 import { Button, Input, Modal, isBehindModal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   CanvasChat, CanvasCommand, CanvasConnectionId, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeIssue,
-  CanvasNodeTypeInfo, CanvasPoint, CanvasPort, CanvasResource, CanvasGroupId,
+  CanvasNodeTypeInfo, CanvasPoint, CanvasPort, CanvasResource, CanvasGroupId, CanvasGroupColor,
 } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { CanvasChatPresentation, CanvasConnectionOrigin, CanvasNodeOwner, WorkspaceProps } from './props.ts'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
@@ -38,6 +38,8 @@ import { CanvasViewToolbar } from './CanvasViewToolbar.tsx'
 import toolbarCss from './CanvasToolbar.module.css'
 import { CanvasGroupingController, CanvasGroupDrag, canvasGroupBounds, type CanvasSelection } from './canvas-grouping.ts'
 import { CanvasGroupFrame } from './CanvasGroupFrame.tsx'
+import { GroupColorPicker } from './GroupColorPicker.tsx'
+import { CanvasGroupColorController, type CanvasGroupColorView } from './group-color-controller.ts'
 
 type CardData = Omit<CanvasNodeOwner, 'definition' | 'selected'> & {
   definition: CanvasNodeTypeInfo | undefined
@@ -208,14 +210,24 @@ function CanvasGraphContent({
     readonly groupIds: readonly CanvasGroupId[]
   } | null>(null)
   const contextFocus = useRef<HTMLElement | null>(null)
-  const groupingInputs = useRef({ document, command })
-  groupingInputs.current = { document, command }
+  const groupingInputs = useRef({ document, command, available: !busy && !history.pending })
+  groupingInputs.current = { document, command, available: !busy && !history.pending }
   const [grouping] = useState(() => new CanvasGroupingController({
     document: () => groupingInputs.current.document,
     command: operation => groupingInputs.current.command(operation),
     newId: () => randomUUID() as CanvasGroupId,
   }))
   const [selectedGroupIds, setGroupSelection] = useState<CanvasGroupId[]>([])
+  const colorAnchor = useRef<HTMLElement | null>(null)
+  const [colorPicker, setColorPicker] = useState<CanvasGroupColorView | null>(null)
+  const [coloring] = useState(() => new CanvasGroupColorController({
+    document: () => groupingInputs.current.document,
+    available: () => groupingInputs.current.available && pointerDrag.current === null,
+    setColor: (ids, color) => grouping.setColor(ids, color), changed: setColorPicker,
+  }))
+  const previewGroupColor = useCallback((color: CanvasGroupColor | null | undefined): void => { coloring.preview(color) }, [coloring])
+  const closeGroupColors = useCallback((): void => { coloring.close() }, [coloring])
+  useEffect(() => () => { coloring.dispose() }, [coloring])
   const [renamingGroup, setRenamingGroup] = useState<{ id: CanvasGroupId; title: string } | null>(null)
   const groupPointer = useRef<{ cancel: () => void } | null>(null)
   useEffect(() => {
@@ -278,6 +290,14 @@ function CanvasGraphContent({
   const [zoom, setZoom] = useState(viewport?.zoom ?? 1)
   const selectedTargets: CanvasSelection = { nodeIds: selection as CanvasNodeId[], groupIds: groupSelection }
   const selectedMembers = grouping.members(selectedTargets)
+  const colorSelectionKey = JSON.stringify([...groupSelection].sort())
+  useEffect(() => { coloring.reconcile(active, groupSelection) }, [active, document.id, document.revision, colorSelectionKey, coloring])
+  const openGroupColors = (groupIds: readonly CanvasGroupId[], anchor: HTMLElement): void => {
+    if (!coloring.open(groupIds)) return
+    colorAnchor.current = anchor
+    setSelection([])
+    setGroupSelection([...groupIds])
+  }
   const createGroup = (targets: CanvasSelection): void => {
     if (busy || pointerDrag.current !== null) return
     void grouping.group(targets, t('group.untitled')).then((id) => {
@@ -424,6 +444,14 @@ function CanvasGraphContent({
     height: node.measured?.height ?? (rendererDefinitions[node.data.node.typeId]?.defaultSize?.height ?? 140),
   }))
   const groupFrames = canvasGroupBounds(document, geometry)
+  const visibleGroupFrames = groupFrames.map((frame) => {
+    if (colorPicker === null || colorPicker.preview === undefined || !colorPicker.groupIds.includes(frame.id)) return frame
+    const preview = { ...frame }
+    if (colorPicker.preview === null) delete preview.color
+    else preview.color = colorPicker.preview
+    return preview
+  })
+
   const dimensions = Object.fromEntries(geometry.map(({ id, width, height }) => [id, { width, height }]))
   const views = Object.fromEntries(nodes.map((node): [string, CanvasClipboardView] => [node.id,
     rendererDefinitions[node.data.node.typeId]?.presentation === 'chat' ? { kind: 'chat', presentation: chatPresentations[node.id] ?? { collapsed: false } }
@@ -681,12 +709,18 @@ function CanvasGraphContent({
       data-convax-history-pending={history.pending || undefined} data-canvas-drag-select={dragSelects || undefined}
       onPointerDownCapture={(event) => {
         pendingActivityReveal.current = null
+        if (event.target instanceof Element && event.target.closest('[data-convax-group-color-picker], [data-convax-group-color-trigger]') === null) {
+          coloring.close()
+        }
         if (event.target instanceof Element && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
           const nodeId = event.target.closest('.react-flow__node')?.getAttribute('data-id')
           if (event.target.classList.contains('react-flow__pane') || nodeId !== undefined && nodeId !== null && !selection.includes(nodeId)) setGroupSelection([])
         }
       }}
-      onWheelCapture={() => { pendingActivityReveal.current = null }}
+      onWheelCapture={(event) => {
+        pendingActivityReveal.current = null
+        if (!(event.target instanceof Element) || event.target.closest('[data-convax-group-color-picker]') === null) coloring.close()
+      }}
       onKeyDownCapture={() => { pendingActivityReveal.current = null }}
       aria-busy={busy || clipboard.pending || history.pending} onPointerLeave={() => { setHoveredEdge(null) }}>
       <input ref={filePicker} type="file" multiple hidden aria-label={t('workspace.addFile')} onChange={(event) => {
@@ -876,8 +910,11 @@ function CanvasGraphContent({
       >
         <Background color="var(--dsw-alias-border-l2)" gap={24} size={1} />
         <ViewportPortal>
-          {groupFrames.map(frame => <CanvasGroupFrame key={frame.id} frame={frame}
-            selected={groupSelection.includes(frame.id)} busy={busy || clipboard.pending || history.pending}
+          {visibleGroupFrames.map(frame => <CanvasGroupFrame key={frame.id} frame={frame}
+            selected={groupSelection.includes(frame.id)}
+            busy={busy || clipboard.pending || history.pending || colorPicker?.pending === true}
+            t={t} currentColor={grouping.color(groupSelection) ?? 'default'}
+            color={(anchor) => { openGroupColors(groupSelection.includes(frame.id) ? groupSelection : [frame.id], anchor) }}
             select={(extend) => {
               setGroupSelection((current) => {
                 if (extend) return current.includes(frame.id) ? current.filter(id => id !== frame.id) : [...current, frame.id]
@@ -977,6 +1014,11 @@ function CanvasGraphContent({
         groups={document.groups ?? []} canGroup={grouping.canGroup(contextMenu)}
         canRemoveFromGroup={document.nodes.some(node => grouping.members(contextMenu).includes(node.id) && node.groupId !== undefined)}
         group={() => { createGroup(contextMenu) }} ungroup={() => { ungroup(contextMenu.groupIds) }}
+        colorGroup={contextMenu.groupIds.length === 0 ? undefined : () => {
+          const header = [...graph.current?.querySelectorAll<HTMLElement>('[data-convax-group-header]') ?? []]
+            .find(element => element.dataset.convaxGroupHeader === contextMenu.groupIds[0])
+          if (header !== undefined) openGroupColors(contextMenu.groupIds, header)
+        }}
         renameGroup={contextMenu.groupIds.length === 1 ? () => {
           const group = document.groups?.find(item => item.id === contextMenu.groupIds[0])
           if (group !== undefined) setRenamingGroup({ id: group.id, title: group.title })
@@ -1002,6 +1044,9 @@ function CanvasGraphContent({
         paste={() => { void clipboard.paste(contextMenu.world) }}
         duplicate={() => { void clipboard.duplicate(grouping.members(contextMenu)) }}
         fit={() => { void flow?.fitView({ padding: FIT_PADDING }) }} />}
+      {active && colorPicker !== null && <GroupColorPicker anchorRef={colorAnchor}
+        current={grouping.color(colorPicker.groupIds)} pending={colorPicker.pending || busy || history.pending}
+        preview={previewGroupColor} apply={(color) => { void coloring.apply(color) }} close={closeGroupColors} t={t} />}
       <Modal open={renamingGroup !== null} onClose={() => { if (!busy) setRenamingGroup(null) }}
         title={t('group.rename')} closeLabel={t('canvas.cancel')}>
         <form className={css.renameForm} onSubmit={(event) => {

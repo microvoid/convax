@@ -1,5 +1,5 @@
 /** Detached graph projections for Agent reads; view selection and camera state stay client-owned. */
-import type { CanvasConnection, CanvasData, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasWorkspace, CanvasGroupId } from './types.ts'
+import type { CanvasConnection, CanvasData, CanvasId, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasWorkspace, CanvasGroupId, CanvasGroup } from './types.ts'
 
 /** Select an induced subgraph or the endpoints of explicitly selected connections. */
 export interface CanvasGraphSelection {
@@ -21,6 +21,8 @@ export interface CanvasGraphFields {
   nodes?: (keyof CanvasNode)[]
   /** Included connection fields; identity is always retained. */
   connections?: (keyof CanvasConnection)[]
+  /** Included group metadata fields; identity is always retained. */
+  groups?: (keyof CanvasGroup)[]
 }
 
 /** Read choices independent of the calling Session's default canvas resolution. */
@@ -70,7 +72,8 @@ export function projectCanvasGraph(workspace: CanvasWorkspace, canvasId: CanvasI
     projection: {
       nodes: include.has('nodes'), connections: include.has('connections'), nodeTypes: include.has('nodeTypes'), issues: include.has('issues'),
       groups: include.has('groups'),
-      completeGroups: canvas !== undefined && include.has('groups') && selection === undefined,
+      completeGroups: canvas !== undefined && include.has('groups') && selection === undefined && query.fields?.groups === undefined,
+      groupFields: query.fields?.groups ?? null,
       completeNodes: canvas !== undefined && include.has('nodes') && selection === undefined && query.fields?.nodes === undefined,
       completeConnections: canvas !== undefined && include.has('connections') && selection === undefined && query.fields?.connections === undefined,
       nodeFields: query.fields?.nodes ?? null, connectionFields: query.fields?.connections ?? null,
@@ -80,7 +83,7 @@ export function projectCanvasGraph(workspace: CanvasWorkspace, canvasId: CanvasI
     })) } : {}),
     ...(include.has('nodes') ? { nodes: nodes.map(node => project({ ...node, position: { ...node.position } }, query.fields?.nodes)) } : {}),
     ...(include.has('groups') ? { groups: (canvas?.groups ?? []).filter(group => selection === undefined
-      || nodes.some(node => node.groupId === group.id)).map(group => ({ ...group })) } : {}),
+      || nodes.some(node => node.groupId === group.id)).map(group => project({ ...group }, query.fields?.groups)) } : {}),
     ...(include.has('connections') ? { connections: edges.map(edge => project({ ...edge }, query.fields?.connections)) } : {}),
     ...(include.has('nodeTypes') ? { nodeTypes: workspace.nodeTypes.map(type => ({ ...type, ports: type.ports.map(port => ({ ...port })), description: type.description ?? null, dataSchema: type.dataSchema ?? null })) } : {}),
     ...(include.has('issues') ? { nodeIssues: workspace.nodeIssues.filter(issue => canvasId === null || issue.canvasId === canvasId).map(issue => ({ ...issue })) } : {}),

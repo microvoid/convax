@@ -80,22 +80,44 @@ describe('Convax graph tools', () => {
     const f = await fixture()
     expect((await f.add('group-file')).value).toMatchObject({ ok: true })
     const grouping = { expectedRevision: f.revision(), operationId: 'tool-group', ops: [
-      { op: 'group.add', id: 'tool-group-id', title: 'Research' },
+      { op: 'group.add', id: 'tool-group-id', title: 'Research', color: 'green' },
       { op: 'node.set', id: chatId, groupId: 'tool-group-id' },
       { op: 'node.set', id: 'group-file', groupId: 'tool-group-id' },
       { op: 'group.move', id: 'tool-group-id', delta: { x: 25, y: -12 } },
     ] }
     const before = f.host.workspace().canvases[0]!.nodes.map(node => ({ id: node.id, position: node.position }))
     expect((await f.invoke('convax_commit', grouping)).value).toMatchObject({ ok: true })
+    const legacyRead = await f.invoke('convax_query_canvases', {})
+    expect(legacyRead.isError).toBe(false)
+    expect(legacyRead.value).toMatchObject({ canvas: { groups: [{ id: 'tool-group-id', color: 'green' }] } })
+    expect(legacyRead.value).toHaveProperty('canvas.nodes.0.groupId', 'tool-group-id')
+    const legacyMove = await f.invoke('convax_move_nodes', { expectedRevision: f.revision(), operationId: 'legacy-group-move',
+      nodes: [{ id: 'group-file', position: { x: 55, y: 28 } }],
+    })
+    expect(legacyMove.isError).toBe(false)
+    expect(legacyMove.value).toMatchObject({ ok: true, canvas: { groups: [{ id: 'tool-group-id', color: 'green' }] } })
     const selected = await f.invoke('convax_graph', { include: ['groups', 'nodes'], selection: { groupIds: ['tool-group-id'] },
       fields: { nodes: ['groupId', 'position'] } })
     expect(selected.isError).toBe(false)
-    expect(selected.value).toMatchObject({ groups: [{ id: 'tool-group-id', title: 'Research' }],
+    expect(selected.value).toMatchObject({ groups: [{ id: 'tool-group-id', title: 'Research', color: 'green' }],
       nodes: before.map(node => ({ id: node.id, groupId: 'tool-group-id', position: { x: node.position.x + 25, y: node.position.y - 12 } })),
       projection: { groups: true, completeGroups: false },
     })
     expect((await f.invoke('convax_graph', { include: ['groups'] })).value)
       .toMatchObject({ projection: { completeGroups: true }, groups: [{ id: 'tool-group-id', title: 'Research' }] })
+    const projected = await f.invoke('convax_graph', { include: ['groups'], fields: { groups: ['color'] } })
+    expect(projected.value).toMatchObject({ projection: { completeGroups: false, groupFields: ['color'] },
+      groups: [{ id: 'tool-group-id', color: 'green' }],
+    })
+    expect(projected.value).not.toHaveProperty('groups.0.title')
+    expect((await f.invoke('convax_commit', { expectedRevision: f.revision(), operationId: 'tool-color', ops: [
+      { op: 'group.set', id: 'tool-group-id', color: 'pink' },
+    ] })).value).toMatchObject({ ok: true })
+    expect(f.host.workspace().canvases[0]?.groups).toEqual([{ id: 'tool-group-id', title: 'Research', color: 'pink' }])
+    expect((await f.invoke('convax_commit', { expectedRevision: f.revision(), operationId: 'tool-neutral', ops: [
+      { op: 'group.set', id: 'tool-group-id', color: null },
+    ] })).value).toMatchObject({ ok: true })
+    expect(f.host.workspace().canvases[0]?.groups).toEqual([{ id: 'tool-group-id', title: 'Research' }])
     expect((await f.invoke('convax_commit', { expectedRevision: f.revision(), operationId: 'tool-detach', ops: [
       { op: 'node.set', id: 'group-file', groupId: null }, { op: 'group.remove', id: 'tool-group-id' },
     ] })).value).toMatchObject({ ok: true })

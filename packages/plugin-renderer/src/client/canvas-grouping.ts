@@ -1,5 +1,7 @@
 /** Canvas-owned grouping commands and window-measured group geometry. */
-import type { CanvasCommand, CanvasDocument, CanvasGroup, CanvasGroupId, CanvasNodeId, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type {
+  CanvasCommand, CanvasDocument, CanvasGroup, CanvasGroupColor, CanvasGroupId, CanvasNodeId, CanvasPoint,
+} from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { createCanvasSnapGesture, snapCanvasDrag, type SnapNodeBounds } from './canvas-snapping.ts'
 
 /** Node and group identities explicitly selected in this window. */
@@ -90,6 +92,7 @@ export class CanvasGroupDrag {
 
 /** Own group workflows independently of React's rendering and pointer lifetimes. */
 export class CanvasGroupingController {
+  private coloring = false
   constructor(private readonly options: {
     readonly document: () => CanvasDocument
     readonly command: (command: CanvasCommand) => Promise<boolean>
@@ -130,6 +133,25 @@ export class CanvasGroupingController {
   /** Commit the edited name through the canvas's command owner. */
   rename(groupId: CanvasGroupId, title: string): Promise<boolean> {
     return this.options.command({ kind: 'rename-group', groupId, title: title.trim() })
+  }
+
+  /** Read a shared saved color, distinguishing different colors from the default. */
+  color(groupIds: readonly CanvasGroupId[]): CanvasGroupColor | null | 'mixed' {
+    const groups = this.options.document().groups?.filter(group => groupIds.includes(group.id)) ?? []
+    const color = groups[0]?.color ?? null
+    return groups.every(group => (group.color ?? null) === color) ? color : 'mixed'
+  }
+
+  /** Apply one color transaction; unchanged colors and overlapping submissions create no history. */
+  async setColor(groupIds: readonly CanvasGroupId[], color: CanvasGroupColor | null): Promise<boolean> {
+    if (this.coloring) return false
+    const ids = [...new Set(groupIds)]
+    const groups = this.options.document().groups ?? []
+    if (ids.length === 0 || ids.some(id => !groups.some(group => group.id === id))) return false
+    if (ids.every(id => (groups.find(group => group.id === id)?.color ?? null) === color)) return true
+    this.coloring = true
+    try { return await this.options.command({ kind: 'set-group-color', groupIds: ids, color }) }
+    finally { this.coloring = false }
   }
 
   /** Remove group containers while preserving their cards and world positions. */

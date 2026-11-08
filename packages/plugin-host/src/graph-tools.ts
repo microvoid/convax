@@ -12,6 +12,7 @@ const DATA = { type: 'json', required: true } as const
 const POSITION = { type: 'object', additionalProperties: false,
   properties: { x: { type: 'number', required: true }, y: { type: 'number', required: true } } } as const
 const identityList = { type: 'array', items: { type: 'string' } } as const
+const GROUP_COLOR = { type: 'string', enum: ['blue', 'green', 'yellow', 'orange', 'purple', 'pink'] } as const
 const branch = <const O extends string, const P extends object>(op: O, properties: P) => ({
   type: 'object', additionalProperties: false, properties: { op: { type: 'string', enum: [op], required: true }, ...properties },
 }) as const
@@ -21,7 +22,8 @@ const OPERATIONS = [
   branch('node.set', { id: STRING, ifRevision: { type: 'integer' }, dataVersion: { type: 'integer' }, data: { type: 'json' }, position: POSITION,
     groupId: { type: 'json', description: 'Group identity, or null to remove membership.' } }),
   branch('node.remove', { id: STRING }),
-  branch('group.add', { id: STRING, title: STRING }), branch('group.set', { id: STRING, title: STRING }),
+  branch('group.add', { id: STRING, title: STRING, color: GROUP_COLOR }),
+  branch('group.set', { id: STRING, title: { type: 'string' }, color: { oneOf: [GROUP_COLOR, { type: 'null' }] } }),
   branch('group.remove', { id: STRING }), branch('group.move', { id: STRING, delta: { ...POSITION, required: true } }),
   branch('edge.add', { id: STRING, source: STRING, sourcePort: STRING, target: STRING, targetPort: STRING,
     purpose: { type: 'string', enum: ['input', 'delivery'], required: true } }),
@@ -61,6 +63,7 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
       fields: { type: 'object', additionalProperties: false, properties: {
         nodes: { type: 'array', items: { type: 'string', enum: ['id', 'typeId', 'dataVersion', 'data', 'position', 'revision', 'groupId'] } },
         connections: { type: 'array', items: { type: 'string', enum: ['id', 'source', 'sourcePort', 'target', 'targetPort', 'purpose'] } },
+        groups: { type: 'array', items: { type: 'string', enum: ['id', 'title', 'color'] } },
       } },
     },
     output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
@@ -95,6 +98,7 @@ export function registerGraphTools(ctx: Context, host: ConvaxHost): void {
       + 'canvas.add requires an explicit new canvasId and revision zero. history must appear alone. '
       + 'Removing nodes removes their incident connections but preserves source files. Edges never send prompts or insert composer references. '
       + 'group.add followed by node.set groupId creates a logical group in the same batch; group.remove only ungroups members. group.move translates every member once in world coordinates. Empty groups are removed at commit. '
+      + 'Groups may use blue, green, yellow, orange, purple or pink; omitted color uses neutral gray. group.set accepts title, color, or both; color null restores neutral gray without changing the title. '
       + 'Chat removal uses recoverable stop/archive coordination; confirmed grants consent. Pending external work is reported rather than described as rolled back.',
     parameters: {
       canvasId: { type: 'string', description: 'Omit to edit this Session Chat canvas. Creation and unbound Sessions require an explicit identity.' },

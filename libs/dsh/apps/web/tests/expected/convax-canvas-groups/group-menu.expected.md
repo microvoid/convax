@@ -5,6 +5,7 @@
   - menuitem "Paste"
   - menuitem "Ungroup"
   - menuitem "Rename group"
+  - menuitem "Group color"
   - menuitem "Add to group"
   - menuitem "Remove from group"
   - menuitem "Delete group and contents"

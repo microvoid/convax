@@ -165,14 +165,20 @@ describe('Convax-owned database', () => {
     expect(reopened.migrationWarnings).toEqual(upgraded.migrationWarnings)
   })
 
-  it.each([4, 5, 6, 7, 8])('upgrades version %i without rewriting graphs or history and preserves the complete previous database', async (version) => {
+  it.each([4, 5, 6, 7, 8, 9])('upgrades version %i without rewriting graphs or history and preserves the complete previous database', async (version) => {
     const f = await fixture()
     const owned = await f.open()
     await owned.close()
     const previous = new DatabaseSync(f.path)
-    const graph = { revision: 8, canvases: [{ id: 'saved-canvas', title: 'Saved', revision: 3, nodes: [], connections: [] }] }
-    const history = { canvasId: 'saved-canvas', delta: { title: { before: 'Original', after: 'Saved' }, nodes: [], connections: [] },
-      applied: true, restoreSessions: [] }
+    const graph = { revision: 8, canvases: [{ id: 'saved-canvas', title: 'Saved', revision: 3,
+      nodes: version === 9 ? [{ id: 'saved-node', typeId: 'fixture.note', dataVersion: 1, data: {},
+        position: { x: 10, y: 20 }, groupId: 'saved-group', revision: 1 }] : [], connections: [],
+      ...(version === 9 ? { groups: [{ id: 'saved-group', title: 'Research' }] } : {}),
+    }] }
+    const history = { canvasId: 'saved-canvas', delta: { title: { before: 'Original', after: 'Saved' }, nodes: [], connections: [],
+      ...(version === 9 ? { groups: [{ kind: 'updated', groupId: 'saved-group', title: { before: 'References', after: 'Research' } }] } : {}),
+    },
+    applied: true, restoreSessions: [] }
     try {
       previous.prepare("UPDATE units SET version=? WHERE name='convax'").run(version)
       if (version < 7) previous.exec('DROP TABLE u_convax_directories')
@@ -200,7 +206,7 @@ describe('Convax-owned database', () => {
     expect(await readdir(`${f.path}.upgrades`)).toEqual(copies)
   })
 
-  it.each([2, 8])('imports a validated version %i legacy graph once, preserves its ledger, and reopens its own later commits', async (version) => {
+  it.each([2, 8, 9])('imports a validated version %i legacy graph once, preserves its ledger, and reopens its own later commits', async (version) => {
     const f = await fixture()
     legacy(f.legacyPath, version)
     const original = await readFile(f.legacyPath)

@@ -376,6 +376,56 @@ describe('Canvas history controls', () => {
 
 
 describe('Canvas group interactions', () => {
+  it('dismisses a preview before the same group title stops outside-pointer propagation', async () => {
+    const b = await fixture(true)
+    b.press('a', { metaKey: true })
+    fireEvent.click(b.view.getByRole('button', { name: 'Group color' }))
+    const panel = b.view.getByRole('dialog', { name: 'Group color' })
+    fireEvent.pointerEnter(b.view.getByRole('radio', { name: 'Blue' }), { pointerType: 'mouse' })
+    fireEvent.wheel(panel)
+    expect(b.view.queryByRole('dialog', { name: 'Group color' })).toBe(panel)
+    const title = b.view.container.querySelector<HTMLElement>('[data-convax-group-header="group"]')!
+    Object.assign(title, { setPointerCapture: vi.fn(), hasPointerCapture: () => false, releasePointerCapture: vi.fn() })
+    const down = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 })
+    Object.defineProperty(down, 'pointerId', { value: 1 })
+    fireEvent(title, down)
+    expect(b.view.queryByRole('dialog', { name: 'Group color' })).toBeNull()
+    expect(b.view.container.querySelector('[data-convax-group="group"]')?.getAttribute('data-color')).toBe('default')
+    expect(b.command).not.toHaveBeenCalled()
+  })
+
+  it('previews group color locally and cancels it when the canvas pans', async () => {
+    const b = await fixture(true)
+    b.press('a', { metaKey: true })
+    fireEvent.click(b.view.getByRole('button', { name: 'Group color' }))
+    fireEvent.pointerEnter(b.view.getByRole('radio', { name: 'Blue' }), { pointerType: 'mouse' })
+    expect(b.view.container.querySelector('[data-convax-group="group"]')?.getAttribute('data-color')).toBe('blue')
+    expect(b.command).not.toHaveBeenCalled()
+    fireEvent.wheel(b.graph)
+    expect(b.view.queryByRole('dialog', { name: 'Group color' })).toBeNull()
+    expect(b.view.container.querySelector('[data-convax-group="group"]')?.getAttribute('data-color')).toBe('default')
+    expect(b.command).not.toHaveBeenCalled()
+  })
+
+  it('closes an unchanged color without history and restores a failed color submission', async () => {
+    const b = await fixture(true)
+    b.press('a', { metaKey: true })
+    fireEvent.click(b.view.getByRole('button', { name: 'Group color' }))
+    fireEvent.click(b.view.getByRole('radio', { name: 'Default' }))
+    await waitFor(() => { expect(b.view.queryByRole('dialog', { name: 'Group color' })).toBeNull() })
+    expect(b.command).not.toHaveBeenCalled()
+    const pending = Promise.withResolvers<boolean>()
+    b.command.mockReturnValueOnce(pending.promise)
+    fireEvent.click(b.view.getByRole('button', { name: 'Group color' }))
+    fireEvent.click(b.view.getByRole('radio', { name: 'Pink' }))
+    expect(b.command).toHaveBeenCalledExactlyOnceWith({ kind: 'set-group-color', groupIds: ['group'], color: 'pink' })
+    expect(b.view.getAllByRole('radio').every(radio => radio.hasAttribute('disabled'))).toBe(true)
+    await act(async () => { pending.resolve(false) })
+    expect(b.view.queryByRole('dialog', { name: 'Group color' })).toBeNull()
+    expect(b.view.container.querySelector('[data-convax-group="group"]')?.getAttribute('data-color')).toBe('default')
+    expect(document.activeElement).toBe(b.view.container.querySelector('[data-convax-group-header="group"]'))
+  })
+
   it.each(['revision', 'canvas', 'inactive'] as const)('cancels a grouped member drag when its %s changes', async (change) => {
     const b = await fixture(true)
     b.press('a', { metaKey: true })

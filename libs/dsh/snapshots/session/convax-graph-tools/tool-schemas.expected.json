@@ -166,7 +166,7 @@
     },
     {
       "name": "convax_commit",
-      "description": "Apply ordered semantic graph operations to one canvas. Later operations see earlier temporary results. One successful graph commit advances the canvas once and records one retry receipt and history entry. Use the revision read by convax_graph or a successful commit; conflicts never overwrite newer edits. Retain operationId and the identical complete request for retries. node.set replaces data completely and requires dataVersion when replacing data; ifRevision checks the node at that operation. canvas.add requires an explicit new canvasId and revision zero. history must appear alone. Removing nodes removes their incident connections but preserves source files. Edges never send prompts or insert composer references. Chat removal uses recoverable stop/archive coordination; confirmed grants consent. Pending external work is reported rather than described as rolled back.",
+      "description": "Apply ordered semantic graph operations to one canvas. Later operations see earlier temporary results. One successful graph commit advances the canvas once and records one retry receipt and history entry. Use the revision read by convax_graph or a successful commit; conflicts never overwrite newer edits. Retain operationId and the identical complete request for retries. node.set replaces data completely and requires dataVersion when replacing data; ifRevision checks the node at that operation. canvas.add requires an explicit new canvasId and revision zero. history must appear alone. Removing nodes removes their incident connections but preserves source files. Edges never send prompts or insert composer references. group.add followed by node.set groupId creates a logical group in the same batch; group.remove only ungroups members. group.move translates every member once in world coordinates. Empty groups are removed at commit. Groups may use blue, green, yellow, orange, purple or pink; omitted color uses neutral gray. group.set accepts title, color, or both; color null restores neutral gray without changing the title. Chat removal uses recoverable stop/archive coordination; confirmed grants consent. Pending external work is reported rather than described as rolled back.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -275,6 +275,9 @@
                         "x",
                         "y"
                       ]
+                    },
+                    "groupId": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -321,6 +324,9 @@
                         "x",
                         "y"
                       ]
+                    },
+                    "groupId": {
+                      "description": "Group identity, or null to remove membership."
                     }
                   },
                   "required": [
@@ -345,6 +351,135 @@
                   "required": [
                     "op",
                     "id"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "enum": [
+                        "group.add"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string",
+                      "enum": [
+                        "blue",
+                        "green",
+                        "yellow",
+                        "orange",
+                        "purple",
+                        "pink"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "id",
+                    "title"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "enum": [
+                        "group.set"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "blue",
+                            "green",
+                            "yellow",
+                            "orange",
+                            "purple",
+                            "pink"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "id"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "enum": [
+                        "group.remove"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "id"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "enum": [
+                        "group.move"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "delta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "id",
+                    "delta"
                   ]
                 },
                 {
@@ -499,7 +634,7 @@
     },
     {
       "name": "convax_graph",
-      "description": "Read saved Convax state, independent of open views. By default return canvas summaries and the bound Chat canvas identity/revision. Request include collections explicitly: nodes, connections, nodeTypes or issues. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. Select nodes by IDs/types, connections by IDs, or incidentTo nodes and their one-hop endpoints. Node/type filters intersect; connections form an induced subgraph. Field projection always retains object IDs. Omitted collections are not empty collections. File records contain paths, not file contents.",
+      "description": "Read saved Convax state, independent of open views. By default return canvas summaries and the bound Chat canvas identity/revision. Request include collections explicitly: nodes, connections, groups, nodeTypes or issues. Groups organize nodes through groupId; all node positions are world coordinates. nodeTypes describes provider dataSchema, dataVersion and ports; null schema means an older provider supplies no declarative schema. Select nodes by IDs/types, connections by IDs, or incidentTo nodes and their one-hop endpoints. Node/type filters intersect; connections form an induced subgraph. Field projection always retains object IDs. Omitted collections are not empty collections. File records contain paths, not file contents.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -515,6 +650,7 @@
                 "canvases",
                 "nodes",
                 "connections",
+                "groups",
                 "nodeTypes",
                 "issues"
               ]
@@ -547,6 +683,12 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "groupIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -564,7 +706,8 @@
                     "dataVersion",
                     "data",
                     "position",
-                    "revision"
+                    "revision",
+                    "groupId"
                   ]
                 }
               },
@@ -579,6 +722,17 @@
                     "target",
                     "targetPort",
                     "purpose"
+                  ]
+                }
+              },
+              "groups": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "id",
+                    "title",
+                    "color"
                   ]
                 }
               }

@@ -23,7 +23,7 @@ export type CanvasClipboardView =
 /** Tagged text clipboard protocol; external text must pass the complete parser before paste. */
 export interface CanvasClipboardPayload {
   readonly kind: 'convax.canvas.nodes'
-  readonly version: 2
+  readonly version: 3
   readonly nodes: readonly CanvasNode[]
   readonly groups: readonly CanvasGroup[]
   readonly connections: readonly CanvasConnection[]
@@ -44,9 +44,12 @@ const legacyNodeSchema = z.object({
 const nodeSchema: z.ZodType<CanvasNode> = legacyNodeSchema.extend({
   groupId: id.transform(value => value as CanvasGroupId).optional(),
 }).transform(({ groupId, ...node }) => ({ ...node, ...(groupId === undefined ? {} : { groupId }) }))
-const groupSchema: z.ZodType<CanvasGroup> = z.object({
+const legacyGroupSchema = z.object({
   id: id.transform(value => value as CanvasGroupId), title: z.string().trim().min(1),
 }).strict()
+const groupSchema: z.ZodType<CanvasGroup> = legacyGroupSchema.extend({
+  color: z.enum(['blue', 'green', 'yellow', 'orange', 'purple', 'pink']).optional(),
+}).transform(({ color, ...group }) => ({ ...group, ...(color === undefined ? {} : { color }) }))
 const connectionSchema: z.ZodType<CanvasConnection> = z.object({
   id: id.transform(value => value as CanvasConnectionId), source: id.transform(value => value as CanvasNodeId), sourcePort: id,
   target: id.transform(value => value as CanvasNodeId), targetPort: id, purpose: z.enum(['input', 'delivery']),
@@ -79,8 +82,10 @@ const clipboardFields = {
 }
 const clipboardSchema: z.ZodType<CanvasClipboardPayload> = z.union([
   z.object({ ...clipboardFields, version: z.literal(1), nodes: z.array(legacyNodeSchema).min(1) }).strict()
-    .transform((value): CanvasClipboardPayload => ({ ...value, version: 2, groups: [] })),
-  z.object({ ...clipboardFields, version: z.literal(2), nodes: z.array(nodeSchema).min(1), groups: z.array(groupSchema) }).strict(),
+    .transform((value): CanvasClipboardPayload => ({ ...value, version: 3, groups: [] })),
+  z.object({ ...clipboardFields, version: z.literal(2), nodes: z.array(nodeSchema).min(1), groups: z.array(legacyGroupSchema) }).strict()
+    .transform((value): CanvasClipboardPayload => ({ ...value, version: 3 })),
+  z.object({ ...clipboardFields, version: z.literal(3), nodes: z.array(nodeSchema).min(1), groups: z.array(groupSchema) }).strict(),
 ]).superRefine((value, context) => {
   const nodes = new Set(value.nodes.map(node => node.id))
   const edges = new Set(value.connections.map(edge => edge.id))
@@ -172,7 +177,7 @@ export function copyCanvasSelection(
   })
   if (nodes.length === 0) return null
   const retained = new Set<string>(nodes.map(node => node.id))
-  return { kind: 'convax.canvas.nodes', version: 2, nodes, groups,
+  return { kind: 'convax.canvas.nodes', version: 3, nodes, groups,
     connections: document.connections.filter(edge => retained.has(edge.source) && retained.has(edge.target)).map(edge => ({ ...edge })),
     dimensions: Object.fromEntries(Object.entries(dimensions).filter(([id]) => retained.has(id)).map(([id, size]) => [id, { ...size }])),
     views: Object.fromEntries(Object.entries(views).filter(([id]) => retained.has(id)).map(([id, view]) => [id, structuredClone(view)])),

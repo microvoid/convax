@@ -1,6 +1,6 @@
 /** Field-level graph history preserves edits outside the original operation. */
 import { isDeepStrictEqual } from 'node:util'
-import type { CanvasConnection, CanvasData, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPoint, CanvasTitleFormat, CanvasGroup, CanvasGroupId } from './types.ts'
+import type { CanvasConnection, CanvasData, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPoint, CanvasTitleFormat, CanvasGroup, CanvasGroupId, CanvasGroupColor } from './types.ts'
 
 /** Values inspected and replaced by one reversible edit. */
 export interface CanvasFieldChange<T> {
@@ -29,7 +29,7 @@ export type CanvasNodeDelta =
 /** Structural group records have no provider payload or window geometry. */
 export type CanvasGroupDelta =
   | { kind: 'added' | 'removed'; group: CanvasGroup; index: number }
-  | { kind: 'updated'; groupId: CanvasGroupId; title: CanvasFieldChange<string> }
+  | { kind: 'updated'; groupId: CanvasGroupId; title?: CanvasFieldChange<string>; color?: CanvasFieldChange<CanvasGroupColor | null> }
 
 /** Connections keep their immutable identities and original drawing order. */
 export interface CanvasConnectionDelta {
@@ -102,7 +102,13 @@ export function buildCanvasDelta(before: CanvasDocument, after: CanvasDocument):
   for (const [index, group] of (after.groups ?? []).entries()) {
     const original = previousGroups.get(group.id)
     if (original === undefined) groups.push({ kind: 'added', group: structuredClone(group), index })
-    else if (original.title !== group.title) groups.push({ kind: 'updated', groupId: group.id, title: { before: original.title, after: group.title } })
+    else {
+      const title = original.title === group.title ? undefined : { before: original.title, after: group.title }
+      const color = original.color === group.color ? undefined : { before: original.color ?? null, after: group.color ?? null }
+      if (title !== undefined || color !== undefined) groups.push({ kind: 'updated', groupId: group.id,
+        ...(title === undefined ? {} : { title }), ...(color === undefined ? {} : { color }),
+      })
+    }
   }
   if (groups.length > 0) delta.groups = groups
   return delta
@@ -153,7 +159,10 @@ export function applyCanvasDelta(
   for (const change of delta.groups ?? []) {
     const group = current.groups?.find(group => group.id === (change.kind === 'updated' ? change.groupId : change.group.id))
     if (change.kind === 'updated') {
-      if (group === undefined || group.title !== change.title[from]) return { ok: false, message: 'An edited group changed after this edit' }
+      if (group === undefined || change.title !== undefined && group.title !== change.title[from]
+        || change.color !== undefined && (group.color ?? null) !== change.color[from]) {
+        return { ok: false, message: 'An edited group changed after this edit' }
+      }
     } else if (change.kind === removingKind) {
       if (!isDeepStrictEqual(group, change.group)) return { ok: false, message: 'A removed group changed after this edit' }
     } else if (group !== undefined) return { ok: false, message: 'A restored group identity already exists' }
@@ -210,7 +219,14 @@ export function applyCanvasDelta(
     for (const change of delta.groups) {
       if (change.kind !== 'updated') continue
       const group = groups.find(group => group.id === change.groupId)
-      if (group !== undefined) group.title = change.title[to]
+      if (group !== undefined) {
+        if (change.title !== undefined) group.title = change.title[to]
+        if (change.color !== undefined) {
+          const color = change.color[to]
+          if (color === null) delete group.color
+          else group.color = color
+        }
+      }
     }
     const restoring = delta.groups.filter((change): change is Extract<CanvasGroupDelta, { group: CanvasGroup }> =>
       change.kind !== 'updated' && change.kind !== removingKind).sort((left, right) => left.index - right.index)

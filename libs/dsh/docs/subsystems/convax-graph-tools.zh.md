@@ -20,7 +20,7 @@ English | [中文](convax-graph-tools.md)
 
 默认响应包含画布摘要，以及目标身份、标题和修订号。`include` 选择 `canvases`、`nodes`、`connections`、`groups`、`nodeTypes` 和 `issues`。未请求的集合不出现，不表示空集合。`projection` 字段声明包含范围与完整性。
 
-`selection.nodeIds`、`selection.typeIds` 与 `selection.groupIds` 取交集。分组筛选选择成员节点，请求的 `groups` 返回结果选区涉及分组的身份与标题。节点的 `groupId` 字段暴露成员归属，所有位置均使用世界坐标。连线的两个端点必须都在该节点集合内。`selection.connectionIds` 进一步筛选连线及端点；`selection.incidentTo` 选择触及指定节点的边、端点及指定节点。`fields.nodes` 与 `fields.connections` 选择记录字段，始终保留 `id`。文件数据包含路径，不包含内容。
+`selection.nodeIds`、`selection.typeIds` 与 `selection.groupIds` 取交集。分组筛选选择成员节点，请求的 `groups` 返回结果选区涉及分组的身份、标题及可选的色板颜色。节点的 `groupId` 字段暴露成员归属，所有位置均使用世界坐标。连线的两个端点必须都在该节点集合内。`selection.connectionIds` 进一步筛选连线及端点；`selection.incidentTo` 选择触及指定节点的边、端点及指定节点。`fields.nodes` 与 `fields.connections` 选择记录字段，始终保留 `id`。文件数据包含路径，不包含内容。
 
 ```json
 {"include":["nodes","connections","nodeTypes"],"selection":{"incidentTo":["note"]},"fields":{"nodes":["typeId","data","revision"]}}
@@ -39,13 +39,15 @@ English | [中文](convax-graph-tools.md)
 | `node.add` | `id`、`typeId`、`dataVersion`、`data`、`position`；支持任意已启用提供方。可选 `groupId` 分配到已有组。 |
 | `node.set` | `id` 及至少 `data`、`position` 或 `groupId`；替换数据要求 `dataVersion`。可选 `ifRevision`；`groupId: null` 移除归属。 |
 | `node.remove` | `id`；同时移除关联边，保留源文件。 |
-| `group.add` | `id`、`title`；添加逻辑分组元数据。同批分配成员，空组在提交时移除。 |
-| `group.set` | `id`、`title`；重命名分组。 |
+| `group.add` | `id`、`title`、可选的色板 `color`；添加逻辑分组元数据。同批分配成员，空组在提交时移除。 |
+| `group.set` | `id` 及至少 `title` 或 `color`，只改变提供的字段。`color: null` 恢复默认灰色。 |
 | `group.remove` | `id`；解除成员归属，不移除节点或连线。 |
 | `group.move` | `id`、`delta: { x, y }`；使用世界坐标平移成员。 |
 | `edge.add` | `id`、`source`、`sourcePort`、`target`、`targetPort`、`purpose`（`input` 或 `delivery`）。 |
 | `edge.remove` | `id`；移除一条已有连线。 |
 | `history` | `targetOperationId`、`direction`（`undo` 或 `redo`）；必须单独提交。 |
+
+分组颜色为 `blue`、`green`、`yellow`、`orange`、`purple` 或 `pink`，缺省表示默认灰色。同批使用 `group.set` 修改多个组时，仅形成一个撤销单元。
 
 操作在独立图副本上顺序执行，后续操作能看到前面的新增记录与修订号。`node.set.data` 完整替换提供方载荷，不做合并。一次 `node.set` 即使同时修改数据、位置和成员归属，也只推进一次节点修订号。提供方解析器、载荷版本、端口与值类型检查仍然生效。
 

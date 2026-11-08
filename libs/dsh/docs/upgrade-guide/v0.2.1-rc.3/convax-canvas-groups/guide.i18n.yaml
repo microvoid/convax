@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.3/convax-canvas-groups/guide.md
 /:
-  en: 65e6f4074a822f72
-  zh: ea1b2c61be1c7f69
+  en: 1e162415da83463f
+  zh: f40e0525f7fa9054
 /upgrade-convax-group-storage:
   en: c1c2d483a63aa8c1
   zh: 57dfeffa959aff20
 /upgrade-convax-group-storage/change:
-  en: 608e97c740e2819f
-  zh: 415c3c09f1dded03
+  en: d7d26cf96d8bcff4
+  zh: abff19ae76b49bac
 /upgrade-convax-group-storage/migration:
-  en: aa9a444f92cba234
-  zh: ccb2eba03f47da81
+  en: c574d3682546d8fd
+  zh: 6b8411b48ebe6f7d

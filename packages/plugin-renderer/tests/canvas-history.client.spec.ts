@@ -31,11 +31,14 @@ describe('Canvas local history metadata', () => {
     const commands: CanvasCommand[] = [
       { kind: 'group-nodes', group: { id: groupId, title: 'References' }, nodeIds: [nodeId] },
       { kind: 'rename-group', groupId, title: 'Sources' },
+      { kind: 'set-group-color', groupIds: [groupId], color: 'blue' },
+      { kind: 'set-group-color', groupIds: [groupId], color: null },
       { kind: 'ungroup', groupIds: [groupId] },
       { kind: 'set-node-group', nodeIds: [nodeId], groupId: null },
       { kind: 'move-selection', nodeIds: [], groupIds: [groupId], delta: { x: 10, y: 20 } },
       { kind: 'remove-selection', nodeIds: [], groupIds: [groupId] },
       { kind: 'batch', ops: [{ op: 'group.set', id: groupId, title: 'Sources' }] },
+      { kind: 'batch', ops: [{ op: 'group.set', id: groupId, color: 'pink' }] },
     ]
     for (const command of commands) expect(recordsCanvasHistory(command), command.kind).toBe(true)
   })

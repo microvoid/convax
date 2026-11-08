@@ -7,7 +7,7 @@ import type {
   CanvasConnection, CanvasData, CanvasDocument, CanvasId, CanvasNode,
   CanvasNodeId, CanvasNodeTypeId, CanvasConnectionId, CanvasOperationId, CanvasDeliveryId,
   CanvasCommandRequest, CanvasThreadRequest, CanvasMigrationId,
-  CanvasGraphOperation, CanvasCommitRequest, CanvasTitleFormat, CanvasGroup, CanvasGroupId,
+  CanvasGraphOperation, CanvasCommitRequest, CanvasTitleFormat, CanvasGroup, CanvasGroupId, CanvasGroupColor,
 } from './types.ts'
 
 const point = z.object({ x: z.number(), y: z.number() })
@@ -15,7 +15,10 @@ const sessionId = z.string().min(1).transform(value => value as SessionId)
 const canvasId = z.string().min(1).transform(value => value as CanvasId)
 const nodeId = z.string().min(1).transform(value => value as CanvasNodeId)
 const groupId = z.string().min(1).transform(value => value as CanvasGroupId)
-const group: z.ZodType<CanvasGroup> = z.object({ id: groupId, title: z.string().trim().min(1) })
+/** Closed palette shared by durable records and command admission. */
+export const canvasGroupColorSchema: z.ZodType<CanvasGroupColor> = z.enum(['blue', 'green', 'yellow', 'orange', 'purple', 'pink'])
+const group: z.ZodType<CanvasGroup> = z.object({ id: groupId, title: z.string().trim().min(1), color: canvasGroupColorSchema.optional() })
+  .transform(({ color, ...group }) => ({ ...group, ...(color === undefined ? {} : { color }) }))
 const data: z.ZodType<CanvasData> = z.record(z.string(), z.json())
 const titleFormat: z.ZodType<CanvasTitleFormat> = z.lazy(() => z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('default') }),
@@ -57,8 +60,9 @@ export const canvasGraphOperationSchema: z.ZodType<CanvasGraphOperation> = z.dis
     dataVersion: z.number().int().nonnegative().optional(), data: data.optional(), position: point.optional(),
     groupId: groupId.nullable().optional() }),
   z.strictObject({ op: z.literal('node.remove'), id: nodeId }),
-  z.strictObject({ op: z.literal('group.add'), id: groupId, title: z.string() }),
-  z.strictObject({ op: z.literal('group.set'), id: groupId, title: z.string() }),
+  z.strictObject({ op: z.literal('group.add'), id: groupId, title: z.string(), color: canvasGroupColorSchema.optional() }),
+  z.strictObject({ op: z.literal('group.set'), id: groupId, title: z.string().optional(), color: canvasGroupColorSchema.nullable().optional() })
+    .refine(operation => operation.title !== undefined || operation.color !== undefined, 'Group update requires a title or color'),
   z.strictObject({ op: z.literal('group.remove'), id: groupId }),
   z.strictObject({ op: z.literal('group.move'), id: groupId, delta: point }),
   z.strictObject({ op: z.literal('edge.add'), ...connection.shape }),
@@ -89,6 +93,7 @@ export const canvasCommandRequestSchema: z.ZodType<CanvasCommandRequest> = z.obj
     z.object({ kind: z.literal('move-nodes'), nodes: z.array(z.object({ id: nodeId, position: point })) }),
     z.object({ kind: z.literal('group-nodes'), group, nodeIds: z.array(nodeId) }),
     z.object({ kind: z.literal('rename-group'), groupId, title: z.string() }),
+    z.object({ kind: z.literal('set-group-color'), groupIds: z.array(groupId), color: canvasGroupColorSchema.nullable() }),
     z.object({ kind: z.literal('ungroup'), groupIds: z.array(groupId) }),
     z.object({ kind: z.literal('set-node-group'), nodeIds: z.array(nodeId), groupId: groupId.nullable() }),
     z.object({ kind: z.literal('move-selection'), nodeIds: z.array(nodeId), groupIds: z.array(groupId), delta: point }),
@@ -226,7 +231,12 @@ export const canvasDeltaSchema: z.ZodType<CanvasDelta> = z.object({
   connections: z.array(z.object({ kind: z.enum(['added', 'removed']), connection, index: z.number().int().nonnegative() })),
   groups: z.array(z.union([
     z.object({ kind: z.enum(['added', 'removed']), group, index: z.number().int().nonnegative() }),
-    z.object({ kind: z.literal('updated'), groupId, title: z.object({ before: z.string(), after: z.string() }) }),
+    z.object({ kind: z.literal('updated'), groupId,
+      title: z.object({ before: z.string(), after: z.string() }).optional(),
+      color: z.object({ before: canvasGroupColorSchema.nullable(), after: canvasGroupColorSchema.nullable() }).optional(),
+    }).transform(({ title, color, ...change }) => ({ ...change,
+      ...(title === undefined ? {} : { title }), ...(color === undefined ? {} : { color }),
+    })),
   ])).optional(),
 }).transform(value => ({
   nodes: value.nodes, connections: value.connections, ...(value.title === undefined ? {} : { title: value.title }),
@@ -296,4 +306,4 @@ export interface CanvasTableKeys {
 export type CanvasTableValue<N extends keyof typeof canvasTables> = z.infer<(typeof canvasTables)[N]>
 
 /** Current Convax repository schema, independent of DSH storage formats. */
-export const CANVAS_SCHEMA_VERSION = 9
+export const CANVAS_SCHEMA_VERSION = 10

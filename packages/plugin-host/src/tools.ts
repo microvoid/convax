@@ -29,9 +29,15 @@ const CANVAS = {
         properties: {
           id: { type: 'string', required: true }, typeId: { type: 'string', required: true },
           dataVersion: { type: 'integer', required: true }, revision: { type: 'integer', required: true },
-          data: { type: 'json', required: true }, position: { ...POINT, required: true },
+          data: { type: 'json', required: true }, position: { ...POINT, required: true }, groupId: { type: 'string' },
         },
       },
+    },
+    groups: {
+      type: 'array', items: { type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, title: { type: 'string', required: true },
+        color: { type: 'string', enum: ['blue', 'green', 'yellow', 'orange', 'purple', 'pink'] },
+      } },
     },
     connections: {
       type: 'array', required: true,

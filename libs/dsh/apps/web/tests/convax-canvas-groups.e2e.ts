@@ -77,6 +77,21 @@ function header(page: Page, id: CanvasGroupId) {
   return page.locator(`[data-convax-group-header="${id}"]:visible`)
 }
 
+function colorPicker(page: Page) {
+  return page.getByRole('dialog', { name: 'Group color', exact: true })
+}
+
+function groupFill(page: Page, id: CanvasGroupId): Promise<string> {
+  return page.locator(`[data-convax-group="${id}"]:visible`).evaluate(element => getComputedStyle(element, '::before').backgroundColor)
+}
+
+async function openColors(page: Page, id: CanvasGroupId): Promise<void> {
+  await header(page, id).click()
+  await page.locator(`[data-convax-group-color-trigger="${id}"]:visible`).click()
+  await colorPicker(page).waitFor()
+  await expect.poll(() => colorPicker(page).evaluate(element => element.contains(globalThis.document.activeElement))).toBe(true)
+}
+
 async function idle(page: Page): Promise<void> {
   await expect.poll(() => page.getByRole('button', { name: 'New chat', exact: true }).isEnabled()).toBe(true)
 }
@@ -290,5 +305,131 @@ describe('web e2e: Convax canvas groups', () => {
     await page.keyboard.press('ControlOrMeta+z')
     await expect.poll(() => document(scaffold, fixture.id).nodes.length).toBe(2)
     expect(document(scaffold, fixture.id).nodes.every(value => value.groupId === groupId)).toBe(true)
+  })
+
+  it('previews colors locally, applies once, restores history, and retains colors after reload', async () => {
+    const fixture = await seed(scaffold, 'Group colors')
+    const page = await openCanvas(browser, scaffold, fixture.id)
+    const groupId = await createGroup(page, scaffold, fixture.id, fixture.nodeIds)
+    const initial = document(scaffold, fixture.id)
+    const originalFill = await groupFill(page, groupId)
+    await openColors(page, groupId)
+    await colorPicker(page).getByRole('radio', { name: 'Blue', exact: true }).hover()
+    await expect.poll(() => groupFill(page, groupId)).not.toBe(originalFill)
+    expect(document(scaffold, fixture.id)).toEqual(initial)
+    await page.keyboard.press('Escape')
+    await colorPicker(page).waitFor({ state: 'hidden' })
+    await expect.poll(() => groupFill(page, groupId)).toBe(originalFill)
+    expect(document(scaffold, fixture.id)).toEqual(initial)
+
+    await openColors(page, groupId)
+    await colorPicker(page).getByRole('radio', { name: 'Green', exact: true }).hover()
+    await header(page, groupId).locator('[data-convax-group-title]').click()
+    await colorPicker(page).waitFor({ state: 'hidden' })
+    await expect.poll(() => groupFill(page, groupId)).toBe(originalFill)
+    expect(document(scaffold, fixture.id)).toEqual(initial)
+
+    await header(page, groupId).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Group color', exact: true }).click()
+    await colorPicker(page).waitFor()
+    await colorPicker(page).getByRole('radio', { name: 'Blue', exact: true }).click()
+    await expect.poll(() => document(scaffold, fixture.id).groups?.[0]?.color).toBe('blue')
+    expect(document(scaffold, fixture.id).revision).toBe(initial.revision + 1)
+    await colorPicker(page).waitFor({ state: 'hidden' })
+    await idle(page)
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect.poll(() => document(scaffold, fixture.id).groups?.[0]?.color).toBeUndefined()
+    await idle(page)
+    await page.keyboard.press('ControlOrMeta+Shift+z')
+    await expect.poll(() => document(scaffold, fixture.id).groups?.[0]?.color).toBe('blue')
+    await idle(page)
+    await page.reload()
+    await header(page, groupId).waitFor({ timeout: 30_000 })
+    expect(document(scaffold, fixture.id).groups?.[0]?.color).toBe('blue')
+
+    await openColors(page, groupId)
+    const saved = document(scaffold, fixture.id)
+    await mkdir(ARTIFACTS, { recursive: true })
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme })
+      await expect.poll(() => page.locator('body').evaluate(element => element.hasAttribute('data-ds-dark-theme'))).toBe(scheme === 'dark')
+      const fills: string[] = []
+      for (const name of ['Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink']) {
+        await colorPicker(page).getByRole('radio', { name, exact: true }).hover()
+        await expect.poll(() => page.locator(`[data-convax-group="${groupId}"]:visible`).getAttribute('data-color'))
+          .toBe(name.toLowerCase())
+        fills.push(await groupFill(page, groupId))
+      }
+      expect(new Set(fills).size).toBe(6)
+      expect(document(scaffold, fixture.id)).toEqual(saved)
+      await page.screenshot({ path: join(ARTIFACTS, `convax-group-colors-${scheme}.png`) })
+    }
+    await page.keyboard.press('Escape')
+    await openColors(page, groupId)
+    await colorPicker(page).getByRole('radio', { name: 'Default', exact: true }).click()
+    await expect.poll(() => document(scaffold, fixture.id).groups?.[0]?.color).toBeUndefined()
+    expect(document(scaffold, fixture.id).nodes.map(value => value.position)).toEqual(initial.nodes.map(value => value.position))
+  })
+
+  it('applies mixed groups atomically, copies their colors, and offers a mobile color sheet', async () => {
+    const fixture = await seed(scaffold, 'Mixed group colors')
+    const originalNodes = document(scaffold, fixture.id).nodes
+    const extra = originalNodes.map(node => ({ ...node, id: randomUUID() as CanvasNodeId,
+      position: { x: node.position.x, y: 480 }, revision: 0 }))
+    await execute(scaffold, fixture.id, { kind: 'add-subgraph', nodes: extra, connections: [] })
+    const firstGroup = randomUUID() as CanvasGroupId
+    const secondGroup = randomUUID() as CanvasGroupId
+    await execute(scaffold, fixture.id, { kind: 'group-nodes',
+      group: { id: firstGroup, title: 'Sources', color: 'blue' }, nodeIds: fixture.nodeIds })
+    await execute(scaffold, fixture.id, { kind: 'group-nodes',
+      group: { id: secondGroup, title: 'Ideas', color: 'purple' }, nodeIds: extra.map(node => node.id) })
+    const destination = randomUUID() as CanvasId
+    await execute(scaffold, destination, { kind: 'create', title: 'Colored copies' })
+    const page = await openCanvas(browser, scaffold, fixture.id)
+    await openColors(page, firstGroup)
+    await colorPicker(page).getByRole('radio', { name: 'Orange', exact: true }).hover()
+    await header(page, secondGroup).locator('[data-convax-group-title]').click()
+    await colorPicker(page).waitFor({ state: 'hidden' })
+    expect(await header(page, secondGroup).evaluate(element => globalThis.document.activeElement === element)).toBe(true)
+    await header(page, firstGroup).click()
+    await header(page, secondGroup).click({ modifiers: ['ControlOrMeta'] })
+    await page.locator(`[data-convax-group-color-trigger="${firstGroup}"]:visible`).click()
+    await colorPicker(page).getByText('Mixed colors', { exact: false }).waitFor()
+    const revision = document(scaffold, fixture.id).revision
+    await colorPicker(page).getByRole('radio', { name: 'Green', exact: true }).click()
+    await expect.poll(() => document(scaffold, fixture.id).groups?.map(group => group.color)).toEqual(['green', 'green'])
+    expect(document(scaffold, fixture.id).revision).toBe(revision + 1)
+    await idle(page)
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect.poll(() => document(scaffold, fixture.id).groups?.map(group => group.color)).toEqual(['blue', 'purple'])
+    await idle(page)
+    await header(page, firstGroup).click()
+    await page.keyboard.press('ControlOrMeta+c')
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain(firstGroup)
+    await showCanvas(page, destination)
+    await page.locator('[data-convax-graph]:visible .react-flow__pane').click()
+    await page.keyboard.press('ControlOrMeta+v')
+    await expect.poll(() => document(scaffold, destination).groups?.[0]?.color).toBe('blue')
+    expect(document(scaffold, destination).groups?.[0]?.id).not.toBe(firstGroup)
+    await idle(page)
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect.poll(() => document(scaffold, destination).nodes).toHaveLength(0)
+    await idle(page)
+    await page.keyboard.press('ControlOrMeta+Shift+z')
+    await expect.poll(() => document(scaffold, destination).groups?.[0]?.color).toBe('blue')
+    await idle(page)
+    const copiedGroup = document(scaffold, destination).groups![0]!.id
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: 'Fit canvas', exact: true }).click()
+    await openColors(page, copiedGroup)
+    expect(await colorPicker(page).getAttribute('data-mode')).toBe('sheet')
+    const bounds = await colorPicker(page).boundingBox()
+    if (bounds === null) throw new Error('The mobile color sheet is not visible')
+    expect(bounds.x).toBeGreaterThanOrEqual(0)
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(390)
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(844)
+    await page.screenshot({ path: join(ARTIFACTS, 'convax-group-colors-mobile.png') })
+    await colorPicker(page).getByRole('radio', { name: 'Pink', exact: true }).click()
+    await expect.poll(() => document(scaffold, destination).groups?.[0]?.color).toBe('pink')
   })
 })

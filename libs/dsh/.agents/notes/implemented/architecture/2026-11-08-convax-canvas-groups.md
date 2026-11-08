@@ -10,11 +10,13 @@ Canvas users need to name, move and copy related cards together without changing
 
 ## Decision
 
-The Convax Host stores group identities and titles in `CanvasDocument.groups`. Optional `CanvasNode.groupId` is the sole membership source; each node belongs to at most one group. Node positions remain world coordinates. Groups have no provider payload, ports, Session binding or execution lifecycle.
+The Convax Host stores group identities, titles and optional palette color identifiers in `CanvasDocument.groups`. Colors use the bounded identifiers `blue`, `green`, `yellow`, `orange`, `purple` and `pink`; absence means default gray. The renderer resolves these identifiers through the active theme rather than storing CSS or RGB values. Optional `CanvasNode.groupId` is the sole membership source; each node belongs to at most one group. Node positions remain world coordinates. Groups have no provider payload, ports, Session binding or execution lifecycle.
 
 The renderer derives each frame from current measured member bounds, including transient drag positions. Its canvas-owned grouping controller submits semantic Host commands. Moving a group expands membership into a unique node set, so a mixed selection never moves a member twice. Creating, ungrouping and reassigning nodes preserve their world positions. Dragging across a frame does not implicitly reassign membership.
 
-Membership, titles and positions commit with one revision, durable receipt and field-level history. Ungrouping preserves content; deleting a group with its members uses existing Chat confirmation and stop/archive coordination. Complete-group copies allocate a new group identity and retain its title; partial copies lose membership. Canvas copies also remap groups without copying Session history.
+The title action and context menu share one color palette. Hover and keyboard-focus previews remain window-local and never write graph state or history. A chosen color updates all targeted groups in one command and one undo unit; canceling restores the committed presentation. Mixed selection colors remain explicit rather than choosing an arbitrary representative. Narrow or touch clients expose the same choices in a bottom palette.
+
+Membership, titles, colors and positions commit with one revision, durable receipt and field-level history. Ungrouping preserves content; deleting a group with its members uses existing Chat confirmation and stop/archive coordination. Complete-group copies allocate a new group identity and retain its title and color; partial copies lose membership. Canvas copies also remap groups without copying Session history.
 
 The [Host declarations](../../../../../../packages/plugin-host/src/types.ts), [repository](../../../../../../packages/plugin-host/src/repository.ts) and [grouping controller](../../../../../../packages/plugin-renderer/src/client/canvas-grouping.ts) own these contracts. The [broader canvas proposal](../../proposed/feature/2026-10-28-convax-canvas.md) retains independent product and integration decisions; this record owns only grouping.
 
@@ -30,7 +32,7 @@ The [Host declarations](../../../../../../packages/plugin-host/src/types.ts), [r
 
 Group organization survives restarts and renderer deactivation, while each window displays a frame matching its own card sizes. Existing node providers retain their geometry and lifecycle. A frame is not a saved fixed-size container; nested groups, folding, automatic drag admission and whole-group resizing are unavailable.
 
-The repository uses schema nine and backs up earlier databases before upgrading. Older Hosts reject the upgraded store; the [upgrade guide](../../../../docs/upgrade-guide/v0.2.1-rc.3/convax-canvas-groups/guide.md) owns recovery steps.
+The repository uses schema ten and backs up earlier databases before upgrading. Schema-nine groups retain their identity and membership, with default gray when no color is stored. Older Hosts reject the upgraded store; the [upgrade guide](../../../../docs/upgrade-guide/v0.2.1-rc.3/convax-canvas-groups/guide.md) owns recovery steps.
 
 ## Verification
 

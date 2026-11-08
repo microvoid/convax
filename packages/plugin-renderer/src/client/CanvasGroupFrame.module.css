@@ -1,5 +1,10 @@
 .frame { position: absolute; box-sizing: border-box; pointer-events: none; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-lg); }
+/* The fill shares the viewport stacking context so edges and cards paint above it. */
+.frame::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--dsw-alias-interactive-bg-hover); }
+.frame[data-color]:not([data-color='default'])::before { background: color-mix(in srgb, var(--convax-group-hue) 13%, transparent); }
 .frame[data-selected] { border: 1px solid var(--dsw-alias-state-business-primary); }
-.header { position: absolute; inset: 8px 12px auto; width: fit-content; max-width: calc(100% - 24px); min-height: 28px; box-sizing: border-box; padding: 4px 8px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-module-platform); color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; }
+.header { position: absolute; inset: 8px 12px auto; display: flex; align-items: center; gap: 6px; width: fit-content; max-width: calc(100% - 24px); min-height: 28px; box-sizing: border-box; padding: 0 8px; border-radius: var(--dsw-radius-sm); background: transparent; color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; }
+.title { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-block: 4px; }
+.header .colorButton { flex: none; height: 28px; gap: 4px; padding: 4px; }
 .header:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
 .header:active { cursor: grabbing; }
