@@ -1,7 +1,7 @@
 /** Versioned node displays and reversible public canvas contributions. */
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Handle, Position, useUpdateNodeInternals } from '@xyflow/react'
+import { CanvasHandle, CanvasHandlePosition as Position, useCanvasNodeLayout } from './canvas-render-primitives.tsx'
 import type { SlotComponent } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CanvasData, CanvasNode, CanvasNodeId, CanvasNodeTypeId, CanvasPort, CanvasWorkspace } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { CanvasNodeOwner, CanvasNodeRendererProps, WorkspaceProps } from './props.ts'
@@ -82,15 +82,15 @@ export interface NodePlaceholderProps extends Pick<CanvasNodeOwner, 'resourcePre
 /**
  * Render stable named endpoints, including those retained from an unavailable provider.
  * @param props - Declared or retained ports and whether new connections are allowed.
- * @returns React Flow handles at evenly spaced positions on each side.
+ * @returns Handles at evenly spaced positions on each side.
  */
 export function NodePorts({ nodeId, ports, connectable }: { nodeId: CanvasNodeId; ports: readonly CanvasPort[]; connectable: boolean }) {
-  const updateNodeInternals = useUpdateNodeInternals()
+  const updateNodeLayout = useCanvasNodeLayout()
   const endpoints = JSON.stringify(ports.map(port => [port.direction, port.id]))
-  useLayoutEffect(() => { updateNodeInternals(nodeId) }, [nodeId, endpoints, updateNodeInternals])
+  useLayoutEffect(() => { updateNodeLayout(nodeId) }, [nodeId, endpoints, updateNodeLayout])
   return <>{(['input', 'output'] as const).flatMap((direction) => {
     const group = ports.filter(port => port.direction === direction)
-    return group.map((port, index) => <Handle key={`${direction}:${port.id}`}
+    return group.map((port, index) => <CanvasHandle key={`${direction}:${port.id}`}
       id={port.id} type={direction === 'input' ? 'target' : 'source'}
       position={direction === 'input' ? Position.Left : Position.Right}
       isConnectable={connectable} className={css.handle}

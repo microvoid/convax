@@ -1,0 +1,24 @@
+.surface { position: absolute; inset: 0; overflow: hidden; isolation: isolate; }
+.pane { touch-action: none; }
+.layer { position: absolute; inset: 0; pointer-events: none; }
+.edgeHitLayer { position: absolute; inset: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.screen { z-index: 5; }
+.screen > * { pointer-events: auto; }
+.selection { position: absolute; box-sizing: border-box; pointer-events: none; z-index: 3;
+  background: var(--xy-selection-background-color); border: var(--xy-selection-border); }
+.raster {
+  position: absolute; left: -128px; top: -128px; width: calc(100% + 256px); height: calc(100% + 256px);
+  pointer-events: none; transform-origin: 0 0;
+}
+.edge:focus-visible { outline: none; }
+.grid {
+  position: absolute; inset: -48px; pointer-events: none;
+  background-image: radial-gradient(circle, var(--dsw-alias-border-l2) var(--canvas-grid-dot, 0.5px), transparent calc(var(--canvas-grid-dot, 0.5px) + 0.5px));
+  background-size: var(--canvas-grid-step, 24px) var(--canvas-grid-step, 24px);
+  background-position: calc(48px - var(--canvas-grid-step, 24px) / 2) calc(48px - var(--canvas-grid-step, 24px) / 2);
+}
+.surface[data-native-canvas-panning] .pane { cursor: grabbing; }
+.surface :global(.react-flow__handle),
+.surface :global([data-convax-node-drag]),
+.surface :global([data-convax-resource-header]) { touch-action: none; }
+.surface :global([data-native-canvas-selection]) { touch-action: none; }

@@ -1,10 +1,11 @@
 /** Controlled graph presentation; Host commands own every durable edit. */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
-  Background, NodeToolbar, Panel, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useStore as useFlowStore,
-  type Connection, type Node, type NodeProps, type OnConnectEnd, type ReactFlowInstance, type Viewport,
+  Background, Panel, Position, ReactFlow, ReactFlowProvider, useStore as useFlowStore,
+  type Connection, type Node, type OnConnectEnd, type ReactFlowProps, type Viewport,
 } from '@xyflow/react'
 import { Button, Input, Modal, isBehindModal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
   CanvasChat, CanvasCommand, CanvasConnectionId, CanvasDocument, CanvasNode, CanvasNodeId, CanvasNodeIssue,
   CanvasNodeTypeInfo, CanvasPoint, CanvasPort, CanvasResource, CanvasGroupId, CanvasGroupColor,
@@ -22,6 +23,9 @@ import { RESOURCE_CARD_WIDTH } from './placement.ts'
 import type { ResourceView } from './store.ts'
 import type { ResourceSize } from './resource-size.ts'
 import { CanvasEdge, type GraphEdge } from './CanvasEdge.tsx'
+import { NativeCanvasSurface } from './NativeCanvasSurface.tsx'
+import type { CanvasSurfaceControls, CanvasSurfaceProps } from './canvas-surface-types.ts'
+import { CanvasNodeToolbar, CanvasViewportPortal, NativeCanvasRenderContext } from './canvas-render-primitives.tsx'
 import { installCanvasWheel } from './canvas-wheel.ts'
 import { installCanvasPan } from './canvas-pan.ts'
 import { resolveCanvasKeyboardAction } from './canvas-keyboard.ts'
@@ -49,7 +53,7 @@ type CardData = Omit<CanvasNodeOwner, 'definition' | 'selected'> & {
 }
 type GraphNode = Node<CardData, 'convaxNode'>
 
-function NodeCard({ data, selected }: NodeProps<GraphNode>) {
+const NodeCard = memo(function NodeCard({ data, selected }: { data: CardData; selected: boolean }) {
   const { definition, issue, node, renderSlot, t } = data
   const retained = { node, ports: data.ports, remove: data.remove, selected, t,
     setResourcePreviewSize: data.setResourcePreviewSize,
@@ -72,7 +76,7 @@ function NodeCard({ data, selected }: NodeProps<GraphNode>) {
     setResourcePreviewSize: data.setResourcePreviewSize,
     chooseWindow: data.chooseWindow,
   }, { entryKey: node.typeId, fallback: <NodePlaceholder {...retained} reason="renderer" /> })
-}
+})
 
 const NODE_TYPES = { convaxNode: NodeCard }
 const EDGE_TYPES = { convaxConnection: CanvasEdge }
@@ -97,16 +101,18 @@ function isResourceTransfer(transfer: DataTransfer): boolean {
   return transfer.types.includes(RESOURCE_DRAG_TYPE) || transfer.types.includes('Files')
 }
 
-function retainedPorts(document: CanvasDocument, nodeId: CanvasNodeId, definition: CanvasNodeTypeInfo | undefined): CanvasPort[] {
-  const ports = [...definition?.ports ?? []]
-  const add = (id: string, direction: CanvasPort['direction']): void => {
-    if (!ports.some(port => port.id === id && port.direction === direction)) ports.push({ id, direction, valueKind: 'retained' })
+function indexRetainedPorts(connections: CanvasDocument['connections']): ReadonlyMap<CanvasNodeId, readonly CanvasPort[]> {
+  const index = new Map<CanvasNodeId, Map<string, CanvasPort>>()
+  const add = (nodeId: CanvasNodeId, id: string, direction: CanvasPort['direction']): void => {
+    let ports = index.get(nodeId)
+    if (ports === undefined) { ports = new Map(); index.set(nodeId, ports) }
+    ports.set(`${direction}:${id}`, { id, direction, valueKind: 'retained' })
   }
-  for (const edge of document.connections) {
-    if (edge.source === nodeId) add(edge.sourcePort, 'output')
-    if (edge.target === nodeId) add(edge.targetPort, 'input')
+  for (const edge of connections) {
+    add(edge.source, edge.sourcePort, 'output')
+    add(edge.target, edge.targetPort, 'input')
   }
-  return ports
+  return new Map([...index].map(([id, ports]) => [id, [...ports.values()]]))
 }
 
 /** Graph-specific props retain the parent Slot's framework-made translation seat. */
@@ -152,24 +158,64 @@ export interface CanvasGraphProps {
 
 const FIT_PADDING = { top: '112px', bottom: '112px', left: 0.2, right: 0.2 } as const
 
-function CreationDock({ busy, creations, invoke, t }: {
+interface CreationDockProps {
   readonly busy: boolean
   readonly creations: readonly CanvasCreationDefinition[]
   readonly invoke: (entry: CanvasCreationDefinition, position: CanvasPoint) => void
   readonly t: WorkspaceProps['t']
-}) {
+}
+
+function CreationDock(props: CreationDockProps) {
+  const canvas = useContext(NativeCanvasRenderContext)
+  return canvas === null ? <LegacyCreationDock {...props} /> : <NativeCreationDock {...props} canvas={canvas} />
+}
+
+function LegacyCreationDock(props: CreationDockProps) {
   const width = useFlowStore(state => state.width)
   const height = useFlowStore(state => state.height)
   const transform = useFlowStore(state => state.transform)
-  return creations.length === 0 ? null : <Panel position="bottom-center" className={`${css.creationDock} ${toolbarCss.bar} nodrag nopan nowheel`} data-convax-creation-dock="">
-    <CanvasAddToolbar creations={creations} busy={busy} t={t} create={(entry) => {
-      const size = entry.defaultSize ?? { width: RESOURCE_CARD_WIDTH, height: 140 }
-      const top = width <= 600 ? 112 : 72
-      const position = { x: (width / 2 - transform[0]) / transform[2] - size.width / 2,
-        y: (Math.max(top, top + (height - top - 112 - size.height * transform[2]) / 2) - transform[1]) / transform[2] }
-      invoke(entry, position)
-    }} />
+  return props.creations.length === 0 ? null : <Panel position="bottom-center"
+    className={`${css.creationDock} ${toolbarCss.bar} nodrag nopan nowheel`} data-convax-creation-dock="">
+    <CreationDockActions {...props} metrics={{ width, height, x: transform[0], y: transform[1], zoom: transform[2] }} />
   </Panel>
+}
+
+function NativeCreationDock({ canvas, ...props }: CreationDockProps & {
+  canvas: NonNullable<React.ContextType<typeof NativeCanvasRenderContext>>
+}) {
+  return props.creations.length === 0 ? null : <div
+    className={`react-flow__panel bottom center ${css.creationDock} ${toolbarCss.bar} nodrag nopan nowheel`} data-convax-creation-dock="">
+    <CreationDockActions {...props} metrics={() => ({ ...canvas.getSize(), ...canvas.getViewport() })} />
+  </div>
+}
+
+function CreationDockActions({ busy, creations, invoke, t, metrics }: CreationDockProps & {
+  metrics: (Viewport & { width: number; height: number }) | (() => Viewport & { width: number; height: number })
+}) {
+  return <CanvasAddToolbar creations={creations} busy={busy} t={t} create={(entry) => {
+    const { width, height, x, y, zoom } = typeof metrics === 'function' ? metrics() : metrics
+    const size = entry.defaultSize ?? { width: RESOURCE_CARD_WIDTH, height: 140 }
+    const top = width <= 600 ? 112 : 72
+    const position = { x: (width / 2 - x) / zoom - size.width / 2,
+      y: (Math.max(top, top + (height - top - 112 - size.height * zoom) / 2) - y) / zoom }
+    invoke(entry, position)
+  }} />
+}
+
+type GraphRenderer = 'react-flow' | 'convax'
+type RenderingProps = CanvasSurfaceProps<GraphNode> & Pick<ReactFlowProps<GraphNode, GraphEdge>,
+  'onNodeClick' | 'onSelectionContextMenu' | 'onConnectEnd' | 'panOnDrag'>
+
+function LegacyCanvasSurface({ card: _card, active: _active, onDragCancel: _onDragCancel, onNativeNodeClick: _onNativeNodeClick,
+  onNativePaneClick: _onNativePaneClick, onBlankConnection: _onBlankConnection,
+  onConnectionCancel: _onConnectionCancel, ...props }: RenderingProps) {
+  const id = useId()
+  return <ReactFlow<GraphNode, GraphEdge> {...props} id={id} nodeTypes={NODE_TYPES} edgeTypes={EDGE_TYPES}
+    deleteKeyCode={null} panOnScroll={false} zoomOnScroll={false} zoomOnPinch preventScrolling={false}
+    panActivationKeyCode={null} zoomActivationKeyCode={null} proOptions={{ hideAttribution: true }}>
+    <Background color="var(--dsw-alias-border-l2)" gap={24} size={1} />
+    {props.children}
+  </ReactFlow>
 }
 
 /**
@@ -189,8 +235,13 @@ function CanvasGraphContent({
   chatPresentations, applyChatPresentation, applyResourceView,
   history, replayHistory,
 }: CanvasGraphProps) {
+  const requestedRenderer = useMemo(() => new URLSearchParams(globalThis.location.search).get('convax-renderer'), [])
+  const [renderer, setRenderer] = useState<GraphRenderer>(() => requestedRenderer === 'convax' ? 'convax' : 'react-flow')
+  const [switchViewport, setSwitchViewport] = useState<Viewport>()
+  const Surface = renderer === 'convax' ? NativeCanvasSurface<GraphNode> : LegacyCanvasSurface
+  const initialViewport = switchViewport ?? viewport
   const dragSelects = inputMode === 'touchpad'
-  const cancelNativeConnection = useFlowStore(state => state.cancelConnection)
+  const cancelLegacyConnection = useFlowStore(state => state.cancelConnection)
   const graph = useRef<HTMLDivElement>(null)
   const filePicker = useRef<HTMLInputElement>(null)
   const filePosition = useRef<CanvasPoint>({ x: 80, y: 80 })
@@ -250,7 +301,7 @@ function CanvasGraphContent({
     positions: ReadonlyMap<CanvasNodeId, CanvasPoint>
   } | null>(null)
   const [snapGuides, setSnapGuides] = useState<readonly CanvasSnapGuide[]>([])
-  const [flow, setFlow] = useState<ReactFlowInstance<GraphNode, GraphEdge> | null>(null)
+  const [flow, setFlow] = useState<CanvasSurfaceControls<GraphNode> | null>(null)
   const pendingReveal = useRef<CanvasNodeId[] | null>(null)
   const pendingActivityReveal = useRef<{
     canvasId: CanvasDocument['id']
@@ -287,7 +338,7 @@ function CanvasGraphContent({
   const [edgeSelection, setEdgeSelection] = useState<string[]>([])
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
   const [measurements, setMeasurements] = useState<ReadonlyMap<string, { width: number; height: number }>>(new Map())
-  const [zoom, setZoom] = useState(viewport?.zoom ?? 1)
+  const [zoom] = useState(() => createSnapshotStore(viewport?.zoom ?? 1))
   const selectedTargets: CanvasSelection = { nodeIds: selection as CanvasNodeId[], groupIds: groupSelection }
   const selectedMembers = grouping.members(selectedTargets)
   const colorSelectionKey = JSON.stringify([...groupSelection].sort())
@@ -362,25 +413,19 @@ function CanvasGraphContent({
     }
     return new Map([...incoming].map(([id, sources]) => [id, [...sources.values()]]))
   }, [document])
-  const nodes = useMemo((): GraphNode[] => document.nodes.map((node) => {
+  const retainedPorts = useMemo(() => indexRetainedPorts(document.connections), [document.connections])
+  const baseNodes = useMemo((): GraphNode[] => document.nodes.map((node) => {
     const definition = nodeTypes.find(type => type.id === node.typeId)
-    const measured = measurements.get(node.id)
     const resourceView = resourceViews[node.id]
     const dragHandle = rendererDefinitions[node.typeId]?.dragHandle
     return {
       id: node.id,
       type: 'convaxNode',
-      position: drag.revision === document.revision ? drag.positions[node.id] ?? node.position : node.position,
-      selected: selection.includes(node.id),
-      ...(activityHighlight === node.id ? {
-        className: css.activityReveal,
-        domAttributes: ACTIVITY_NODE_ATTRIBUTES,
-      } : {}),
-      // Controlled nodes retain measured dimensions so updates do not hide mounted editors.
-      ...(measured === undefined ? {} : { measured }),
+      position: node.position,
       ...(dragHandle === undefined ? {} : { dragHandle }),
       data: {
-        node, definition, ports: retainedPorts(document, node.id, definition),
+        node, definition, ports: [...definition?.ports ?? [], ...(retainedPorts.get(node.id) ?? []).filter(retained =>
+          !definition?.ports.some(port => port.direction === retained.direction && port.id === retained.id))],
         issue: nodeIssues.find(issue => issue.canvasId === document.id && issue.nodeId === node.id),
         remove: () => { void command({ kind: 'remove-nodes', nodeIds: [node.id] }) },
         command, openResource, openSource, createChat: (cwd, folderId) => {
@@ -400,9 +445,22 @@ function CanvasGraphContent({
         focusNode: () => { if (active) void flow?.fitView({ nodes: [{ id: node.id }], padding: FIT_PADDING }) },
       },
     }
-  }), [document, nodeTypes, nodeIssues, rendererDefinitions, drag, selection, measurements, t, command, openResource, openSource, chats,
+  }), [document, nodeTypes, nodeIssues, rendererDefinitions, retainedPorts, t, command, openResource, openSource, chats,
     renderSlot, createChat, threadFocus, consumeThreadFocus, busy, flow, inputNodes,
-    resourceViews, setResourceExpanded, setResourcePreviewSize, addWindow, activityHighlight, active])
+    resourceViews, setResourceExpanded, setResourcePreviewSize, addWindow, active])
+
+  const nodes = useMemo((): GraphNode[] => {
+    const selected = new Set(selection)
+    return baseNodes.map((node) => {
+      const measured = measurements.get(node.id)
+      const position = drag.revision === document.revision ? drag.positions[node.id] ?? node.position : node.position
+      const highlighted = activityHighlight === node.id
+      if (!selected.has(node.id) && measured === undefined && position === node.position && !highlighted) return node
+      return { ...node, position, selected: selected.has(node.id),
+        ...(measured === undefined ? {} : { measured }),
+        ...(highlighted ? { className: css.activityReveal, domAttributes: ACTIVITY_NODE_ATTRIBUTES } : {}) }
+    })
+  }, [baseNodes, measurements, selection, drag, document.revision, activityHighlight])
   const revealPastedNodes = useCallback((): void => {
     const ids = pendingReveal.current
     if (!active || graph.current === null || flow === null || ids === null
@@ -510,9 +568,10 @@ function CanvasGraphContent({
   }, [])
   const cancelConnectionCreation = useCallback((): void => {
     if (connectionGesture.current !== null) connectionGesture.current.cancelled = true
-    cancelNativeConnection()
+    if (flow?.cancelConnection === undefined) cancelLegacyConnection()
+    else flow.cancelConnection()
     setConnectionMenu(null)
-  }, [cancelNativeConnection])
+  }, [cancelLegacyConnection, flow])
   useEffect(() => {
     const root = graph.current
     if (!active || root === null) return
@@ -585,6 +644,7 @@ function CanvasGraphContent({
         case 'cancel':
           if (clipboard.cancel()) return
           cancelDrag()
+          flow?.cancelGesture?.()
           setSelection([])
           setGroupSelection([])
           setEdgeSelection([])
@@ -665,10 +725,10 @@ function CanvasGraphContent({
     fileOrigin.current = origin
     filePicker.current?.click()
   }
-  const finishConnection: OnConnectEnd = (event, state): void => {
+  const finishConnection = (event: MouseEvent | TouchEvent, from: CanvasPoint, position: Position): void => {
     const gesture = connectionGesture.current
     connectionGesture.current = null
-    if (gesture === null || gesture.cancelled || busy || state.isValid === true || state.from === null || state.toHandle !== null) return
+    if (gesture === null || gesture.cancelled || busy) return
     const root = graph.current
     const screen = connectionDropPoint(event)
     if (root === null || screen === null || flow === null) return
@@ -677,7 +737,16 @@ function CanvasGraphContent({
     if (!isBlankConnectionTarget(root, target)) return
     setContextMenu(null)
     setConnectionMenu({ origin: gesture.origin, screen, world: flow.screenToFlowPosition(screen),
-      from: state.from, position: state.fromPosition })
+      from, position })
+  }
+  const finishLegacyConnection: OnConnectEnd = (event, state) => {
+    if (state.isValid === true || state.from === null || state.toHandle !== null) connectionGesture.current = null
+    else finishConnection(event, state.from, state.fromPosition)
+  }
+  const clearPane = (): void => { setGroupSelection([]); setEdgeSelection([]); setHoveredEdge(null) }
+  const clickNode = (extend: boolean): void => {
+    if (!extend) setGroupSelection([])
+    setEdgeSelection([]); setHoveredEdge(null)
   }
   const openContextMenu = (event: {
     readonly target: EventTarget | null
@@ -705,7 +774,7 @@ function CanvasGraphContent({
       groupIds: grouping.selectedGroups({ nodeIds: ids, groupIds: inSelectedGroup ? groupSelection : [] }) })
   }
   return (
-    <div ref={graph} className={css.graph} data-convax-graph="" data-convax-clipboard-pending={clipboard.pending || undefined}
+    <div ref={graph} className={css.graph} data-convax-graph="" data-convax-renderer={renderer} data-convax-clipboard-pending={clipboard.pending || undefined}
       data-convax-history-pending={history.pending || undefined} data-canvas-drag-select={dragSelects || undefined}
       onPointerDownCapture={(event) => {
         pendingActivityReveal.current = null
@@ -738,26 +807,19 @@ function CanvasGraphContent({
           else addResources(references, filePosition.current, origin)
         }
       }} />
-      <ReactFlow<GraphNode, GraphEdge>
-        nodes={nodes} edges={edges} nodeTypes={NODE_TYPES} edgeTypes={EDGE_TYPES} onInit={setFlow}
-        nodesDraggable={!busy} nodesConnectable={!busy} deleteKeyCode={null}
+      <Surface key={renderer} nodes={nodes} edges={edges} onInit={setFlow} card={NodeCard} active={active}
+        onDragCancel={() => { pointerDrag.current = 'cancelled' }} onNativeNodeClick={clickNode} onNativePaneClick={clearPane}
+        onBlankConnection={finishConnection} onConnectionCancel={() => { connectionGesture.current = null }}
+        nodesDraggable={!busy} nodesConnectable={!busy}
         onEdgesChange={(changes) => {
           for (const change of changes) if (change.type === 'select') setEdgeSelection(current => change.selected
             ? [...current.filter(id => id !== change.id), change.id] : current.filter(id => id !== change.id))
         }}
-        onPaneClick={() => { setGroupSelection([]); setEdgeSelection([]); setHoveredEdge(null) }}
-        onNodeClick={(event) => {
-          if (!event.shiftKey && !event.metaKey && !event.ctrlKey) setGroupSelection([])
-          setEdgeSelection([]); setHoveredEdge(null)
-        }}
+        onPaneClick={clearPane}
+        onNodeClick={(event) => { clickNode(event.shiftKey || event.metaKey || event.ctrlKey) }}
         onPaneContextMenu={(event) => { openContextMenu(event) }}
         onNodeContextMenu={(event, node) => { openContextMenu(event, node.id as CanvasNodeId) }}
         onSelectionContextMenu={(event) => { openContextMenu(event) }}
-        panOnScroll={false} zoomOnScroll={false} zoomOnPinch preventScrolling={false}
-        panActivationKeyCode={null} zoomActivationKeyCode={null}
-        // Touchpad panning comes from two-finger scroll, Space, and the middle button, so a primary
-        // drag box-selects there. Mouse mode keeps its drag-to-pan navigation. The button array also
-        // leaves touch panning to React Flow instead of turning touch drags into a selection.
         panOnDrag={dragSelects ? [1] : true} selectionOnDrag={dragSelects}
         onNodesChange={(changes) => {
           if (!active) return
@@ -785,7 +847,7 @@ function CanvasGraphContent({
           if (grouped !== null && groupedAnchor?.type === 'position' && groupedAnchor.position !== undefined && pointerDrag.current === 'active') {
             const result = grouped.gesture.preview({
               x: groupedAnchor.position.x - grouped.origin.x, y: groupedAnchor.position.y - grouped.origin.y,
-            }, flow?.getZoom() ?? zoom)
+            }, flow?.getZoom() ?? zoom.getSnapshot())
             setDrag({ revision: grouped.revision, positions: result.positions }); setSnapGuides(result.guides)
           }
           const gesture = snapping.current
@@ -795,7 +857,7 @@ function CanvasGraphContent({
             && pointerDrag.current === 'active') {
             const result = snapCanvasDrag(gesture.geometry, {
               x: anchorChange.position.x - anchor.x, y: anchorChange.position.y - anchor.y,
-            }, flow?.getZoom() ?? zoom)
+            }, flow?.getZoom() ?? zoom.getSnapshot())
             gesture.positions = result.positions
             setSnapGuides(result.guides)
             setDrag({ revision: document.revision, positions: Object.fromEntries(result.positions) })
@@ -819,7 +881,7 @@ function CanvasGraphContent({
         onNodeDragStart={(_event, anchor, moved) => {
           if (!active) return
           pointerDrag.current = 'active'
-          if (groupSelection.length > 0) {
+          if (groupSelection.length > 0 && (renderer === 'react-flow' || selectedMembers.includes(anchor.id as CanvasNodeId))) {
             groupedNodeDrag.current = { gesture: new CanvasGroupDrag(document, selectedTargets, geometry, groupFrames),
               anchorId: anchor.id, origin: anchor.position, canvasId: document.id, revision: document.revision }
             snapping.current = null; setSnapGuides([]); return
@@ -871,7 +933,7 @@ function CanvasGraphContent({
             direction: params.handleType === 'source' ? 'output' : 'input',
           }) }
         }}
-        onConnectEnd={finishConnection}
+        onConnectEnd={finishLegacyConnection}
         onEdgeDoubleClick={(_event, edge) => {
           cut([edge.id as CanvasConnectionId])
         }}
@@ -903,13 +965,13 @@ function CanvasGraphContent({
           if (resources.length > 0) addResources(resources,
             flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }))
         }}
-        {...viewport === undefined ? {} : { defaultViewport: viewport }}
-        fitView={viewport === undefined} fitViewOptions={{ padding: FIT_PADDING }} onMove={(_event, next) => { setZoom(next.zoom) }}
+        {...(initialViewport === undefined ? {} : { defaultViewport: initialViewport })}
+        fitView={switchViewport === undefined && viewport === undefined} fitViewOptions={{ padding: FIT_PADDING }}
+        onMove={(_event, next) => { zoom.set(next.zoom) }}
         onMoveEnd={(_event, next) => { if (!viewportGesture.current) setViewport(next) }}
-        minZoom={MIN_ZOOM} maxZoom={MAX_ZOOM} proOptions={{ hideAttribution: true }}
+        minZoom={MIN_ZOOM} maxZoom={MAX_ZOOM}
       >
-        <Background color="var(--dsw-alias-border-l2)" gap={24} size={1} />
-        <ViewportPortal>
+        <CanvasViewportPortal>
           {visibleGroupFrames.map(frame => <CanvasGroupFrame key={frame.id} frame={frame}
             selected={groupSelection.includes(frame.id)}
             busy={busy || clipboard.pending || history.pending || colorPicker?.pending === true}
@@ -988,11 +1050,11 @@ function CanvasGraphContent({
               x2={guide.axis === 'x' ? guide.coordinate : guide.to} y2={guide.axis === 'x' ? guide.to : guide.coordinate}
               className={css.snapGuide} />)}
           </svg>
-        </ViewportPortal>
+        </CanvasViewportPortal>
         {connectionMenu !== null && <ConnectionCreationPreview origin={connectionMenu.origin} from={connectionMenu.from}
           to={connectionMenu.world} position={connectionMenu.position} />}
         <CreationDock busy={busy} creations={creations} invoke={invokeCreation} t={t} />
-        <NodeToolbar nodeId={selectedMembers} position={groupSelection.length > 0 ? Position.Bottom : Position.Top}
+        <CanvasNodeToolbar nodeId={selectedMembers} position={groupSelection.length > 0 ? Position.Bottom : Position.Top}
           isVisible={active && selectedMembers.length > 1}>
           {grouping.canGroup(selectedTargets) && <Button size="sm" variant="outline" disabled={busy}
             onClick={() => { createGroup(selectedTargets) }}>{t('group.create')}</Button>}
@@ -1002,8 +1064,8 @@ function CanvasGraphContent({
               if (saved) { setSelection([]); setGroupSelection([]) }
             })
           }}>{t('selection.remove')}</Button>
-        </NodeToolbar>
-      </ReactFlow>
+        </CanvasNodeToolbar>
+      </Surface>
       {active && connectionMenu !== null && <ConnectionCreationMenu point={connectionMenu.screen} busy={busy} close={closeConnectionMenu}
         creations={creations.filter(entry => entry.connected !== false
           && (entry.connectionDirection === undefined || entry.connectionDirection !== connectionMenu.origin.direction))
@@ -1067,6 +1129,16 @@ function CanvasGraphContent({
         undoDisabled={busy || clipboard.pending || history.pending || !history.canUndo}
         redoDisabled={busy || clipboard.pending || history.pending || !history.canRedo}
         undo={() => { replayHistory('undo') }} redo={() => { replayHistory('redo') }} />}
+      {active && (requestedRenderer === 'compare' || requestedRenderer === 'convax') &&
+        <Button className={css.rendererSwitch} size="sm" variant="outline" data-convax-renderer-switch=""
+          disabled={flow === null || busy || clipboard.pending || history.pending} onClick={() => {
+            if (flow === null || pointerDrag.current !== null) return
+            const camera = flow.getViewport()
+            setSwitchViewport(camera)
+            setViewport(camera)
+            cancelConnectionCreation()
+            setRenderer(current => current === 'react-flow' ? 'convax' : 'react-flow')
+          }}>{t('canvas.renderer.switch', { renderer: renderer === 'react-flow' ? 'Convax' : 'React Flow' })}</Button>}
       {document.nodes.length === 0 && <div className={css.graphHint}>{t('canvas.hint')}</div>}
     </div>
   )

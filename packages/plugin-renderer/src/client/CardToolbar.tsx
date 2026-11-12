@@ -1,7 +1,7 @@
 /** Shared actions above the single selected canvas card, independent of canvas zoom. */
 import { AppWindow, FolderOpen, Maximize2, MessageCirclePlus, Settings, Trash2 } from 'lucide-react'
 import { Fragment, type MouseEvent } from 'react'
-import { NodeToolbar, Position } from '@xyflow/react'
+import { CanvasNodeToolbar, CanvasHandlePosition as Position } from './canvas-render-primitives.tsx'
 import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasNodeId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { WorkspaceProps } from './props.ts'
@@ -36,7 +36,7 @@ export function CardToolbar({ nodeId, name, actions, t }: {
   actions: readonly CardToolbarAction[]
   t: WorkspaceProps['t']
 }) {
-  return <NodeToolbar nodeId={nodeId} position={Position.Top} className={`${css.toolbar} nodrag nopan nowheel`}
+  return <CanvasNodeToolbar nodeId={nodeId} position={Position.Top} className={`${css.toolbar} nodrag nopan nowheel`}
     role="toolbar" aria-label={t('node.actions', { name })}>
     {actions.map((action, index) => {
       const Icon = ICONS[action.id]
@@ -50,5 +50,5 @@ export function CardToolbar({ nodeId, name, actions, t }: {
         </Tooltip>
       </Fragment>
     })}
-  </NodeToolbar>
+  </CanvasNodeToolbar>
 }

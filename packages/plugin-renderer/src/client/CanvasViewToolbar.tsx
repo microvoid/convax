@@ -1,8 +1,9 @@
 /** Icon-only viewport controls delegate navigation and saved preferences to the graph. */
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Mouse, Redo2, RotateCcw, Scan, Touchpad, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasInputMode } from './input-mode.ts'
+import type { CanvasZoom } from './canvas-surface-types.ts'
 import type { WorkspaceProps } from './props.ts'
 import css from './CanvasToolbar.module.css'
 
@@ -16,7 +17,7 @@ export function CanvasViewToolbar({
 }: {
   readonly inputMode: CanvasInputMode
   readonly setInputMode: (mode: CanvasInputMode) => void
-  readonly zoom: number
+  readonly zoom: CanvasZoom
   readonly locale: string
   readonly zoomOut: () => void
   readonly resetZoom: () => void
@@ -32,7 +33,8 @@ export function CanvasViewToolbar({
   const [modeOpen, setModeOpen] = useState(false)
   const ModeIcon = inputMode === 'touchpad' ? Touchpad : Mouse
   const modeLabel = t(inputMode === 'touchpad' ? 'canvas.input.touchpad' : 'canvas.input.mouse')
-  const zoomLabel = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(zoom)
+  const zoomValue = useSyncExternalStore(zoom.subscribe, zoom.getSnapshot, zoom.getSnapshot)
+  const zoomLabel = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(zoomValue)
   return <div className={`${css.bar} ${className ?? ''}`} data-convax-view-toolbar="">
     <Menu open={modeOpen} portal side="top" autoFocus selectedId={inputMode} onClose={() => { setModeOpen(false) }}
       anchor={<Tooltip label={modeLabel} disabled={modeOpen} side="top" portal>

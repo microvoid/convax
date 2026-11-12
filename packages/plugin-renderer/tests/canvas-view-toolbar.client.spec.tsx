@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import type { ComponentProps } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { CanvasViewToolbar } from '../src/client/CanvasViewToolbar.tsx'
 import { en, type ConvaxKey } from '../src/client/locales.ts'
 
@@ -10,13 +11,14 @@ const t = ((key: ConvaxKey) => en[key]) as Props['t']
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 function fixture(overrides: Partial<Props> = {}) {
+  const zoom = createSnapshotStore(0.38)
   const props: Props = {
-    inputMode: 'touchpad', setInputMode: vi.fn(), zoom: 0.38, locale: 'en',
+    inputMode: 'touchpad', setInputMode: vi.fn(), zoom, locale: 'en',
     zoomOut: vi.fn(), resetZoom: vi.fn(), zoomIn: vi.fn(), fit: vi.fn(), undo: vi.fn(), redo: vi.fn(),
     undoDisabled: false, redoDisabled: false, t, ...overrides,
   }
   const view = render(<><button type="button">Outside</button><CanvasViewToolbar {...props} /></>)
-  return { ...view, props }
+  return { ...view, props, zoom }
 }
 
 describe('Canvas view toolbar', () => {
@@ -28,7 +30,9 @@ describe('Canvas view toolbar', () => {
     const reset = screen.getByRole('button', { name: 'Reset zoom to 100%' })
     expect(reset.getAttribute('aria-description')).toBe('38%')
     expect(screen.getByRole('button', { name: 'Canvas input mode' }).getAttribute('aria-description')).toBe('Touchpad mode')
-    b.rerender(<CanvasViewToolbar {...b.props} zoom={1.25} locale="de" inputMode="mouse" />)
+    act(() => { b.zoom.set(1.25) })
+    expect(reset.getAttribute('aria-description')).toBe('125%')
+    b.rerender(<CanvasViewToolbar {...b.props} locale="de" inputMode="mouse" />)
     expect(screen.getByRole('button', { name: 'Reset zoom to 100%' }).getAttribute('aria-description'))
       .toBe(new Intl.NumberFormat('de', { style: 'percent', maximumFractionDigits: 0 }).format(1.25))
     expect(screen.getByRole('button', { name: 'Canvas input mode' }).getAttribute('aria-description')).toBe('Mouse mode')

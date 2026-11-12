@@ -35,8 +35,7 @@ export type { CanvasNodeOwner, CanvasNodeRendererProps, CanvasChatPresentation, 
   ChatThreadProps, ChatToolsProps, ChatResizeControls, ChatToolsLayout, CanvasConnectionOrigin, CanvasGraphOwner, WorkspaceInjected, WorkspaceProps } from './props.ts'
 export type { CanvasCreationDefinition, CanvasCreationContext, CanvasRendererSnapshot, CanvasWorkspaceActions } from './contributions.ts'
 export { ConvaxRenderer, NodePorts, NodePlaceholder } from './node-renderers.tsx'
-/** Share the canvas-owned React Flow context with node plugins across module-loader bundles. */
-export { Handle as CanvasHandle, Position as CanvasHandlePosition, useUpdateNodeInternals as useCanvasNodeLayout } from '@xyflow/react'
+export { CanvasHandle, CanvasHandlePosition, useCanvasNodeLayout } from './canvas-render-primitives.tsx'
 export { CardToolbar } from './CardToolbar.tsx'
 export { DiagnosticDetails } from './DiagnosticDetails.tsx'
 export { CardResizeHandle } from './CardResizeHandle.tsx'
