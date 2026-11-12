@@ -44,7 +44,7 @@
 .tabs::-webkit-scrollbar { display: none; }
 :global([data-platform='darwin']) .tabs { -webkit-app-region: no-drag; }
 .tab { position: relative; display: flex; align-items: center; flex: 0 0 auto; max-width: 240px; border-radius: var(--dsw-radius-md); }
-.tab[data-active] { background: var(--dsw-alias-bg-base); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l2); }
+.tab[data-active] { background: var(--dsw-alias-interactive-bg-active); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l2); }
 .tabTitle { min-width: 0; color: inherit; background: transparent; border: 0; font: inherit; cursor: grab; touch-action: none; user-select: none; padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab[data-dragging] .tabTitle { cursor: grabbing; }
 .tabbar .chromeButton { position: relative; width: 28px; height: 28px; padding: 0; flex: none; }
@@ -101,7 +101,7 @@
 .workspace select:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: -2px; }
 
 @media (hover: hover) {
-  .tab:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .tab:not([data-active]):hover { background: var(--dsw-alias-interactive-bg-hover); }
   .tab:not([data-active]):not(:hover):not(:focus-within) .tabClose { opacity: 0; pointer-events: none; }
 }
 
