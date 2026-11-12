@@ -5,7 +5,7 @@
 .blue { stop-color: var(--dsw-alias-state-business-primary); }
 .green { stop-color: var(--dsw-alias-state-success-primary); }
 .gold { stop-color: var(--dsw-alias-state-warn-primary); }
-.flow { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-dasharray: 0.28 0.72; pointer-events: none; filter: drop-shadow(0 0 3px currentColor); animation: flow 2.6s linear infinite both; animation-delay: 200ms; }
+.flow { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-dasharray: 0.28 0.72; pointer-events: none; animation: flow 2.6s linear infinite both; animation-delay: 200ms; }
 .edge[data-selected] .flow,
 .edge:not([data-hovered]) .flow { animation-delay: 0ms; }
 .cut { position: absolute; z-index: 2; opacity: 0; pointer-events: none; }

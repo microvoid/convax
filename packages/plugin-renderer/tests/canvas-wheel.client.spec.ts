@@ -268,6 +268,18 @@ describe('canvas wheel ownership', () => {
     expect(b.viewport().y).toBeCloseTo(258)
   })
 
+  it('consumes a pinch at maximum zoom without writing the camera and reverses in the same gesture', () => {
+    const b = fixture('touchpad', { x: -380, y: -260, zoom: 2 })
+    expect(wheel(b.root, { ctrlKey: true, deltaY: -10 }).defaultPrevented).toBe(true)
+    expect(b.setViewport).not.toHaveBeenCalled()
+    expect(wheel(b.root, { ctrlKey: true, deltaY: 10 }).defaultPrevented).toBe(true)
+    expect(b.viewport().zoom).toBeCloseTo(2 ** 0.8)
+    expect(b.setViewport).toHaveBeenCalledOnce()
+    expect(b.onStart).toHaveBeenCalledOnce()
+    endGesture()
+    expect(b.onEnd).toHaveBeenCalledOnce()
+  })
+
   it.each([
     { mode: 0, dx: 40, dy: 60, x: -10, y: -10 },
     { mode: 1, dx: 1, dy: 2, x: 0, y: 0 },

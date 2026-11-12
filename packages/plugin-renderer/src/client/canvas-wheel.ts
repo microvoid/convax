@@ -102,6 +102,7 @@ export function installCanvasWheel(root: HTMLElement, options: CanvasWheelOption
     const unit = event.deltaMode === 1 ? 0.05 : event.deltaMode === 2 ? 1 : 0.002
     const zoom = Math.max(options.minZoom, Math.min(options.maxZoom,
       viewport.zoom * 2 ** (-event.deltaY * unit * (owner.pinch ? 10 : 1))))
+    if (zoom === viewport.zoom) return
     const bounds = root.getBoundingClientRect()
     const x = event.clientX - bounds.left
     const y = event.clientY - bounds.top
