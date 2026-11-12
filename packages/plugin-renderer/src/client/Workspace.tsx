@@ -18,6 +18,7 @@ import { CanvasTabs } from './CanvasTabs.tsx'
 import { canvasDisplayTitle } from './localized-content.ts'
 import { CanvasManager } from './CanvasManager.tsx'
 import { recordsCanvasHistory, removedResourceViews, restoredResourceViews } from './canvas-history.ts'
+import { executeResourceAddition } from './canvas-resource-intake.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { DesktopWindowSourceId } from '@deepseek-ai/dsh-util-desktop-capture'
 import type {} from '@deepseek-ai/dsh-client-ui-schedule/client'
@@ -378,12 +379,12 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
               ...(connections.length === 0 ? {} : { initialConnections: connections }),
             },
           }
-          const result = await execute(request)
+          const { operationId, result } = await executeResourceAddition(execute, before, request)
           if (!result.ok) { report(reference.name, 'unconfirmed'); break }
           const committed = result.workspace.canvases.find(item => item.id === canvas.id)
           if (committed === undefined) { report(reference.name, 'unconfirmed'); break }
           canvas = committed
-          actions.recordHistory(request.canvasId, request.operationId,
+          actions.recordHistory(request.canvasId, operationId,
             removedResourceViews(before, committed, latestView.current.resourceViews ?? {}))
           committedWorkspace = result.workspace
           inputs.push(...connections.map(connection => ({

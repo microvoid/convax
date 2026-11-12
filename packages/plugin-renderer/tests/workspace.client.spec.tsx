@@ -1266,6 +1266,45 @@ describe('Convax workspace presentation', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it.each(['thread binding', 'graph edit'] as const)('handles a mixed native drop racing a %s', async (concurrentChange) => {
+    const canvas = { id: 'canvas' as CanvasId, title: 'Board', revision: 4, nodes: [], connections: [] }
+    const initial: CanvasWorkspace = { revision: 4, canvases: [canvas], nodeTypes: [], nodeIssues: [], chats: [] }
+    const b = fixture(initial)
+    b.store.actions.open(canvas.id)
+    let current = initial
+    const describe = vi.fn<WorkspaceProps['describe']>(async path => ({
+      path, name: path, kind: path.endsWith('/folder') ? 'folder' : 'file', size: null,
+    }))
+    const execute = vi.fn<WorkspaceProps['execute']>(async (request) => {
+      if (execute.mock.calls.length === 2) {
+        const latest = current.canvases[0]!
+        current = { ...current, revision: current.revision + 1, canvases: [{
+          ...latest, revision: latest.revision + 1, title: concurrentChange === 'graph edit' ? 'Renamed board' : latest.title,
+        }] }
+        return { ok: false, code: 'conflict', message: 'Canvas changed', workspace: structuredClone(current) }
+      }
+      expect(request.expectedRevision).toBe(current.canvases[0]!.revision)
+      current = commitReference(current, request)
+      return { ok: true, workspace: current }
+    })
+    render(<ConvaxWorkspace {...b.props} describe={describe} execute={execute} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Drop multiple resources' }))
+    if (concurrentChange === 'graph edit') {
+      await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain('Added 1 of 3 references') })
+      expect(execute).toHaveBeenCalledTimes(2)
+      expect(current.canvases[0]!.title).toBe('Renamed board')
+      return
+    }
+    await waitFor(() => { expect(current.canvases[0]!.nodes).toHaveLength(3) })
+    const requests = execute.mock.calls.map(([request]) => request)
+    expect(requests.map(request => request.expectedRevision)).toEqual([4, 5, 6, 7])
+    expect(requests[1]?.command).toEqual(requests[2]?.command)
+    expect(requests[1]?.operationId).not.toBe(requests[2]?.operationId)
+    expect(b.store.getSnapshot().histories?.[canvas.id]?.undo).toEqual([0, 2, 3].map(index => requests[index]?.operationId))
+    expect(describe).toHaveBeenCalledTimes(3)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('reports unavailable paths and unreadable resources while adding the other dropped references', async () => {
     const canvas = { id: 'canvas' as CanvasId, title: 'Board', revision: 4, nodes: [], connections: [] }
     const workspace: CanvasWorkspace = { revision: 4, canvases: [canvas], nodeTypes: [], nodeIssues: [], chats: [] }
