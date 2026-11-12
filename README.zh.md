@@ -114,6 +114,8 @@ pnpm run start:desktop
 pnpm run dev:desktop
 ```
 
+在开发版 Desktop 窗口的 DevTools Console 运行 `location.search = '?convax-renderer=compare'`，即可打开右下角的渲染切换按钮。切换渲染方式会重新加载浏览器卡片当前的网页，页面里未保存的输入和前进、后退历史会重置。
+
 需要原生文件和文件夹拖放，或 macOS 窗口镜像时，使用 Desktop。平台准备步骤见 [Desktop 开发说明](libs/dsh/apps/desktop/README.zh.md#develop)。
 
 <a id="web"></a>
@@ -132,6 +134,16 @@ pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
 ```
 
 打开终端打印的完整本地访问地址，服务默认使用 `http://127.0.0.1:3080`。覆盖配置会为本次启动启用两个 Convax 插件。Web 操作 Host 所在机器的文件系统；原生窗口镜像需要 macOS Desktop。
+
+要对比画布渲染方式，进入 Web 应用后，在地址末尾加上 `?convax-renderer=compare`，再用右下角按钮切换。默认使用 React Flow。Convax 选项用 Canvas 2D 绘制未激活的连线，交互卡片继续使用 DOM。两种方式共用画布数据和当前视角。切换会重新挂载卡片组件；插件如果需要跨切换保留状态，应将状态放在组件外部。
+
+完成构建后，在仓库根目录运行 Chromium 对照测试：
+
+```sh
+CONVAX_EXPORT_RENDERER_DEMO=1 pnpm exec vitest run --config vitest.i18n.config.ts tests/canvas-renderers.browser.e2e.ts
+```
+
+测试将截图、平移测量结果和独立的「Night Ferry」演示 profile 写入 `.artifacts/convax-renderer-comparison-*/`。按其中 `demo/README.md` 的步骤即可重新打开画布。
 
 <a id="data-and-working-directories"></a>
 ## 数据与工作目录

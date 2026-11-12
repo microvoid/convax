@@ -114,6 +114,8 @@ To rebuild and launch after source changes:
 pnpm run dev:desktop
 ```
 
+In the development Desktop window, run `location.search = '?convax-renderer=compare'` in the DevTools Console to enable the renderer switch. Switching renderers reloads the current address in each browser card, which clears unsaved page input and back or forward history.
+
 Use Desktop for native file and folder drops and macOS window mirrors. See [Desktop development](libs/dsh/apps/desktop/README.md#develop) for platform setup.
 
 <a id="web"></a>
@@ -132,6 +134,16 @@ pnpm dsh web --patch packages/plugin-renderer/cordis.patch.yml --no-open
 ```
 
 Open the complete local access URL printed in the terminal; the server defaults to `http://127.0.0.1:3080`. The overlay enables both Convax plugins for this launch. Web runs against the Host filesystem; native window mirrors require macOS Desktop.
+
+To compare canvas renderers, append `?convax-renderer=compare` after the Web app opens, then use the renderer switch in the lower-right corner. React Flow is the default. The Convax option draws idle connections on Canvas 2D and keeps interactive cards in the DOM. Both renderers use the same saved canvas and camera. Switching remounts card components, so a plugin should store any state that needs to survive a switch outside its component.
+
+Run the Chromium comparison against built artifacts from the repository root:
+
+```sh
+CONVAX_EXPORT_RENDERER_DEMO=1 pnpm exec vitest run --config vitest.i18n.config.ts tests/canvas-renderers.browser.e2e.ts
+```
+
+The test writes screenshots, pan measurements, and an isolated Night Ferry demo profile under `.artifacts/convax-renderer-comparison-*/`. Follow its `demo/README.md` to reopen the board.
 
 <a id="data-and-working-directories"></a>
 ## Data and working directories
