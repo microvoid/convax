@@ -86,7 +86,7 @@ describe('Convax Chat runtime context', () => {
 
   it('removes stale bound identity after its graph node is removed', async () => {
     const f = await fixture()
-    await f.domain.transaction(tx => {
+    await f.domain.transaction((tx) => {
       const graph = tx.global.get()
       graph.canvases[0]!.nodes = []
       tx.global.set(graph)

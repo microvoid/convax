@@ -18,7 +18,7 @@ const ctx = await bootProductionProfile({
     fileURLToPath(new URL('./chat-workflows.patch.yml', import.meta.url)),
   ],
   prepare(context) {
-    provideCmdline(context, { args: ['--port', '0', '--no-open'], exit: code => { throw new Error(`Unexpected exit ${code}`) } })
+    provideCmdline(context, { args: ['--port', '0', '--no-open'], exit: (code) => { throw new Error(`Unexpected exit ${code}`) } })
   },
 })
 try {
@@ -74,7 +74,7 @@ try {
     return agent
   }
   let agent = await prompt('把当前画布上的 Atlas 和 Beacon 两份需求资料组织成两个项目工作区：每个项目建一个同名分组，保留并归入原需求卡片，添加指向该项目目录的文件夹卡片和一个项目 Chat，连接需求卡片到对应 Chat，再分别准备一个独立 thread。Chat 的目录应是需求文件所在目录。准备完成就结束，不向新 thread 发送消息，原始资料保持不变。')
-  const projectChats = projects.map(project => {
+  const projectChats = projects.map((project) => {
     const cwd = join(root, project.name)
     const chat = host.workspace().chats.find(value => value.canvasId === canvasId && value.nodeId !== ownerId && value.cwd === cwd)
     assert(chat, `${project.name} Chat must use its project directory`)

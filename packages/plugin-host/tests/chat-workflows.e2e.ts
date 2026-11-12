@@ -15,9 +15,13 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('Convax user workflows with a rea
       label: 'Convax user skill workflows', tempDirPrefix: 'convax-workflows-',
       binScript: driver, libBinScript: driver, configPath: overlay, tsconfigPath,
       processTimeoutMs: 330_000, env: { DSH_TELEMETRY_DISABLED: '1' },
-      inspect: async cwd => {
+      inspect: async (cwd) => {
         const report = JSON.parse(await readFile(join(cwd, 'workflow-report.json'), 'utf8')) as {
-          rendererDisabled: boolean; canvas: CanvasDocument; chats: CanvasChat[]; calls: string[]; timings: number[]
+          rendererDisabled: boolean
+          canvas: CanvasDocument
+          chats: CanvasChat[]
+          calls: string[]
+          timings: number[]
         }
         expect(report.rendererDisabled).toBe(true)
         expect(report.timings).toHaveLength(3)
