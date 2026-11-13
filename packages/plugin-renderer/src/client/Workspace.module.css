@@ -35,8 +35,8 @@
 }
 
 .brand { display: flex; align-items: center; flex: none; }
-.tabStrip { display: flex; align-items: center; flex: 0 1 560px; gap: 4px; min-width: 160px; max-width: 60%; }
-.windowDragSpace { flex: 1 0 120px; align-self: stretch; min-height: 36px; }
+.tabStrip { display: flex; align-items: center; flex: 1; min-width: 0; }
+.windowDragSpace { flex: 0 0 120px; align-self: stretch; min-height: 36px; }
 .globalActions { flex: none; }
 .activityAction { display: flex; }
 .activityIndicator { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: var(--dsw-radius-xs); background: var(--dsw-alias-state-business-primary); }
@@ -112,10 +112,10 @@
 @media (max-width: 600px) {
   .tabbar { flex-wrap: wrap; min-height: 104px; padding-block: 4px; }
   .brand { display: none; }
-  .tabStrip { order: 1; flex: 1 0 100%; min-width: 0; max-width: none; }
+  .tabStrip { order: 1; flex: 1 0 100%; }
   .globalActions .automationButton { display: none; }
   .activityAction { display: none; }
-  .windowDragSpace { min-height: 32px; }
+  .windowDragSpace { flex-grow: 1; min-height: 32px; }
 }
 
 @media (max-width: 900px) {

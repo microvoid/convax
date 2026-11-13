@@ -594,7 +594,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
         <div className={css.tabStrip}>
           <CanvasTabs tabs={tabs.map(canvas => ({ ...canvas, title: canvasDisplayTitle(canvas, t) }))} activeId={active?.id} t={t}
             create={() => { void create() }} busy={busy}
-            compact={compactTitlebar} allButtonRef={canvasListAnchor} allOpen={menu === 'canvases' && canvasManagerSource === 'tabs'} onShowAll={() => {
+            allButtonRef={canvasListAnchor} allOpen={menu === 'canvases' && canvasManagerSource === 'tabs'} onShowAll={() => {
               setCanvasManagerSource('tabs')
               setMenu(current => current === 'canvases' && canvasManagerSource === 'tabs' ? null : 'canvases')
             }}

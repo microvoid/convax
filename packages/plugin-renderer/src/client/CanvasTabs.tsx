@@ -25,7 +25,6 @@ export interface CanvasTabsProps {
   readonly onShowAll?: (() => void) | undefined
   readonly allButtonRef?: RefObject<HTMLButtonElement> | undefined
   readonly allOpen?: boolean | undefined
-  readonly compact?: boolean | undefined
   readonly create?: (() => void) | undefined
   readonly busy?: boolean | undefined
   readonly t: WorkspaceProps['t']
@@ -37,7 +36,7 @@ export interface CanvasTabsProps {
  * @returns A bounded strip with pointer and keyboard sorting and access to overflowed canvases.
  */
 export function CanvasTabs({
-  tabs, activeId, open, close, move, rename, onShowAll, allButtonRef, allOpen = false, compact = false, create, busy, t,
+  tabs, activeId, open, close, move, rename, onShowAll, allButtonRef, allOpen = false, create, busy, t,
 }: CanvasTabsProps) {
   const reorder = useTabReorder(tabs, move)
   const container = useRef<HTMLDivElement>(null)
@@ -62,7 +61,7 @@ export function CanvasTabs({
   }, [bounded])
   const available = width - (create === undefined ? 0 : 32)
   const fitting = Math.floor((available + 2 - (allOpen ? 32 : 0)) / 114)
-  const capacity = compact ? 1 : fitting >= tabs.length ? fitting : Math.max(1, Math.floor((available - 30) / 114))
+  const capacity = fitting >= tabs.length ? fitting : Math.max(1, Math.floor((available - 30) / 114))
   const shown = new Set(tabs.slice(0, capacity).map(tab => tab.id))
   if (activeId !== undefined && tabs.some(tab => tab.id === activeId) && !shown.has(activeId)) {
     const last = tabs[capacity - 1]
@@ -70,7 +69,7 @@ export function CanvasTabs({
     shown.add(activeId)
   }
   const visibleTabs = bounded ? tabs.filter(tab => shown.has(tab.id)) : tabs
-  const overflow = bounded && (allOpen || compact || visibleTabs.length < tabs.length)
+  const overflow = bounded && (allOpen || visibleTabs.length < tabs.length)
   const visibleIds = JSON.stringify(visibleTabs.map(tab => tab.id))
   useEffect(() => {
     const closed = previousAllOpen.current && !allOpen

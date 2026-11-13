@@ -121,8 +121,9 @@ it('reserves window dragging beside overflowing tabs and centers icon creation c
     await manager.locator(`[data-canvas-manager-row="${canvas.id}"]`).getByRole('button', { name: canvas.title, exact: true }).click()
     await manager.waitFor({ state: 'detached' })
     await expect.poll(() => page.getByRole('tab', { name: canvas.title, exact: true }).getAttribute('aria-selected')).toBe('true')
-    if (index < 2) {
-      expect(await titlebar.getByRole('tab').count()).toBe(index + 1)
+    if (index < 2 || index === 5) {
+      await expect.poll(() => titlebar.getByRole('tab').count()).toBe(index + 1)
+      await expect.poll(() => allCanvases.count()).toBe(0)
       await expectNewCanvasAdjacency(titlebar, 120)
     }
     if (index === 1) {
@@ -277,11 +278,12 @@ it('reserves window dragging beside overflowing tabs and centers icon creation c
   await activity.getByRole('button', { name: 'Close activity', exact: true }).click()
   await activity.waitFor({ state: 'detached' })
   await page.setViewportSize({ width: 390, height: 900 })
-  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(1)
+  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(2)
   expect(await activity.count()).toBe(0)
 
   await page.setViewportSize({ width: 1280, height: 900 })
-  for (let index = 0; index < 10; index++) {
+  const remainingTabs = 3
+  for (let index = 0; index < canvases.length - remainingTabs; index++) {
     const tab = titlebar.locator('[data-canvas-tab]').filter({ hasNot: page.getByRole('tab', { name: active.title, exact: true }) }).first()
     const id = await tab.getAttribute('data-canvas-tab')
     if (id === null) throw new Error('An inactive canvas tab is unavailable')
@@ -289,13 +291,15 @@ it('reserves window dragging beside overflowing tabs and centers icon creation c
     await tab.getByRole('button', { name: /^Close Canvas / }).click()
     await titlebar.locator(`[data-canvas-tab="${id}"]`).waitFor({ state: 'detached' })
   }
-  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(2)
+  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(remainingTabs)
+  await expect.poll(() => allCanvases.count()).toBe(0)
   await page.setViewportSize({ width: 390, height: 900 })
+  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(2)
   await allCanvases.click()
   const manager = page.getByRole('dialog', { name: 'All canvases', exact: true })
   await manager.waitFor()
   await page.setViewportSize({ width: 1280, height: 900 })
-  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(2)
+  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(remainingTabs)
   expect(await allCanvases.isVisible()).toBe(true)
   await expectNewCanvasAdjacency(titlebar, 120)
   await page.keyboard.press('Escape')
@@ -361,7 +365,7 @@ it('reserves window dragging beside overflowing tabs and centers icon creation c
     await page.screenshot({ path: join(artifacts, `${colorScheme}.png`) })
   }
   await page.setViewportSize({ width: 390, height: 900 })
-  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(1)
+  await expect.poll(() => titlebar.getByRole('tab').count()).toBe(2)
   await viewToolbar.getByRole('button', { name: 'Fit canvas', exact: true }).click()
   await page.mouse.move(10, 200)
   await expect.poll(async () => {

@@ -359,7 +359,7 @@ describe('Convax canvas tab dragging', () => {
 })
 
 describe('Convax canvas tab overflow', () => {
-  function boundedFixture(width: number, compact = false) {
+  function boundedFixture(width: number) {
     let notify: ResizeObserverCallback | undefined
     const disconnect = vi.fn()
     vi.stubGlobal('ResizeObserver', class {
@@ -369,7 +369,7 @@ describe('Convax canvas tab overflow', () => {
     })
     const props: Props = {
       tabs, activeId: id('gamma'), open: vi.fn(), close: vi.fn(), move: vi.fn(), rename: vi.fn(),
-      onShowAll: vi.fn(), compact,
+      onShowAll: vi.fn(),
       t: ((key: ConvaxKey, values?: Record<string, string | number>) =>
         en[key].replace(/\{(\w+)\}/g, (_match, name: string) => String(values?.[name] ?? ''))) as Props['t'],
     }
@@ -427,10 +427,8 @@ describe('Convax canvas tab overflow', () => {
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Gamma' }))
   })
 
-  it('shows only the active canvas in compact mode and releases its width observer on unmount', () => {
-    const b = boundedFixture(800, true)
-    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Gamma'])
-    expect(screen.getByRole('button', { name: 'All canvases' })).toBeDefined()
+  it('releases its width observer on unmount', () => {
+    const b = boundedFixture(800)
     b.unmount()
     expect(b.disconnect).toHaveBeenCalledOnce()
     act(() => { b.notify() })
