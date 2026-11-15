@@ -325,55 +325,14 @@ it('keeps one seek control usable while the waveform loads and swaps its display
   expect(screen.queryByRole('slider', { name: 'Volume' })).toBeNull()
 })
 
-it('retains the audio presentation across compact and expanded controls with one transport and no waveform work while folded', async () => {
-  const f = fixture('audio')
-  f.setPlayback({ status: 'playing', intent: 'manual', currentTime: 12 })
-  const view = render(<MediaPreview {...f.props} presentation="compact" />)
-  const viewportId = f.callbacks.mountMedia.mock.calls[0]![1]
-  const viewport = document.getElementById(viewportId)
-  expect(wave.read).not.toHaveBeenCalled()
-  expect(screen.queryByRole('slider')).toBeNull()
-  expect(screen.queryByRole('button', { name: 'Volume' })).toBeNull()
-  expect(screen.getByText('0:12 / 0:40')).toBeDefined()
-  fireEvent.click(screen.getByRole('button', { name: 'Pause' }))
-  expect(f.callbacks.toggleMedia).toHaveBeenCalledExactlyOnceWith(f.source.path)
-  expect({ buttons: screen.getAllByRole('button').map(button => button.getAttribute('aria-label')),
-    time: screen.getByRole('group', { name: 'Playback controls' }).textContent,
-  }).toMatchSnapshot('compact audio transport')
-  view.rerender(<MediaPreview {...f.props} />)
-  await screen.findByRole('slider', { name: 'Waveform' })
-  expect(document.getElementById(viewportId)).toBe(viewport)
-  expect(f.callbacks.mountMedia).toHaveBeenCalledOnce()
-  view.rerender(<MediaPreview {...f.props} presentation="compact" />)
-  expect(wave.read.mock.calls[0]?.[1].aborted).toBe(true)
-  expect(f.release).not.toHaveBeenCalled()
-  view.unmount()
-  expect(f.release).toHaveBeenCalledOnce()
-})
-
-it('keeps source failures in a compact retry action before a player can be attached', () => {
+it('offers retry when a media source fails before a player can be attached', () => {
   const f = fixture('audio')
   f.setResource({ status: 'failed', value: undefined, failure: undefined })
-  render(<MediaPreview {...f.props} presentation="compact" />)
-  expect(screen.getAllByRole('button')).toHaveLength(1)
-  expect(screen.getByRole('alert').textContent).toBe(en['media.failed'])
+  render(<MediaPreview {...f.props} />)
+  expect(screen.getByRole('alert').textContent).toContain(en['media.failed'])
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(f.useResource).toHaveBeenLastCalledWith(`${resourceAddress('convax-media', f.props.path)}?attempt=1`)
   expect(f.callbacks.mountMedia).not.toHaveBeenCalled()
-})
-
-it('replaces a failed compact audio transport with one system-open action and preserves an unsuccessful launch', async () => {
-  const f = fixture('audio')
-  f.setPlayback({ status: 'failed', failure: 'unsupported' })
-  f.callbacks.openSystem.mockRejectedValue(new Error('No handler'))
-  render(<MediaPreview {...f.props} presentation="compact" />)
-  expect(screen.getAllByRole('button')).toHaveLength(1)
-  expect(screen.getByRole('alert').textContent).toBe(en['media.unsupported'])
-  fireEvent.click(screen.getByRole('button', { name: 'Open in system app' }))
-  await waitFor(() => { expect(screen.getByRole('alert').textContent).toBe(en['media.openFailed']) })
-  expect(f.callbacks.openSystem).toHaveBeenCalledExactlyOnceWith(f.source.path)
-  expect(f.callbacks.mountMedia).toHaveBeenCalledOnce()
-  expect(wave.read).not.toHaveBeenCalled()
 })
 
 it('keeps a keyless snapshot of the audio waveform controls and hover-to-manual action labels', async () => {

@@ -1,5 +1,4 @@
 - article:
-  - button "Collapse Browser" [expanded]
   - text: Browser
   - button "Back" [disabled]
   - button "Forward" [disabled]

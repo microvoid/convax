@@ -52,7 +52,7 @@ function createdConnection(nodeId: CanvasNodeId, origin: CanvasConnectionOrigin)
     sourcePort: origin.direction === 'output' ? origin.portId : 'output',
     target: origin.direction === 'input' ? origin.nodeId : nodeId,
     targetPort: origin.direction === 'input' ? origin.portId : 'input',
-    purpose: 'input',
+    purpose: origin.purpose ?? 'input',
   }
 }
 
@@ -393,7 +393,6 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
           notice.added += 1
           actions.reconcile(result.workspace.canvases.map(item => item.id),
             result.workspace.canvases.flatMap(item => item.nodes.map(node => node.id)))
-          if (canvas.nodes.some(node => node.id === nodeId)) actions.setResourceExpanded(nodeId, true)
         } catch (_operationError) {
           report(reference.name, 'unconfirmed')
           break
@@ -479,7 +478,6 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
         kind: 'add-node', node: plugins.actions.createWindowNode?.(nodeId, bindingId, name, windowPicker.position)
           ?? (() => { throw new Error('The window node plugin is unavailable') })(),
       } : { kind: 'update-node', nodeId, dataVersion: 1, data: { bindingId, name } })
-      if (admitted) actions.setResourceExpanded(nodeId, true)
       return admitted
     } finally { if (!admitted) await props.releaseWindow?.(bindingId) }
   }
@@ -547,7 +545,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
               },
               rendererDefinitions: plugins.definitions, creations: plugins.creations,
               chats: workspace.chats.filter(chat => chat.canvasId === canvas.id),
-              createChat: (cwd, folderId, position, origin) => { void addChat(cwd, folderId, position, origin, false, canvas.id) },
+              createChat: (cwd, folderId, position, origin) => addChat(cwd, folderId, position, origin, false, canvas.id),
               addProject: (position, origin) => { void addProject(position, origin, canvas.id) },
               addWindow: props.windowsAvailable !== true ? undefined : (position, nodeId) => {
                 setWindowPicker({ canvasId: canvas.id, position, ...(nodeId === undefined ? {} : { nodeId }) })
@@ -566,7 +564,7 @@ export function ConvaxWorkspace(props: WorkspaceProps) {
               consumeThreadFocus: actions.consumeThreadFocus,
               viewport: view.viewports[canvas.id], setViewport: (viewport) => { actions.setViewport(canvas.id, viewport) },
               inputMode: view.inputMode ?? props.defaultInputMode, setInputMode: actions.setInputMode,
-              resourceViews: view.resourceViews ?? {}, setResourceExpanded: actions.setResourceExpanded,
+              resourceViews: view.resourceViews ?? {},
               setResourcePreviewSize: actions.setResourcePreviewSize, applyResourceView: actions.copyResourceView,
               command: (command) => {
                 const target = currentCanvas(canvas.id)

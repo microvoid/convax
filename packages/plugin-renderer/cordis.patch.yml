@@ -32,3 +32,7 @@
       name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-host'
     - id: convax-inernal-nodes-renderer
       name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer'
+    - id: convax-creation-host
+      name: '@deepseek-ai/dsh-convax-plugin-creation-host'
+    - id: convax-creation-renderer
+      name: '@deepseek-ai/dsh-convax-plugin-creation-renderer'

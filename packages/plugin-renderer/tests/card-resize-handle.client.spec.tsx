@@ -8,15 +8,14 @@ import { resizeResource, type ResourceSize } from '../src/client/resource-size.t
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-function fixture({ collapsed = false, contentVisible = true, size = { width: 500, height: 280 } }: {
-  collapsed?: boolean
+function fixture({ contentVisible = true, size = { width: 500, height: 280 } }: {
   contentVisible?: boolean
   size?: ResourceSize
 } = {}) {
   const container = createRef<HTMLElement>()
   const content = createRef<HTMLDivElement>()
   const props = {
-    container, content, size, collapsed, resize: resizeResource,
+    container, content, size, resize: resizeResource,
     preview: vi.fn<(size: ResourceSize | null) => void>(),
     commit: vi.fn<(size: ResourceSize) => void>(),
     label: 'Resize card', help: 'Drag to resize, or use the arrow keys',
@@ -194,19 +193,7 @@ describe('Convax resource card resizing', () => {
     expect(b.props.commit).not.toHaveBeenCalled()
   })
 
-  it('resizes a collapsed card horizontally and preserves its saved expanded height', () => {
-    const b = fixture({ collapsed: true, contentVisible: false, size: { width: 500, height: 110 } })
-    pointer(b.grip, 'pointerdown', 100, 100)
-    pointer(b.grip, 'pointermove', 120, 200)
-    expect(b.props.preview).toHaveBeenLastCalledWith({ width: 660, height: 110 })
-    pointer(b.grip, 'pointerup', 130, 300)
-    expect(b.props.commit).toHaveBeenCalledExactlyOnceWith({ width: 680, height: 110 })
-    pointer(b.grip, 'pointerdown', 100, 100)
-    pointer(b.grip, 'pointerup', 100, 300)
-    expect(b.props.commit).toHaveBeenCalledOnce()
-  })
-
-  it('uses saved height when an expanded placeholder has no measurable content yet', () => {
+  it('uses saved height when a placeholder has no measurable content yet', () => {
     const b = fixture({ contentVisible: false })
     pointer(b.grip, 'pointerdown', 100, 100)
     pointer(b.grip, 'pointerup', 110, 120)
@@ -225,15 +212,6 @@ describe('Convax resource card resizing', () => {
     expect(b.props.commit).toHaveBeenCalledExactlyOnceWith(expected)
     expect(b.props.preview).not.toHaveBeenCalled()
     expect(b.parentKey).not.toHaveBeenCalled()
-  })
-
-  it('leaves collapsed height unchanged with keyboard resizing and ignores vertical arrows', () => {
-    const b = fixture({ collapsed: true, size: { width: 500, height: 110 } })
-    fireEvent.keyDown(b.grip, { key: 'ArrowUp' })
-    fireEvent.keyDown(b.grip, { key: 'ArrowDown' })
-    expect(b.props.commit).not.toHaveBeenCalled()
-    fireEvent.keyDown(b.grip, { key: 'ArrowRight' })
-    expect(b.props.commit).toHaveBeenCalledExactlyOnceWith({ width: 510, height: 110 })
   })
 
   it('ignores modifiers, composition, unrelated keys, and arrow keys during a pointer gesture', () => {

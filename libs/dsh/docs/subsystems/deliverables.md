@@ -135,7 +135,7 @@ interface WorkspaceChanges {
 
 ## Durable events and the served summary
 
-`tool-present` declaration-merges `deliverables/presented: { turn; callId; files: PresentedFile[] }` into `SessionEventMap`, appended once per successful final `present` result. `workspace-changes` merges `workspace/changes: { turn }`, appended when a top-level turn stops; the summary that event announced is not in the log but is returned by `workspaceChanges.summary(sessionId, seq)` for the event's sequence until the Session is disposed, so a conversation reopened after a Host restart has no changed-files card for its earlier turns. `workspaceChanges.diff(sessionId, seq, index, signal)` compares one listed file on the same terms. A later event for the same turn replaces the earlier one, so a client keeps only the latest. The generated [persistence catalog](../persistence-catalog.md#deliverablespresented--log-only) records both declaration sites. Neither event reaches the model.
+`tool-present` declaration-merges `deliverables/presented: { turn; callId; files: PresentedFile[]; deliveryKey? }` into `SessionEventMap`. Successful final `present` results and the [Host publisher](../../packages/deliverables/tool-present/README.md#use-this-package) share this declaration. Background publication preserves the original invocation and a durable retry key. `workspace-changes` merges `workspace/changes: { turn }`, appended when a top-level turn stops; the summary that event announced is not in the log but is returned by `workspaceChanges.summary(sessionId, seq)` for the event's sequence until the Session is disposed, so a conversation reopened after a Host restart has no changed-files card for its earlier turns. `workspaceChanges.diff(sessionId, seq, index, signal)` compares one listed file on the same terms. A later event for the same turn replaces the earlier one, so a client keeps only the latest. The generated [persistence catalog](../persistence-catalog.md#deliverablespresented--log-only) records both declaration sites. Neither event reaches the model.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -175,4 +175,28 @@ diff(sessionId: SessionId, seq: number, index: number, signal: AbortSignal): Pro
 Types: [SessionId](core.md)
 
 Source: [`packages/deliverables/workspace-changes/src/types.ts`](../../packages/deliverables/workspace-changes/src/types.ts)
+
+<a id="deliverables-events"></a>
+
+### `deliverables/*` events
+
+<a id="deliverablespublished--emit"></a>
+
+#### `deliverables/published` — emit
+
+Durable Host publication, including a Session that has no live Agent.
+
+```ts cordis-catalog
+/**
+ * Durable Host publication, including a Session that has no live Agent.
+ * @param sessionId - Session whose declaration was flushed.
+ * @param eventSeq - Stable declaration position; retries may announce it again.
+ * @mode emit
+ */
+'deliverables/published'(sessionId: SessionId, eventSeq: SessionSeq): void
+```
+
+Types: [SessionId](core.md) · [SessionSeq](session.md)
+
+Source: [`packages/deliverables/tool-present/src/types.ts`](../../packages/deliverables/tool-present/src/types.ts)
 <!-- END GENERATED cordis-surface -->

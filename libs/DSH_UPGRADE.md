@@ -81,6 +81,12 @@ Apple Silicon runner 使用 Developer ID Application 签名，将 DMG 提交 App
 
 | 适配 | 主要入口 | 升级时检查 |
 | --- | --- | --- |
+| 创作后台产物交付 | [`tool-present`](dsh/packages/deliverables/tool-present/) 的 `DeliverablePublisher`、`deliverables/presented.deliveryKey` 和 `deliverables/published`；Convax [`Creation Host`](../packages/plugin-creation-host/) | 后台任务按原始 Session 和工具调用交付，不启动 Agent；同一交付键幂等落盘；冷 Session 使用持久化写入所有权；既有交付投影继续生成原生文件节点和来源 Chat 连线 |
+| 创作服务配置与应用 | Convax [`Creation Host`](../packages/plugin-creation-host/) 的 `prepareConnection`、`connectAndApply`；[`画布事务`](../packages/plugin-host/src/repository.ts) 的精确提交记录检查 | 保留只读环境检测与模型目录；连接和工作台绑定在一次操作中生效；卡片各媒体行独立选择服务和模型，第一级 Provider、第二级模型；从媒体行新连接服务仅应用到该类型，其他行及已提交任务保留原配置；失败或重启不暴露未应用连接；未指定媒体类型的新连接只填补尚未配置的路由 |
+| 分层模型选择菜单 | DSH [`ui-primitives`](dsh/packages/client/ui-primitives/) 的 `Menu` 与 Convax 创作卡片 | 保留真实左右两级菜单；子菜单通过 body portal 避开画布裁剪，按视口翻转/限制并独立滚动；跨间隙保留指针操作，方向键进入/返回，标记当前模型 |
+| 工作台原生 Chat | Convax 创作卡片的 **New Chat** 与既有 Chat 创建流程 | 一次操作创建普通 Chat 并连接工作台能力，Chat 无需重复配置；输出端拖拽创建和连接已有 Chat 仍复用原生路径 |
+| 创作 CLI 安装 | Convax [`Creation Host`](../packages/plugin-creation-host/) 的 `installProvider`、`installationStatus` 和工作台设置弹窗 | 检测缺失后由用户点击安装官方 CLI 到 Host 私有目录；Host 持有进度与重试，成功后重新检测登录和模型；不修改 Shell 配置或重复配置 Chat |
+| 即梦连接与报价 | Convax [`Creation Host`](../packages/plugin-creation-host/) 的设备授权、自动画布与任务批准接口 | 同一工作台完成官方授权和图片/视频/音频模型配置，Provider 画布内部创建并复用；Host 私有持有设备码；生成先保存草稿并报价，独立任务面板一次确认当前展示批次并保留进度与结果，模型工具不能自行批准；三类媒体共用官方资源下载接口，核验资源种类、回执与文件后交付 |
 | 原生对话、草稿及输入框嵌入 | [`ui-conversation`](dsh/packages/client/ui-conversation/) 的 `src/client/contract/`、`skeleton/ConversationSession.tsx`、`skeleton/InputBar.tsx`、`draft.ts`、`service.ts`；[`ui-chat`](dsh/packages/client/ui-chat/) | 多个 Chat/thread 保留独立会话与草稿；输入框在卡片下方；会话切换不重建当前编辑器 |
 | 连线引用与发送准备 | [`ui-input-trigger`](dsh/packages/client/ui-input-trigger/) 的 `src/client/controller.ts`、`service.ts`；[`ui-attachment`](dsh/packages/client/ui-attachment/) 的 `ReferenceCard.tsx`、`client/ComposerAttachments.tsx`；[`session-controller`](dsh/packages/api/session-controller/) 的 `src/client/sessions/manager.ts` | 文件或窗口引用进入目标草稿；删除引用不删除连线；发送窗口引用时重新采集；失败保留草稿；历史保留发送时附件 |
 | 输入法、焦点与文字选择 | [`ui-conversation`](dsh/packages/client/ui-conversation/) 的 `src/client/input/editor/runtime.ts`、`input/machine.ts`、`skeleton/ConversationRoot.module.css`；[`ui-attachment`](dsh/packages/client/ui-attachment/) 的 `client/drop-events.ts`；[`ui-primitives`](dsh/packages/client/ui-primitives/) 的 `src/Modal.tsx` | macOS 系统拼音的首次 composition 不丢字；卡片正文支持框选和复制；前台弹层拥有键盘事件和焦点恢复 |

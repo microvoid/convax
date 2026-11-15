@@ -7,6 +7,9 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_convax_plugin_creation_host["convax-plugin-creation-host"]
+  svc_convaxCreation["ctx.convaxCreation<br/>Creation workbench media generation"]
+  pkg_convax_plugin_creation_renderer["convax-plugin-creation-renderer"]
   pkg_convax_plugin_host["convax-plugin-host"]
   svc_convax["ctx.convax<br/>Convax canvas Host"]
   pkg_convax_plugin_renderer["convax-plugin-renderer"]
@@ -347,6 +350,7 @@ flowchart LR
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
   pkg_computer_use --> svc_computerUse
   pkg_config_editor --> svc_configEditor
+  pkg_convax_plugin_creation_host --> svc_convaxCreation
   pkg_convax_plugin_host --> svc_convax
   pkg_convax_plugin_inernal_nodes_host --> svc_convaxTerminal
   pkg_cordis_host_runner --> svc_cordisInspect
@@ -504,6 +508,7 @@ flowchart LR
   svc_connection --> pkg_api_gateway
   svc_connection --> pkg_host_frontend_static
   svc_convax --> pkg_convax_plugin_renderer
+  svc_convaxCreation --> pkg_convax_plugin_creation_renderer
   svc_convaxTerminal --> pkg_convax_plugin_inernal_nodes_renderer
   svc_cordisInspect --> pkg_tool_cordis
   svc_credentials --> pkg_api_settings_controller
@@ -641,6 +646,7 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.convaxCreation` | `core` | [`convax-plugin-creation-host`](../../../packages/plugin-creation-host) | - | [`convax-plugin-creation-renderer`](../../../packages/plugin-creation-renderer) | - | Owns workbench Provider routes and durable generation tasks; native Chat tools submit requests and existing deliverables publish verified outputs to canvas file nodes. |
 | `ctx.convax` | `core` | [`convax-plugin-host`](../../../packages/plugin-host) | - | [`convax-plugin-renderer`](../../../packages/plugin-renderer) | - | Owns revisioned canvases, Chat bindings, thread operations and resource reads independently of its optional renderer. |
 | `ctx.convaxTerminal` | `core` | [`convax-plugin-inernal-nodes-host`](../../../packages/plugin-inernal-nodes-host) | - | [`convax-plugin-inernal-nodes-renderer`](../../../packages/plugin-inernal-nodes-renderer) | - | Adapts shared user terminals to committed canvas cards and their resource directories. |
 | `ctx.actionCards` | `service` | [`action-cards`](../packages/experimental/action-cards) | - | [`creation-recommendations`](../packages/experimental/creation-recommendations), [`client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | Owns the card tool, card state, user actions and status notices; card kinds register their actions and handlers. |

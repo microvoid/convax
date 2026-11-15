@@ -100,8 +100,6 @@ it('keeps canvas cards, tools, menus, focus and resource ports readable in both 
   const resource = page.locator(`[data-convax-resource="${folder}"]`)
   const header = resource.locator('[data-convax-resource-header]')
   const tree = resource.locator('[data-convax-directory-tree]')
-  await resource.getByRole('button', { name: 'Expand Project', exact: true }).click()
-  await page.locator(`[data-convax-resource="${file}"]`).getByRole('button', { name: 'Expand notes.txt', exact: true }).click()
   await tree.getByRole('button', { name: 'report.pdf', exact: true }).waitFor()
   await expect.poll(() => scaffold.ctx.convax.workspace().chats.find(chat => chat.nodeId === chatId)?.threads.length,
     { timeout: 15_000 }).toBe(1)

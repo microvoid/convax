@@ -30,6 +30,8 @@ kind: "package-group"
 | [plugin-renderer](plugin-renderer/README.zh.md) | 全窗口画布、嵌入式原生对话和可安装的产品组合。 |
 | [plugin-inernal-nodes-host](plugin-inernal-nodes-host/README.zh.md) | 默认节点定义、DSH Session 和交付适配，可独立于画布 Host 启停。 |
 | [plugin-inernal-nodes-renderer](plugin-inernal-nodes-renderer/README.zh.md) | 通过公开 Renderer 扩展提供文件和文件夹预览、Chat 卡片、窗口镜像及节点创建。 |
+| [plugin-creation-host](plugin-creation-host/README.zh.md) | 工作台 Provider 连接、持久化媒体生成，以及通过既有 Chat 和文件节点自动交付。 |
+| [plugin-creation-renderer](plugin-creation-renderer/README.zh.md) | 通过既有画布扩展提供创作工作台卡片和 Provider 配置。 |
 
 <a id="related-documentation"></a>
 ## 相关文档

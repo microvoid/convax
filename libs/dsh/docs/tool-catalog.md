@@ -15,6 +15,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-convax-plugin-creation-host` | `creation_cancel`, `creation_describe`, `creation_generate`, `creation_retry`, `creation_status` | `ctx.tools`, `ctx.agents`, `ctx.convaxCreation`, `a connected Creation workbench for generation, or existing owned jobs for recovery` | `tool/call`, `tool/result`, `Creation task records`, `deliverables/presented after successful collection` | - | Creation workbench routes supply Provider/model settings. Completed files use existing Chat deliverables and canvas file nodes. Recovery tools remain available to the originating Chat after disconnection and observe the original task without submitting a replacement generation; cancellation suppresses future delivery and separately reports remote cancellation support. |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -50,6 +51,120 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
+
+<a id="deepseek-aidsh-convax-plugin-creation-host"></a>
+
+## `@deepseek-ai/dsh-convax-plugin-creation-host`
+
+### `creation_cancel`
+
+Stop automatic delivery of future outputs and attempt to cancel the remote generation. Already delivered files remain.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobId"
+  ]
+}
+```
+
+Source: [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_describe`
+
+Read the connected workbench media capabilities, exact generation parameter schemas, reference roles and configured defaults.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_generate`
+
+Generate an image, video or audio using the connected Creation workbench. Returns a durable task ID; completed media is automatically delivered. creation_status returns generated assetIds and file paths. An awaiting-approval task requires workbench credit consent before paid execution; a new request or retry does not grant consent. Outputs do not require present. Parameters must match the current creation_describe schema.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "image",
+        "video",
+        "audio"
+      ]
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "references": {
+      "description": "Array of {source:{assetId} or {path},role}. Use an existing media file; e.g. role first-frame or reference, as supported by the configured Provider."
+    },
+    "parameters": {
+      "description": "Generation settings matching the parameterSchema returned by creation_describe. Overrides the workbench defaults."
+    }
+  },
+  "required": [
+    "kind",
+    "prompt"
+  ]
+}
+```
+
+Source: [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_retry`
+
+Recover an existing creation task after a query, download or delivery failure. Does not start a new paid generation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobId"
+  ]
+}
+```
+
+Source: [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_status`
+
+Read a creation task and its completed media files.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobId"
+  ]
+}
+```
+
+Source: [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+Creation workbench routes supply Provider/model settings. Completed files use existing Chat deliverables and canvas file nodes. Recovery tools remain available to the originating Chat after disconnection and observe the original task without submitting a replacement generation; cancellation suppresses future delivery and separately reports remote cancellation support.
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

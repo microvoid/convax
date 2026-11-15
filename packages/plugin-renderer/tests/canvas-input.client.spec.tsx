@@ -34,7 +34,7 @@ function renderFixture(mode: CanvasInputMode, overrides: Partial<CanvasGraphProp
     chats: [], nodeTypes: [], nodeIssues: [], renderSlot: () => null,
     history: { canUndo: false, canRedo: false, pending: false }, replayHistory: vi.fn(),
     chatPresentations: {}, applyChatPresentation: vi.fn(), applyResourceView: vi.fn(),
-    resourceViews: {}, setResourceExpanded: vi.fn(), setResourcePreviewSize: vi.fn(),
+    resourceViews: {}, setResourcePreviewSize: vi.fn(),
     createChat: vi.fn(), captureConnectionTarget: origin => origin, reportClipboard: vi.fn(), addProject: vi.fn(),
     threadFocus: undefined, consumeThreadFocus: vi.fn(),
     t: ((key: ConvaxKey) => en[key]) as CanvasGraphProps['t'],
@@ -102,7 +102,7 @@ it('supplies creation contributions with the owning canvas and narrow current-re
   expect(inputDirectory).toHaveBeenCalledWith('source')
 })
 
-function revealFixture(zoom = 1, collapsed = false) {
+function revealFixture(zoom = 1) {
   vi.useFakeTimers()
   vi.stubGlobal('DOMMatrixReadOnly', class { readonly m22 = 1 })
   const observations = new Map<Element, (entries: ResizeObserverEntry[]) => void>()
@@ -120,7 +120,6 @@ function revealFixture(zoom = 1, collapsed = false) {
       data: { title: 'Automation conversation', cwd: '/project' }, position: { x: 1200, y: 800 },
     }] },
     nodeTypes: [{ id: typeId, dataVersion: 1, ports: [] }],
-    chatPresentations: { [nodeId]: { collapsed } },
     viewport: { x: 0, y: 0, zoom },
     threadFocus: { nodeId, sessionId: 'original-automation-thread' as SessionId },
     renderSlot: () => <div>Automation conversation</div>,
@@ -171,10 +170,9 @@ describe('Canvas input gestures', () => {
     expect((800 + 240 / 2) * viewport.zoom + viewport.y).toBeCloseTo(300)
   })
 
-  it('waits for expanded conversation dimensions before revealing a collapsed Chat', async () => {
-    const b = revealFixture(0.5, true)
-    b.measure(320, 60)
-    b.view.rerender(<CanvasGraph {...b.props} threadFocus={undefined} chatPresentations={{ [b.nodeId]: { collapsed: false } }} />)
+  it('waits for measured conversation dimensions before revealing a Chat', async () => {
+    const b = revealFixture(0.5)
+    b.view.rerender(<CanvasGraph {...b.props} threadFocus={undefined} />)
     await act(async () => { vi.advanceTimersByTime(1); vi.advanceTimersToNextFrame() })
     expect(b.read()).toEqual({ x: 0, y: 0, zoom: 0.5 })
     b.measure(320, 360)

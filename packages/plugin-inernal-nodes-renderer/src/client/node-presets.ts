@@ -6,12 +6,12 @@ import type { CanvasCreationDefinition, CanvasWorkspaceActions, WorkspaceProps }
 
 /** Presentation metadata remains independently reusable in real composition fixtures. */
 export const defaultNodePresentation = {
-  'convax.file': { defaultSize: { width: 320, height: 140 }, presentation: 'resource' as const },
-  'convax.folder': { defaultSize: { width: 320, height: 140 }, presentation: 'resource' as const },
+  'convax.file': { defaultSize: { width: 320, height: 280 }, presentation: 'resource' as const },
+  'convax.folder': { defaultSize: { width: 320, height: 280 }, presentation: 'resource' as const },
   'convax.chat': { defaultSize: { width: 620, height: 680 }, presentation: 'chat' as const,
     dragHandle: '[data-convax-chat-drag]', clipboardData: defaultNodeClipboardData },
   'convax.terminal': { defaultSize: { width: 640, height: 400 }, presentation: 'resource' as const, dragHandle: '[data-convax-tool-drag]' },
-  'convax.browser': { defaultSize: { width: 640, height: 480 }, presentation: 'resource' as const, defaultExpanded: true, dragHandle: '[data-convax-browser-header]' },
+  'convax.browser': { defaultSize: { width: 640, height: 480 }, presentation: 'resource' as const, dragHandle: '[data-convax-browser-header]' },
   'convax.window': { defaultSize: { width: 480, height: 310 }, presentation: 'resource' as const, dragHandle: '[data-convax-window-header]' },
 }
 
@@ -50,12 +50,12 @@ export function defaultNodeActions(describe: (path: string) => Promise<CanvasRes
 /** Translated entries stay reactive because labels resolve at render time. */
 export function defaultNodeCreations(t: WorkspaceProps['t'], windowsAvailable = false): CanvasCreationDefinition[] {
   return [
-    { id: 'project', label: () => t('workspace.addProject'), icon: FolderClosed, dockGroup: 'resources', defaultSize: { width: 320, height: 140 },
+    { id: 'project', label: () => t('workspace.addProject'), icon: FolderClosed, dockGroup: 'resources', defaultSize: { width: 320, height: 280 },
       create: (action) => {
         if (action.origin === undefined) action.addProject(action.position)
         else action.addProject(action.position, action.origin)
       } },
-    { id: 'files', label: () => t('workspace.addFile'), icon: FilePlus, dockGroup: 'resources', defaultSize: { width: 320, height: 140 },
+    { id: 'files', label: () => t('workspace.addFile'), icon: FilePlus, dockGroup: 'resources', defaultSize: { width: 320, height: 280 },
       create: (action) => {
         if (action.origin === undefined) action.addFiles(action.position)
         else action.addFiles(action.position, action.origin)
@@ -78,7 +78,7 @@ export function defaultNodeCreations(t: WorkspaceProps['t'], windowsAvailable = 
         id: randomUUID() as CanvasNode['id'], typeId: 'convax.browser' as CanvasNodeTypeId,
         dataVersion: 1, data: {}, position: action.position, revision: 0,
       } }) } },
-    { id: 'chat', label: () => t('chat.new'), icon: BotMessageSquare, defaultSize: { width: 620, height: 680 },
+    { id: 'chat', acceptsCapabilities: true, label: () => t('chat.new'), icon: BotMessageSquare, defaultSize: { width: 620, height: 680 },
       create: (action) => {
         if (action.origin === undefined) action.createChat(undefined, undefined, action.position)
         else action.createChat(undefined, undefined, action.position, action.origin)

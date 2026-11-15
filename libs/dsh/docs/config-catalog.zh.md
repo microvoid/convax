@@ -778,6 +778,24 @@ export interface ToolResultPruneConfig {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-compaction-tool-result-pruner -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-convax-plugin-creation-host -->
+<a id="deepseek-aidsh-convax-plugin-creation-host"></a>
+
+## `@deepseek-ai/dsh-convax-plugin-creation-host`
+
+- `inject`: `convax` · `storageDomain` · `credentials` · `subprocess` · `fs` · `tools` · `agents` · `sessions` · `sessionPersistence` · `sessionProjections` · `systemPrompt`
+- `source`: [`../../packages/plugin-creation-host/src/index.ts:24`](../../../packages/plugin-creation-host/src/index.ts)
+
+```ts config-catalog
+export interface Config {
+  /** Maximum bytes admitted for each reference or generated media file. */
+  maxBytes: number
+  /** Interval between read-only Provider status queries, in milliseconds. */
+  pollMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-convax-plugin-creation-host -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-convax-plugin-host -->
 <a id="deepseek-aidsh-convax-plugin-host"></a>
 
@@ -4100,7 +4118,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-tool-present`
 
 - `inject`: `tools` · `fs` · `agents` · `workingDirectory`
-- `source`: [`packages/deliverables/tool-present/src/index.ts:15`](../packages/deliverables/tool-present/src/index.ts)
+- `source`: [`packages/deliverables/tool-present/src/index.ts:19`](../packages/deliverables/tool-present/src/index.ts)
 
 ```ts config-catalog
 /** Per-call delivery limit. */
@@ -4835,6 +4853,7 @@ export interface Config {
 | `@deepseek-ai/dsh-compaction-image-offload` | `agents` · `sessions` | [`packages/compaction/compaction-image-offload/src/index.ts`](../packages/compaction/compaction-image-offload/src/index.ts) |
 | `@deepseek-ai/dsh-computer-use` | — | [`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts) |
 | `@deepseek-ai/dsh-config-editor` | `loader` · `profileContext` | [`packages/boot/config-editor/src/index.ts`](../packages/boot/config-editor/src/index.ts) |
+| `@deepseek-ai/dsh-convax-plugin-creation-renderer` | — | [`../../packages/plugin-creation-renderer/src/index.ts`](../../../packages/plugin-creation-renderer/src/index.ts) |
 | `@deepseek-ai/dsh-convax-plugin-inernal-nodes-host` | `convax` · `fs` · `agents` · `sessions` · `sessionPersistence` · `sessionProjections` | [`../../packages/plugin-inernal-nodes-host/src/index.ts`](../../../packages/plugin-inernal-nodes-host/src/index.ts) |
 | `@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer` | — | [`../../packages/plugin-inernal-nodes-renderer/src/index.ts`](../../../packages/plugin-inernal-nodes-renderer/src/index.ts) |
 | `@deepseek-ai/dsh-convax-plugin-renderer` | — | [`../../packages/plugin-renderer/src/index.ts`](../../../packages/plugin-renderer/src/index.ts) |

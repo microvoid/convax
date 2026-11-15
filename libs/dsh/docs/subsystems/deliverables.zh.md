@@ -135,7 +135,7 @@ interface WorkspaceChanges {
 
 ## 持久事件与提供的摘要
 
-`tool-present` 通过声明合并把 `deliverables/presented: { turn; callId; files: PresentedFile[] }` 加入 `SessionEventMap`，每次 `present` 的最终结果成功时追加一条。`workspace-changes` 合并 `workspace/changes: { turn }`，在顶层轮停止时追加；该事件宣告的摘要不在日志里，而是由 `workspaceChanges.summary(sessionId, seq)` 按事件序号返回，直到 Session 释放，因此 Host 重启后重新打开的对话，先前轮次没有改动文件卡片。`workspaceChanges.diff(sessionId, seq, index, signal)` 按同样的条件对比一个所列文件。同一轮后来的事件替代先前的，客户端只保留最新一条。生成的[持久化目录](../persistence-catalog.zh.md#deliverablespresented--log-only)记录了两处声明位置。两个事件都不会进入模型请求。
+`tool-present` 通过声明合并把 `deliverables/presented: { turn; callId; files: PresentedFile[]; deliveryKey? }` 加入 `SessionEventMap`。成功的最终 `present` 结果与 [Host 发布器](../../packages/deliverables/tool-present/README.zh.md#use-this-package)共用此声明。后台发布保留原始调用身份和持久重试键。`workspace-changes` 合并 `workspace/changes: { turn }`，在顶层轮停止时追加；该事件宣告的摘要不在日志里，而是由 `workspaceChanges.summary(sessionId, seq)` 按事件序号返回，直到 Session 释放，因此 Host 重启后重新打开的对话，先前轮次没有改动文件卡片。`workspaceChanges.diff(sessionId, seq, index, signal)` 按同样的条件对比一个所列文件。同一轮后来的事件替代先前的，客户端只保留最新一条。生成的[持久化目录](../persistence-catalog.zh.md#deliverablespresented--log-only)记录了两处声明位置。两个事件都不会进入模型请求。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -175,4 +175,28 @@ diff(sessionId: SessionId, seq: number, index: number, signal: AbortSignal): Pro
 Types: [SessionId](core.zh.md)
 
 Source: [`packages/deliverables/workspace-changes/src/types.ts`](../../packages/deliverables/workspace-changes/src/types.ts)
+
+<a id="deliverables-events"></a>
+
+### `deliverables/*` events
+
+<a id="deliverablespublished--emit"></a>
+
+#### `deliverables/published` — emit
+
+Durable Host publication, including a Session that has no live Agent.
+
+```ts cordis-catalog
+/**
+ * Durable Host publication, including a Session that has no live Agent.
+ * @param sessionId - Session whose declaration was flushed.
+ * @param eventSeq - Stable declaration position; retries may announce it again.
+ * @mode emit
+ */
+'deliverables/published'(sessionId: SessionId, eventSeq: SessionSeq): void
+```
+
+Types: [SessionId](core.zh.md) · [SessionSeq](session.zh.md)
+
+Source: [`packages/deliverables/tool-present/src/types.ts`](../../packages/deliverables/tool-present/src/types.ts)
 <!-- END GENERATED cordis-surface -->

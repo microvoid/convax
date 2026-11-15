@@ -1,19 +1,22 @@
 - application:
   - group:
     - article:
-      - button "Expand notes.txt"
       - text: notes.txt TXT · 29B
+      - button "Line wrap"
+      - text: Canvas interaction fixture 1
       - button "Resize preview"
   - group:
     - article:
-      - button "Expand outline.md"
       - text: outline.md MD · 29B
+      - button "Open with": Markdown
+      - paragraph: Canvas interaction fixture 2
       - button "Resize preview"
   - img
   - button "Add folder or files"
   - button "Terminal"
   - button "Browser"
   - button "New chat"
+  - button "Creation workbench"
 - button "Canvas input mode"
 - button "Zoom out"
 - button "Reset zoom to 100%"

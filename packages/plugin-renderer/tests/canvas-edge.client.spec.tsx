@@ -66,7 +66,7 @@ async function fixture() {
     </article>,
     history: { canUndo: false, canRedo: false, pending: false }, replayHistory: vi.fn(),
     chatPresentations: {}, applyChatPresentation: vi.fn(), applyResourceView: vi.fn(),
-    resourceViews: {}, setResourceExpanded: vi.fn(), setResourcePreviewSize: vi.fn(),
+    resourceViews: {}, setResourcePreviewSize: vi.fn(),
     createChat: vi.fn(), captureConnectionTarget: origin => origin, reportClipboard: vi.fn(), addProject: vi.fn(),
     threadFocus: undefined, consumeThreadFocus: vi.fn(),
     t: ((key: ConvaxKey) => en[key]) as CanvasGraphProps['t'],

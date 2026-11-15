@@ -143,6 +143,8 @@ test('DSH discovers Convax plugins independently of the cloud API contracts', ()
   const patterns = readJson('libs/dsh/package.json').dshWorkspacePackages
   assert.deepEqual(patterns, ['../../packages/plugin-*'])
   assert.deepEqual(globSync(patterns.map(pattern => `${pattern}/package.json`), { cwd: join(root, 'libs/dsh') }).sort(), [
+    '../../packages/plugin-creation-host/package.json',
+    '../../packages/plugin-creation-renderer/package.json',
     '../../packages/plugin-host/package.json',
     '../../packages/plugin-inernal-nodes-host/package.json',
     '../../packages/plugin-inernal-nodes-renderer/package.json',

@@ -26,7 +26,7 @@ const OPERATIONS = [
   branch('group.set', { id: STRING, title: { type: 'string' }, color: { oneOf: [GROUP_COLOR, { type: 'null' }] } }),
   branch('group.remove', { id: STRING }), branch('group.move', { id: STRING, delta: { ...POSITION, required: true } }),
   branch('edge.add', { id: STRING, source: STRING, sourcePort: STRING, target: STRING, targetPort: STRING,
-    purpose: { type: 'string', enum: ['input', 'delivery'], required: true } }),
+    purpose: { type: 'string', enum: ['input', 'delivery', 'capability'], required: true } }),
   branch('edge.remove', { id: STRING }),
   branch('history', { targetOperationId: STRING, direction: { type: 'string', enum: ['undo', 'redo'], required: true } }),
 ] as const

@@ -4,21 +4,21 @@
     {
       "kind": "file",
       "width": 440,
-      "height": 300
+      "height": 280
     },
     {
       "kind": "folder",
-      "width": 440,
+      "width": 400,
       "height": 300
     },
     {
       "kind": "window",
-      "width": 600,
+      "width": 560,
       "height": 330
     },
     {
       "kind": "chat",
-      "width": 740,
+      "width": 700,
       "height": 300
     }
   ],

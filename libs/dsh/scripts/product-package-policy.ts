@@ -16,6 +16,8 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
+  '../../packages/plugin-creation-host': { category: 'optional', reason: 'Built-in media creation selected by the Convax product bundle.' },
+  '../../packages/plugin-creation-renderer': { category: 'optional', reason: 'Creation workbench display using the public Convax node registry.' },
   '../../packages/plugin-host': { category: 'optional', reason: 'Durable canvas Host selected by the Convax product bundle.' },
   '../../packages/plugin-renderer': { category: 'optional', reason: 'Optional full-window canvas interface with independent Host lifecycle.' },
   '../../packages/plugin-inernal-nodes-host': { category: 'optional', reason: 'Default Convax node providers, independently removable from the canvas Host.' },

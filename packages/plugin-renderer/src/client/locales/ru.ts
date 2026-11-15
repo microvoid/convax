@@ -221,8 +221,6 @@ export const ru: Record<ConvaxKey, string> = {
   'canvas.zoom.fit': 'Уместить холст',
   'chat.actions': 'Действия чата',
   'chat.threadActions': 'Действия текущей ветки',
-  'chat.collapse': 'Свернуть чат',
-  'chat.expand': 'Развернуть чат',
   'chat.focus': 'Показать этот чат',
   'chat.resize': 'Изменить размер чата',
   'chat.resizeHelp': 'Перетащите для изменения размера или используйте клавиши со стрелками',

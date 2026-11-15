@@ -19,6 +19,7 @@
 
 | 工具包 | 模型可见名称 | 依赖 | 写入／影响 | 随产品发布的别名 | 部署说明 |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-convax-plugin-creation-host` | `creation_cancel`, `creation_describe`, `creation_generate`, `creation_retry`, `creation_status` | `ctx.tools`, `ctx.agents`, `ctx.convaxCreation`, `a connected Creation workbench for generation, or existing owned jobs for recovery` | `tool/call`, `tool/result`, `Creation task records`, `deliverables/presented after successful collection` | - | 创作工作台路由提供 Provider/模型设置。完成的文件复用现有 Chat 交付物和画布文件节点。来源 Chat 断开工作台后仍可使用恢复工具，观察原任务而不提交替代生成；取消操作抑制后续交付，并单独报告远端取消支持情况。 |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -54,6 +55,120 @@
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+
+<a id="deepseek-aidsh-convax-plugin-creation-host"></a>
+
+## `@deepseek-ai/dsh-convax-plugin-creation-host`
+
+### `creation_cancel`
+
+停止后续产物自动交付，并尝试取消远端生成。已经交付的文件保留。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobId"
+  ]
+}
+```
+
+来源： [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_describe`
+
+读取连接工作台的媒体能力、准确的生成参数 Schema、参考素材角色及默认参数。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源： [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_generate`
+
+使用连接的创作工作台生成图片、视频或音频。返回持久化任务 ID，完成的媒体会自动交付。creation_status 返回产物 assetId 和文件路径。处于 awaiting-approval 的任务在付费执行前需要工作台积分批准；新请求或重试不会授予批准。产物无需调用 present。参数必须匹配当前 creation_describe Schema。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "image",
+        "video",
+        "audio"
+      ]
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "references": {
+      "description": "Array of {source:{assetId} or {path},role}. Use an existing media file; e.g. role first-frame or reference, as supported by the configured Provider."
+    },
+    "parameters": {
+      "description": "Generation settings matching the parameterSchema returned by creation_describe. Overrides the workbench defaults."
+    }
+  },
+  "required": [
+    "kind",
+    "prompt"
+  ]
+}
+```
+
+来源： [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_retry`
+
+在查询、下载或交付失败后恢复已有创作任务，不发起新的付费生成。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobId"
+  ]
+}
+```
+
+来源： [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+### `creation_status`
+
+读取创作任务及其已完成媒体文件。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobId"
+  ]
+}
+```
+
+来源： [`../../packages/plugin-creation-host/src/tools.ts`](../../../packages/plugin-creation-host/src/tools.ts)
+
+创作工作台路由提供 Provider/模型设置。完成的文件复用现有 Chat 交付物和画布文件节点。来源 Chat 断开工作台后仍可使用恢复工具，观察原任务而不提交替代生成；取消操作抑制后续交付，并单独报告远端取消支持情况。
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

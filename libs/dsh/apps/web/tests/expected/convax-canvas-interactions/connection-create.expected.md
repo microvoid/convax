@@ -4,17 +4,18 @@
   - button "Cut connection"
   - group:
     - article:
-      - button "Expand notes.txt"
       - text: notes.txt TXT · 29B
+      - button "Line wrap"
+      - text: Canvas interaction fixture 1
       - button "Resize preview"
   - group:
     - article:
-      - button "Expand outline.md"
       - text: outline.md MD · 29B
+      - button "Open with": Markdown
+      - paragraph: Canvas interaction fixture 2
       - button "Resize preview"
   - group:
     - article:
-      - button "Collapse chat" [expanded]
       - tablist "Chat threads":
         - tab "{{workspace}}" [selected]
         - button "Current thread actions"
@@ -33,8 +34,10 @@
       - button "Resize chat"
   - group:
     - article:
-      - button "Expand cancelled-project"
       - text: cancelled-project Folder
+      - list "Contents of cancelled-project":
+        - listitem:
+          - button "README.md"
       - button "Resize preview"
   - toolbar "Actions for cancelled-project":
     - button "Focus this card"
@@ -47,6 +50,7 @@
   - button "Terminal"
   - button "Browser"
   - button "New chat"
+  - button "Creation workbench"
 - button "Canvas input mode"
 - button "Zoom out"
 - button "Reset zoom to 100%"

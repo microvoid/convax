@@ -146,7 +146,7 @@ describe('Convax embedded Conversation compatibility', () => {
           },
           definition, canvasId: chat.canvasId, ports: definition.ports,
           active: true, selected: false, busy: false, focusSessionId: undefined,
-          resourceExpanded: false, setResourceExpanded: () => {}, setResourcePreviewSize: () => {},
+          setResourcePreviewSize: () => {},
           command: async () => true, openResource: () => {}, openSource: () => {}, createChat: () => {},
         }, { entryKey: definition.id })}</div>)}
       </div>

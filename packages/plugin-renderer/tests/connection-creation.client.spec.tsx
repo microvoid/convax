@@ -37,7 +37,7 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
-async function fixture() {
+async function fixture(capability = false) {
   const captureConnectionTarget = vi.fn<CanvasGraphProps['captureConnectionTarget']>(origin => ({
     ...origin, targetSession: { sessionId: 'original-thread' as SessionId },
   }))
@@ -45,10 +45,11 @@ async function fixture() {
     document: { id: 'connection-create' as CanvasId, title: 'Board', revision: 1, connections: [], nodes: [{
       id: SOURCE, typeId: TYPE, position: { x: 40, y: 80 }, revision: 1, dataVersion: 1, data: {},
     }] },
-    chats: [], nodeTypes: [{ id: TYPE, dataVersion: 1, ports: [] }], nodeIssues: [], renderSlot: () => <article>Reference</article>,
+    chats: [], nodeTypes: [{ id: TYPE, dataVersion: 1,
+      ...(capability ? { capabilities: { provides: ['creation'] }, ports: [{ id: 'output', direction: 'output' as const, valueKind: 'capability' }] } : { ports: [] }) }], nodeIssues: [], renderSlot: vi.fn(() => <article>Reference</article>),
     history: { canUndo: false, canRedo: false, pending: false }, replayHistory: vi.fn(),
     chatPresentations: {}, applyChatPresentation: vi.fn(), applyResourceView: vi.fn(),
-    resourceViews: {}, setResourceExpanded: vi.fn(), setResourcePreviewSize: vi.fn(),
+    resourceViews: {}, setResourcePreviewSize: vi.fn(),
     createChat: vi.fn(), captureConnectionTarget, reportClipboard: vi.fn(), addProject: vi.fn(),
     threadFocus: undefined, consumeThreadFocus: vi.fn(),
     t: ((key: ConvaxKey) => en[key]) as CanvasGraphProps['t'],
@@ -84,6 +85,39 @@ async function fixture() {
 }
 
 describe('Connection creation in blank canvas space', () => {
+  it('lets a capability card create a native Chat with its output already connected', async () => {
+    const b = await fixture(true)
+    await waitFor(() => { expect(vi.mocked(b.props.renderSlot).mock.lastCall?.[1].createConnectedChat).toBeTypeOf('function') })
+    await act(async () => { await vi.mocked(b.props.renderSlot).mock.lastCall?.[1].createConnectedChat?.() })
+    expect(b.props.createChat).toHaveBeenCalledExactlyOnceWith(undefined, undefined, { x: 480, y: 80 }, {
+      nodeId: SOURCE, portId: 'output', direction: 'output', purpose: 'capability',
+    })
+  })
+
+  it('does not expose capability chat creation on an ordinary reference card', async () => {
+    const b = await fixture()
+    await waitFor(() => { expect(b.props.renderSlot).toHaveBeenCalled() })
+    expect(vi.mocked(b.props.renderSlot).mock.lastCall?.[1].createConnectedChat).toBeUndefined()
+  })
+
+  it('offers only native Chat creation from a capability port and preserves binding semantics', async () => {
+    const b = await fixture(true)
+    const origin = b.start()
+    b.drop()
+    expect(origin.purpose).toBe('capability')
+    expect(b.view.queryByRole('menuitem', { name: 'Terminal' })).toBeNull()
+    expect(b.view.queryByRole('menuitem', { name: 'Add files' })).toBeNull()
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'New chat' }))
+    expect(b.props.createChat).toHaveBeenCalledExactlyOnceWith(undefined, undefined, { x: 450, y: 300 }, origin)
+  })
+
+  it('uses capability semantics when wiring the workbench to an existing Chat', async () => {
+    const b = await fixture(true)
+    b.start()
+    act(() => { callbacks.current?.onConnect?.({ source: SOURCE, sourceHandle: 'output', target: 'chat', targetHandle: 'input' }) })
+    expect(vi.mocked(b.props.command).mock.calls[0]?.[0]).toMatchObject({ connection: { purpose: 'capability' } })
+  })
+
   it('creates an input-only terminal from an output origin with the captured source connection', async () => {
     const b = await fixture()
     b.start('output')

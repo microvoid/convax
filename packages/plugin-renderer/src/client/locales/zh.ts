@@ -221,8 +221,6 @@ export const zh: Record<ConvaxKey, string> = {
   'canvas.zoom.fit': '适应画布',
   'chat.actions': '聊天操作',
   'chat.threadActions': '当前会话操作',
-  'chat.collapse': '折叠聊天',
-  'chat.expand': '展开聊天',
   'chat.focus': '聚焦此聊天',
   'chat.resize': '调整聊天尺寸',
   'chat.resizeHelp': '拖拽或使用方向键调整尺寸',

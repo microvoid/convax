@@ -109,7 +109,9 @@
   "dependencies": {
     "@deepseek-ai/dsh-convax-plugin-host": "workspace:*",
     "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host": "workspace:*",
-    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*"
+    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-creation-host": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-creation-renderer": "workspace:*"
   },
   "repository": {
     "type": "git",

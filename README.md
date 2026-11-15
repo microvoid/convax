@@ -25,9 +25,10 @@ Watch the interface demos on the [Convax website](https://microvoid.io/convax/),
 | Feature | What you can do |
 |---|---|
 | Infinite canvas | Pan, zoom, select multiple cards, snap them into alignment, connect nodes, and undo or redo graph edits. Choose trackpad or mouse navigation. |
-| Files and folders | Drag local resources into Desktop, browse folder cards, and expand previews for text, code, Markdown, images, PDF, spreadsheets, audio, and video. |
+| Files and folders | Drag local resources into Desktop, browse folder cards, and preview text, code, Markdown, images, PDF, spreadsheets, audio, and video. |
 | Terminal and browser cards | Run interactive shells and browse pages directly on the canvas. Switching canvases or closing a canvas tab preserves them; deleting a card closes its resource. |
 | AI conversations | Create Chat cards with multiple threads, fork conversations, and use the existing DSH composer, model controls, permissions, and tools. |
+| Creation workbenches | Configure media Providers once, connect a workbench to ordinary Chats, and generate images, video, and audio through conversation. Completed files appear on the canvas linked to their source Chat. [Provider setup](packages/plugin-creation-host/README.md). |
 | Explicit references | Connect resources to a Chat to add removable references to its input. Sending uses the references in that draft; removing a reference keeps its canvas connection. |
 | Window mirrors | Mirror a specific application window on macOS Desktop. Connect it to a Chat to capture a fresh screenshot when you send. |
 | Multiple canvases | Switch and reorder browser-style tabs; search, rename, archive, restore, duplicate, or permanently delete saved canvases. |

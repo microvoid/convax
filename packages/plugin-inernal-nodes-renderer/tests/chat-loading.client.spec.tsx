@@ -56,9 +56,9 @@ describe('Convax Chat initialization', () => {
     const SessionProvider: ChatThreadProps['SessionProvider'] = ({ session, children }) =>
       session === undefined ? null : children
     const inputs = {
-      sessionId: SID, active: true, collapsed: false, useResource: () => resource(), SessionProvider,
+      sessionId: SID, active: true, useResource: () => resource(), SessionProvider,
       renderSlot: () => renderSlot(), layoutChanged: () => {}, t: makeTranslate(en),
-    } satisfies Pick<ChatThreadProps, 'sessionId' | 'active' | 'collapsed' | 'useResource' | 'SessionProvider'
+    } satisfies Pick<ChatThreadProps, 'sessionId' | 'active' | 'useResource' | 'SessionProvider'
       | 'renderSlot' | 'layoutChanged' | 't'>
     const props = inputs as ChatThreadProps
     const view = render(<ChatThread {...props} />)

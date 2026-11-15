@@ -9,9 +9,8 @@ import type { CanvasInputMode } from './input-mode.ts'
 import { orderedChatThreads } from './thread-order.ts'
 import type { CanvasChatPresentation } from './props.ts'
 
-/** Window-local expansion and preview dimensions for one resource node. */
+/** Window-local preview dimensions for one resource node. */
 export interface ResourceView {
-  expanded: boolean
   width?: number
   height?: number
 }
@@ -44,7 +43,6 @@ type ViewActions = {
   browse: (draft: ViewState, path: string) => void
   setViewport: (draft: ViewState, id: CanvasId, viewport: Viewport) => void
   setInputMode: (draft: ViewState, mode: CanvasInputMode) => void
-  setResourceExpanded: (draft: ViewState, nodeId: CanvasNodeId, expanded: boolean) => void
   setResourcePreviewSize: (draft: ViewState, nodeId: CanvasNodeId, size: ResourceSize) => void
   copyResourceView: (draft: ViewState, nodeId: CanvasNodeId, view: ResourceView) => void
   stageDeletion: (draft: ViewState, request: CanvasCommandRequest) => void
@@ -111,12 +109,8 @@ export function createCanvasViewStore(): EngineStoreHandle<ViewState, ViewAction
       browse: (draft, path: string) => { draft.directory = path },
       setViewport: (draft, id: CanvasId, viewport: Viewport) => { draft.viewports[id] = viewport },
       setInputMode: (draft, mode: CanvasInputMode) => { draft.inputMode = mode },
-      setResourceExpanded: (draft, nodeId: CanvasNodeId, expanded: boolean) => {
-        const view = (draft.resourceViews ??= {})[nodeId] ??= { expanded: false }
-        view.expanded = expanded
-      },
       setResourcePreviewSize: (draft, nodeId: CanvasNodeId, size: ResourceSize) => {
-        const view = (draft.resourceViews ??= {})[nodeId] ??= { expanded: false }
+        const view = (draft.resourceViews ??= {})[nodeId] ??= {}
         view.width = size.width
         view.height = size.height
       },
@@ -163,7 +157,6 @@ type ChatViewState = {
   threadAttempts: Record<string, CanvasThreadRequest>
   visitedThreads?: Record<string, SessionId[]>
   threadOrders?: Record<string, SessionId[]>
-  collapsedChats?: Record<string, boolean>
   sizes?: Record<string, ChatSize>
   /** Tool panel widths are shared by a Chat's threads and retained separately for each display mode. */
   toolWidths?: Record<string, { normal?: number; fullscreen?: number }>
@@ -175,7 +168,6 @@ type ChatViewActions = {
   stageThread: (draft: ChatViewState, nodeId: CanvasNodeId, request: CanvasThreadRequest) => void
   finishThread: (draft: ChatViewState, nodeId: CanvasNodeId, operationId: CanvasOperationId, sessionId: SessionId) => void
   clearThreadAttempt: (draft: ChatViewState, nodeId: CanvasNodeId, operationId: CanvasOperationId) => void
-  setCollapsed: (draft: ChatViewState, nodeId: CanvasNodeId, collapsed: boolean) => void
   setSize: (draft: ChatViewState, nodeId: CanvasNodeId, size: ChatSize) => void
   setToolWidth: (draft: ChatViewState, nodeId: CanvasNodeId, width: number, fullscreen: boolean) => void
   copyPresentation: (draft: ChatViewState, nodeId: CanvasNodeId, presentation: CanvasChatPresentation) => void
@@ -220,14 +212,12 @@ export function createChatViewStore(): EngineStoreHandle<ChatViewState, ChatView
         const visited = (draft.visitedThreads ??= {})[nodeId] ??= []
         if (!visited.includes(sessionId)) visited.push(sessionId)
       },
-      setCollapsed: (draft, nodeId: CanvasNodeId, collapsed: boolean) => { (draft.collapsedChats ??= {})[nodeId] = collapsed },
       setSize: (draft, nodeId: CanvasNodeId, size: ChatSize) => { (draft.sizes ??= {})[nodeId] = size },
       setToolWidth: (draft, nodeId: CanvasNodeId, width: number, fullscreen: boolean) => {
         const widths = (draft.toolWidths ??= {})[nodeId] ??= {}
         widths[fullscreen ? 'fullscreen' : 'normal'] = width
       },
       copyPresentation: (draft, nodeId: CanvasNodeId, presentation: CanvasChatPresentation) => {
-        (draft.collapsedChats ??= {})[nodeId] = presentation.collapsed
         if (presentation.size === undefined) delete draft.sizes?.[nodeId]
         else (draft.sizes ??= {})[nodeId] = { ...presentation.size }
         if (presentation.toolWidths === undefined) delete draft.toolWidths?.[nodeId]

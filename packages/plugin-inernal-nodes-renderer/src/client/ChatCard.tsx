@@ -1,9 +1,8 @@
 /** Canvas-owned navigation around retained DSH Conversation and native tool surfaces. */
 import type {} from '@deepseek-ai/dsh-client-ui-schedule/client'
-import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { CanvasHandle as Handle, CanvasHandlePosition as Position, useCanvasNodeLayout as useUpdateNodeInternals } from '@deepseek-ai/dsh-convax-plugin-renderer/client'
-import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { CanvasOperationId, CanvasThreadRequest, CanvasThreadResult } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
@@ -84,23 +83,23 @@ export function ChatThread(props: ChatThreadProps) {
   const resource = props.useResource<'convax-thread'>(resourceAddress('convax-thread', props.sessionId))
   const body = useRef<HTMLDivElement>(null)
   const tools = useRef<HTMLDivElement>(null)
-  useToolsCardHeight(body, tools, props.active && !props.collapsed, resource.value !== undefined, props.layoutChanged)
-  return <div className={css.chatOccurrence} hidden={!props.active || props.collapsed} data-convax-thread={props.sessionId}>
+  useToolsCardHeight(body, tools, props.active, resource.value !== undefined, props.layoutChanged)
+  return <div className={css.chatOccurrence} hidden={!props.active} data-convax-thread={props.sessionId}>
     {resource.value === undefined ? <div ref={body} className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`}>
       {resource.status === 'loading' && <div className={css.center}><span className={css.spinner} /></div>}
       {resource.status === 'failed' && <p className={css.notice} role="alert">{props.t('chat.loadFailed')}</p>}
-      {props.active && !props.collapsed && props.resize !== undefined && <ChatResizeHandle container={body}
+      {props.active && props.resize !== undefined && <ChatResizeHandle container={body}
         actions={props.resize} label={props.resize.label} help={props.resize.help} useContainer />}
     </div> : <props.SessionProvider session={resource.value.reference}>
       <div ref={body} className={`${css.chatBody} nodrag nopan`}>
         {props.renderSlot('convax.chat.session', {
           onSelectWorkspace: props.onSelectWorkspace, onFork: props.onFork,
           onNewSessionWithPreset: props.onNewSessionWithPreset,
-          ...(props.active && !props.collapsed && props.resize !== undefined ? { resize: props.resize } : {}),
+          ...(props.active && props.resize !== undefined ? { resize: props.resize } : {}),
         })}
       </div>
       <div ref={tools} className={`${css.chatToolsHost} nodrag nopan`}>
-        {props.renderSlot('convax.chat.tools', { active: props.active && !props.collapsed, ...props.tools })}
+        {props.renderSlot('convax.chat.tools', { active: props.active, ...props.tools })}
       </div>
     </props.SessionProvider>}
   </div>
@@ -118,7 +117,6 @@ export function ChatCard(props: ChatProps) {
   const { chat, canvasRevision, t, actions, useStore, createThread, ensureInitialThread, useResource, SessionProvider, renderSlot } = props
   const stored = useStore(state => state.selectedThreads[chat.nodeId])
   const visited = useStore(state => state.visitedThreads?.[chat.nodeId])
-  const collapsed = useStore(state => state.collapsedChats?.[chat.nodeId] === true)
   const attempt = useStore(state => state.threadAttempts[chat.nodeId])
   const archived = props.useWorkspaces(state => state.archivedSessionIds)
   const order = useStore(state => state.threadOrders?.[chat.nodeId])
@@ -130,9 +128,7 @@ export function ChatCard(props: ChatProps) {
   const toolWidths = useStore(state => state.toolWidths?.[chat.nodeId])
   const [sizePreview, setSizePreview] = useState<{ sessionId: SessionId | undefined; size: ChatSize } | null>(null)
   const size = sizePreview !== null && sizePreview.sessionId === selected ? sizePreview.size : savedSize
-  const header = useRef<HTMLDivElement>(null)
   const pendingBody = useRef<HTMLDivElement>(null)
-  const expandedHeight = useRef(240)
   const headerResource = useResource<'convax-thread'>(resourceAddress('convax-thread', selected ?? ''))
   const mounted = new Set([first, selected, ...visited ?? []])
   useEffect(() => props.bindInput(chat.nodeId, selected), [props.bindInput, chat.nodeId, selected])
@@ -143,13 +139,12 @@ export function ChatCard(props: ChatProps) {
   const [restoredOperation] = useState(attempt?.operationId)
   const [failedOperation, setFailedOperation] = useState<CanvasOperationId>()
   const [menu, setMenu] = useState<'thread' | 'settings' | null>(null)
-  useEffect(() => { setSizePreview(null); setMenu(null) }, [selected, collapsed])
+  useEffect(() => { setSizePreview(null); setMenu(null) }, [selected])
   const running = useRef(false)
   const initialized = useRef<typeof chat.nodeId>()
   useEffect(() => {
     if (focus === undefined) return
     actions.selectThread(chat.nodeId, focus)
-    actions.setCollapsed(chat.nodeId, false)
     props.consumeFocus()
   }, [focus, chat.nodeId, actions, props.consumeFocus])
 
@@ -209,7 +204,7 @@ export function ChatCard(props: ChatProps) {
     commit: (next) => { actions.setSize(chat.nodeId, next) },
     label: t('chat.resize'), help: t('chat.resizeHelp'),
   }
-  return <article className={css.chatNode} data-convax-input-owner="" data-convax-chat={chat.nodeId} data-collapsed={collapsed || undefined}
+  return <article className={css.chatNode} data-convax-input-owner="" data-convax-chat={chat.nodeId}
     data-resized={size !== undefined || undefined}
     style={{ '--dsh-convax-chat-width': `${size?.width ?? CHAT_CARD_WIDTH}px`,
       ...(size === undefined ? {} : { '--dsh-convax-chat-view-height': `${size.height}px` }) } as CSSProperties}
@@ -220,21 +215,8 @@ export function ChatCard(props: ChatProps) {
       { id: 'remove', label: t('chat.delete'), disabled: busy || chat.deleting, onClick: props.remove },
     ]} />
     <Handle id="input" type="target" position={Position.Left} className={css.handle} />
-    <div ref={header} className={css.chatFrameHeader} data-convax-chat-header="">
+    <div className={css.chatFrameHeader} data-convax-chat-header="">
       <header className={css.threadBar} data-convax-chat-drag="" data-convax-node-drag="">
-        <Tooltip label={t(collapsed ? 'chat.expand' : 'chat.collapse')} side="bottom" portal>
-          <Button size="sm" className="nodrag nopan" aria-label={t(collapsed ? 'chat.expand' : 'chat.collapse')}
-            aria-expanded={!collapsed} onClick={() => {
-              if (!collapsed) {
-                const scroll = header.current?.parentElement?.querySelector<HTMLElement>('[data-convax-thread]:not([hidden]) [data-conversation-scroll]')
-                expandedHeight.current = size?.height ?? (scroll?.offsetHeight || pendingBody.current?.offsetHeight || 240)
-              }
-              setMenu(null)
-              actions.setCollapsed(chat.nodeId, !collapsed)
-            }}>
-            {collapsed ? <ChevronRight size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
-          </Button>
-        </Tooltip>
         <ThreadTabs tabs={threads.map((thread) => {
           const summary = summaries[thread.sessionId]
           const status = statuses.get(thread.sessionId)
@@ -258,38 +240,30 @@ export function ChatCard(props: ChatProps) {
         }}
         fork={fork} create={() => {
           setMenu(null)
-          actions.setCollapsed(chat.nodeId, false)
           void fresh()
         }} />
         <div className={`${css.threadActions} nodrag nopan`}>
-          <div className={css.chatNativeHeader} hidden={collapsed}>
-            {headerResource.value !== undefined && <SessionProvider session={headerResource.value.reference}>
-              {renderSlot('convax.chat.header', {})}
-            </SessionProvider>}
-          </div>
+          {headerResource.value !== undefined && <SessionProvider session={headerResource.value.reference}>
+            {renderSlot('convax.chat.header', {})}
+          </SessionProvider>}
         </div>
       </header>
-      <div className={css.chatDetails} hidden={collapsed}>
-        {(chat.issue !== null || chat.deleting) && <p className={css.notice} role="status">{t(chat.issue === null ? 'chat.deleting'
-          : chat.issueCode === 'thread-create' ? 'chat.createFailed' : chat.issueCode === 'deletion' ? 'chat.deletePending'
-            : chat.issueCode === 'delivery' ? 'chat.deliveryFailed' : chat.issueCode === 'chat-unavailable' ? 'chat.unavailable' : 'operation.failed')}</p>}
-        {chat.issue !== null && <DiagnosticDetails diagnostic={chat.issue} t={t} />}
-        {unconfirmed && <div className={`${css.notice} nodrag nopan`} role={attempt.operationId === failedOperation ? 'alert' : 'status'}>
-          {t('chat.unconfirmed')}
-          <Button size="sm" disabled={chat.deleting} onClick={() => { void submit(attempt) }}>{t('workspace.retry')}</Button>
-        </div>}
-      </div>
-      {active && collapsed && <ChatResizeHandle container={header} actions={resize} label={resize.label} help={resize.help}
-        useContainer collapsedHeight={size?.height ?? expandedHeight.current} />}
+      {(chat.issue !== null || chat.deleting) && <p className={css.notice} role="status">{t(chat.issue === null ? 'chat.deleting'
+        : chat.issueCode === 'thread-create' ? 'chat.createFailed' : chat.issueCode === 'deletion' ? 'chat.deletePending'
+          : chat.issueCode === 'delivery' ? 'chat.deliveryFailed' : chat.issueCode === 'chat-unavailable' ? 'chat.unavailable' : 'operation.failed')}</p>}
+      {chat.issue !== null && <DiagnosticDetails diagnostic={chat.issue} t={t} />}
+      {unconfirmed && <div className={`${css.notice} nodrag nopan`} role={attempt.operationId === failedOperation ? 'alert' : 'status'}>
+        {t('chat.unconfirmed')}
+        <Button size="sm" disabled={chat.deleting} onClick={() => { void submit(attempt) }}>{t('workspace.retry')}</Button>
+      </div>}
     </div>
-    {selected === undefined && <div ref={pendingBody} className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`}
-      hidden={collapsed}>
+    {selected === undefined && <div ref={pendingBody} className={`${css.chatBody} ${css.chatPendingBody} nodrag nopan`}>
       {!unconfirmed && <div className={css.center}><span className={css.spinner} /></div>}
-      {active && !collapsed && <ChatResizeHandle container={pendingBody} actions={resize}
+      {active && <ChatResizeHandle container={pendingBody} actions={resize}
         label={resize.label} help={resize.help} useContainer />}
     </div>}
     {threads.filter(thread => mounted.has(thread.sessionId)).map(thread => <Fragment key={thread.sessionId}>{props.renderFactorySlot('convax.chat.thread', {
-      sessionId: thread.sessionId, active: active && thread.sessionId === selected, collapsed,
+      sessionId: thread.sessionId, active: active && thread.sessionId === selected,
       layoutChanged: () => { updateNodeInternals(chat.nodeId) },
       resize,
       tools: {
@@ -308,7 +282,6 @@ export function ChatCard(props: ChatProps) {
       onFork: (seq) => { fork(thread.sessionId, seq) },
       onNewSessionWithPreset: async (agentPreset) => {
         if (attempt !== undefined || running.current || chat.deleting) throw new Error(t('chat.createFailed'))
-        actions.setCollapsed(chat.nodeId, false)
         if (!await fresh(summaries[thread.sessionId]?.cwd, agentPreset)) throw new Error(t('chat.createFailed'))
       },
     })}</Fragment>)}

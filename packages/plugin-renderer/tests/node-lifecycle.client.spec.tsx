@@ -103,7 +103,7 @@ async function fixture(nodeTypes: CanvasNodeTypeInfo[] = []) {
           busy={false} viewport={undefined} setViewport={() => {}} inputMode="mouse" setInputMode={() => {}} command={command}
           history={{ canUndo: false, canRedo: false, pending: false }} replayHistory={() => {}}
           chatPresentations={{}} applyChatPresentation={() => {}} applyResourceView={() => {}}
-          resourceViews={{}} setResourceExpanded={() => {}} setResourcePreviewSize={setResourcePreviewSize}
+          resourceViews={{}} setResourcePreviewSize={setResourcePreviewSize}
           openResource={openResource} openSource={() => {}} resolveFilePath={() => ''} addResources={() => {}} addProject={() => {}} />
       }))
     },

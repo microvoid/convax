@@ -9,8 +9,8 @@
   en: 1387c4505dde2faf
   zh: 48570fa1c13d6910
 /session-persistence-event-catalog/persistence-type-fingerprints:
-  en: 3e24343c4745793d
-  zh: 90f808fd6b79c5a3
+  en: 416c05a5c446e952
+  zh: 714aebe7fa5fe49b
 /session-persistence-event-catalog/event-envelope:
   en: 56414ffd00cdc32a
   zh: 6dc11eb013e95e41
@@ -78,8 +78,8 @@
   en: 501dcee7db8f8117
   zh: 501dcee7db8f8117
 /session-persistence-event-catalog/events/deliverables/deliverables-presented-log-only:
-  en: 55a7f405e7897e8a
-  zh: 566943cfd1abbe4a
+  en: d7cf0353ce3ec0f3
+  zh: 741f98f972a95488
 /session-persistence-event-catalog/events/developer:
   en: 3344204b1858edb1
   zh: 3344204b1858edb1
@@ -1161,8 +1161,8 @@
   en: 6d4afd6c237b50fd
   zh: ec07f774c853f27b
 /session-persistence-event-catalog/resolved-persistence-types/presentedfile:
-  en: 3e36e2f29ff1b506
-  zh: 3dcc1a1dced59d9f
+  en: 7f800abd8bb00572
+  zh: 469fdcd5bb903dd8
 /session-persistence-event-catalog/resolved-persistence-types/presentedfile~2:
   en: bb11552744e477b8
   zh: afb881f3ebf97e68
@@ -1413,11 +1413,11 @@
   en: a117573a5d58cb3c
   zh: d5ad59e17a3a815d
 /session-persistence-event-catalog/resolved-persistence-types/arguments-callid-name-step:
-  en: 1cd530a4f45fcb4f
-  zh: 0bf7c0f53d10a5ec
-/session-persistence-event-catalog/resolved-persistence-types/callid-files-turn:
-  en: 5f4d3f66ed86a14d
-  zh: 7c729360fa1279e6
+  en: 1b18d3becb0b81fe
+  zh: 2f4d68c180e689a1
+/session-persistence-event-catalog/resolved-persistence-types/callid-deliverykey-files-turn:
+  en: c1aaed03de59ad29
+  zh: 5fc8c93c64d1c0ce
 /session-persistence-event-catalog/resolved-persistence-types/callid-id-reason-toolname:
   en: 3d45df7b2e937457
   zh: 26060efd3e2f6320
@@ -1989,11 +1989,11 @@
   en: 184ea1eef46cb0cc
   zh: ad2a7b77040a0448
 /session-persistence-event-catalog/resolved-persistence-types/type-compaction-summary:
-  en: ba73fb10b7e2ffc9
-  zh: 8d5c97e63e5f16da
+  en: 1e2bbf4b08d6aebe
+  zh: 18dd14a128998065
 /session-persistence-event-catalog/resolved-persistence-types/type-deliverables-presented:
-  en: 10d95ce64c285e64
-  zh: 0ddb26f1fa16629c
+  en: 59cd50a6e6d3c838
+  zh: 88d4451dc88a0d6b
 /session-persistence-event-catalog/resolved-persistence-types/type-developer-message:
   en: 78d421c83506ebe9
   zh: 2e9399ba2d360627

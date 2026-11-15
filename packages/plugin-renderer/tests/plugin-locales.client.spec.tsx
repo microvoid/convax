@@ -59,8 +59,8 @@ function owner(typeId: CanvasNodeTypeId): CanvasNodeOwner {
     canvasId: 'plugin-locale-canvas' as CanvasId, canvasRevision: 1,
     definition: { id: typeId, dataVersion: 1, ports: [] }, ports: [], active: true, selected: false, busy: false, chat: undefined,
     command: vi.fn(async () => true), remove: vi.fn(), openResource: vi.fn(), openSource: vi.fn(), createChat: vi.fn(),
-    focusSessionId: undefined, consumeFocus: vi.fn(), inputs: [], focusNode: vi.fn(), resourceExpanded: false,
-    setResourceExpanded: vi.fn(), setResourcePreviewSize: vi.fn(),
+    focusSessionId: undefined, consumeFocus: vi.fn(), inputs: [], focusNode: vi.fn(),
+    setResourcePreviewSize: vi.fn(),
   }
 }
 

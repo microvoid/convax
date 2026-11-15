@@ -36,7 +36,7 @@ const connection = z.object({
   id: z.string().min(1).transform(v => v as CanvasConnectionId),
   source: z.string().min(1).transform(v => v as CanvasNodeId), sourcePort: z.string().min(1),
   target: z.string().min(1).transform(v => v as CanvasNodeId), targetPort: z.string().min(1),
-  purpose: z.enum(['input', 'delivery']),
+  purpose: z.enum(['input', 'delivery', 'capability']),
 }) satisfies z.ZodType<CanvasConnection>
 const canvas: z.ZodType<CanvasDocument> = z.object({
   id: z.string().min(1).transform(v => v as CanvasId), title: z.string().trim().min(1),

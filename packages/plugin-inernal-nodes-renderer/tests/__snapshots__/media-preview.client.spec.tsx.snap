@@ -81,13 +81,4 @@ exports[`places video transport in one overlay group and retains the presentatio
 }
 `;
 
-exports[`retains the audio presentation across compact and expanded controls with one transport and no waveform work while folded > compact audio transport 1`] = `
-{
-  "buttons": [
-    "Pause",
-  ],
-  "time": "0:12 / 0:40",
-}
-`;
-
 exports[`shows native video metadata without mounting another player and keeps file metadata as the loading fallback > native video dimensions and duration 1`] = `"1920 × 1080 · 1:05"`;

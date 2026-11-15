@@ -23,8 +23,8 @@ const document: CanvasDocument = {
 }
 const dimensions = { [FIRST]: { width: 160, height: 80 }, [SECOND]: { width: 300, height: 240 } }
 const views: Record<string, CanvasClipboardView> = {
-  [FIRST]: { kind: 'resource', presentation: { expanded: false } },
-  [SECOND]: { kind: 'chat', presentation: { collapsed: false } },
+  [FIRST]: { kind: 'resource', presentation: { width: 480, height: 240 } },
+  [SECOND]: { kind: 'chat', presentation: { size: { width: 620, height: 480 } } },
 }
 const payload = () => copyCanvasSelection(document, [FIRST, SECOND], dimensions, views, defaultNodeClipboardData)!
 
@@ -48,14 +48,17 @@ describe('Canvas clipboard protocol', () => {
       JSON.stringify({ ...copied, connections: document.connections }),
       JSON.stringify({ ...copied, dimensions: {} }),
       JSON.stringify({ ...copied, views: {} }),
-      JSON.stringify({ ...copied, views: { ...copied.views, [SECOND]: { kind: 'chat', presentation: { collapsed: false, selectedThreads: ['private'] } } } }),
+      JSON.stringify({ ...copied, views: { ...copied.views, [SECOND]: { kind: 'chat', presentation: { selectedThreads: ['private'] } } } }),
       JSON.stringify({ ...copied, nodes: [{ ...copied.nodes[0], id: 'constructor' }], connections: [], dimensions: {} }),
     ]) expect(parseCanvasClipboard(invalid), invalid).toBeNull()
   })
 
-  it('reads legacy node-only clipboard records into the current protocol', () => {
+  it('reads legacy node-only records and discards card visibility flags', () => {
     const { groups: _groups, ...copied } = payload()
-    const legacy = { ...copied, version: 1 }
+    const legacy = { ...copied, version: 1, views: {
+      [FIRST]: { kind: 'resource', presentation: { expanded: false, width: 480, height: 240 } },
+      [SECOND]: { kind: 'chat', presentation: { collapsed: true, size: { width: 620, height: 480 } } },
+    } }
     expect(parseCanvasClipboard(JSON.stringify(legacy))).toEqual({ ...copied, version: 3, groups: [] })
     expect(parseCanvasClipboard(JSON.stringify({ ...legacy, groups: [] }))).toBeNull()
   })

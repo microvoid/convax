@@ -1,6 +1,6 @@
 /** Read-only window card shares resource-card layout and window-retained capture ownership. */
 import { useEffect, useId, useRef, useState } from 'react'
-import { AppWindow, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { AppWindow, RefreshCw } from 'lucide-react'
 import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasWindowBindingId } from '@deepseek-ai/dsh-convax-plugin-host/types'
 import type { CanvasNodeRendererProps } from '@deepseek-ai/dsh-convax-plugin-renderer/client'
@@ -25,7 +25,6 @@ export function WindowNode(props: CanvasNodeRendererProps) {
     remove: props.remove, command: props.command, openResource: props.openResource, openSource: props.openSource,
     createChat: props.createChat, chooseWindow: props.chooseWindow, focusSessionId: props.focusSessionId,
     consumeFocus: props.consumeFocus, inputs: props.inputs, focusNode: props.focusNode,
-    resourceExpanded: props.resourceExpanded, setResourceExpanded: props.setResourceExpanded,
     setResourcePreviewSize: props.setResourcePreviewSize,
     ...(props.resourcePreviewHeight === undefined ? {} : { resourcePreviewHeight: props.resourcePreviewHeight }),
     ...(props.resourcePreviewWidth === undefined ? {} : { resourcePreviewWidth: props.resourcePreviewWidth }),
@@ -47,13 +46,11 @@ export function WindowMirror(props: WindowMirrorProps) {
   const failed = status?.nodeId === node.id && status.status === 'failed'
   const reconnectAttempt = useRef<AbortController | null>(null)
   const viewportId = useId()
-  const contentsId = useId()
   const card = useRef<HTMLElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const [preview, setPreview] = useState<ResourceSize | null>(null)
   const width = props.resourcePreviewWidth ?? Math.max(RESOURCE_CARD_WIDTH, 480)
   const size = { width, height: props.resourcePreviewHeight ?? 270 }
-  const expanded = props.resourceExpanded
   useEffect(() => () => {
     reconnectAttempt.current?.abort()
     reconnectAttempt.current = null
@@ -70,20 +67,20 @@ export function WindowMirror(props: WindowMirrorProps) {
     }
   }
   useEffect(() => {
-    if (!expanded || !live) return
+    if (!props.active || !live) return
     return props.mountWindow(node.id, bindingId, viewportId)
-  }, [expanded, live, props.mountWindow, node.id, bindingId, viewportId])
+  }, [props.active, live, props.mountWindow, node.id, bindingId, viewportId])
   useEffect(() => {
-    if (!live) return
+    if (!props.active || !live) return
     const check = (): void => { if (document.visibilityState === 'visible') void props.validateWindow(node.id, bindingId) }
     check()
     window.addEventListener('focus', check)
     document.addEventListener('visibilitychange', check)
     return () => { window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check) }
-  }, [live, props.validateWindow, node.id, bindingId])
+  }, [props.active, live, props.validateWindow, node.id, bindingId])
   return <article ref={card} className={`${css.node} ${css.resourceNode} ${windowCss.node}`}
     style={{ width: preview?.width ?? size.width }} data-selected={selected || undefined}
-    data-convax-window={node.id} data-expanded={expanded || undefined}>
+    data-convax-window={node.id}>
     <CardToolbar nodeId={node.id} name={name} t={t} actions={[
       { id: 'zoom', label: t('node.focus'), onClick: props.focusNode },
       { id: 'window', label: t('window.rebind'), disabled: busy || connecting || props.chooseWindow === undefined,
@@ -94,18 +91,12 @@ export function WindowMirror(props: WindowMirrorProps) {
     <NodePorts nodeId={node.id} ports={ports} connectable={!busy} />
     <div className={css.resourceHeader} data-convax-window-header="">
       <div className={css.resourceHeading}>
-        <Tooltip label={t(expanded ? 'files.collapse' : 'files.expand', { name })} side="bottom" portal>
-          <Button size="sm" className={`${css.resourceToggle} nodrag nopan`} aria-expanded={expanded} aria-controls={contentsId}
-            aria-label={t(expanded ? 'files.collapse' : 'files.expand', { name })} onClick={() => { setPreview(null); props.setResourceExpanded(!expanded) }}>
-            {expanded ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
-          </Button>
-        </Tooltip>
         <AppWindow size={16} aria-hidden />
         <div className={css.resourceIdentity}><Tooltip label={name} side="bottom" portal><span className={css.nodeTitle}>{name}</span></Tooltip></div>
         <span className={css.resourceMeta}>{t('window.readOnly')}</span>
       </div>
     </div>
-    {expanded && <div ref={body} id={contentsId} className={`${css.resourcePreview} ${windowCss.body} nodrag nopan nowheel`}
+    <div ref={body} className={`${css.resourcePreview} ${windowCss.body} nodrag nopan nowheel`}
       style={{ height: preview?.height ?? size.height }} data-convax-window-preview=""
       onPointerEnter={() => { if (live) void props.validateWindow(node.id, bindingId) }}>
       {live ? <div id={viewportId} className={windowCss.viewport} /> : <div className={windowCss.disconnected}
@@ -119,8 +110,8 @@ export function WindowMirror(props: WindowMirrorProps) {
             onClick={() => { props.chooseWindow?.(node.id) }}>{t('window.rebind')}</Button>
         </div>}
       </div>}
-    </div>}
-    <CardResizeHandle container={card} content={body} size={size} collapsed={!expanded} resize={resizeResource}
+    </div>
+    <CardResizeHandle container={card} content={body} size={size} resize={resizeResource}
       preview={setPreview} commit={props.setResourcePreviewSize}
       label={t('files.preview.resize')} help={t('files.preview.resizeHelp')} />
   </article>

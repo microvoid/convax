@@ -7,6 +7,7 @@ import { checkConvaxI18n } from './check-i18n.ts'
 
 const locales = ['en', 'zh', 'ja', 'es', 'fr', 'de', 'ru', 'pt']
 const client = 'packages/plugin-renderer/src/client'
+const creationClient = 'packages/plugin-creation-renderer/src/client'
 const examples = ['packages/plugin-renderer/examples/counter', 'packages/plugin-host/templates/canvas-note']
 const temporary: string[] = []
 
@@ -22,7 +23,10 @@ function fixture(): string {
   const dictionary = { title: 'Example', count: '{count} items' }
   for (const locale of locales) write(root, `${client}/locales/${locale}.ts`, `export const ${locale} = ${JSON.stringify(dictionary)}\n`)
   write(root, `${client}/locales.ts`, `export const dictionaries = { ${locales.join(', ')} } as const\n`)
-  for (const directory of ['packages/plugin-renderer', 'packages/plugin-inernal-nodes-host', 'packages/plugin-inernal-nodes-renderer', ...examples]) {
+  write(root, `${creationClient}/locales.ts`, locales.map(locale => `const ${locale} = ${JSON.stringify(dictionary)}`).join('\n')
+    + `\nexport const dictionaries = { ${locales.join(', ')} } as const\n`)
+  for (const directory of ['packages/plugin-renderer', 'packages/plugin-inernal-nodes-host', 'packages/plugin-inernal-nodes-renderer',
+    'packages/plugin-creation-host', 'packages/plugin-creation-renderer', ...examples]) {
     for (const locale of locales) write(root, `${directory}/locale/${locale}.json`, JSON.stringify({ meta: { title: 'Example', description: 'Example plugin' } }))
   }
   for (const directory of examples) {
@@ -112,6 +116,16 @@ describe('Convax i18n CI gate', () => {
     expect(checkConvaxI18n(root)).toContainEqual(expect.objectContaining({
       code: 'missing-locale', file: `${directory}/locale`, message: 'Missing ja dictionary.',
     }))
+  })
+
+  it('checks Creation dictionaries and their runtime registration', () => {
+    const root = fixture()
+    const file = `${creationClient}/locales.ts`
+    const text = readFileSync(resolve(root, file), 'utf8')
+    write(root, file, text.replace('const ja =', 'const missing =').replace('en, zh, ja, es, fr, de, ru, pt', 'en, zh, ja, es, de, ru, pt'))
+    const problems = checkConvaxI18n(root)
+    expect(problems).toContainEqual(expect.objectContaining({ file, code: 'missing-locale', message: 'Missing ja dictionary.' }))
+    expect(problems).toContainEqual(expect.objectContaining({ file, code: 'missing-locale', message: 'fr is not registered at runtime.' }))
   })
 
   it('rejects duplicate dictionary keys instead of silently accepting the last value', () => {

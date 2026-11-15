@@ -300,6 +300,7 @@
     "@deepseek-ai/dsh-experimental-cua-macos": "workspace:*",
     "@deepseek-ai/dsh-action-cards": "workspace:*",
     "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host": "workspace:*",
-    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*"
+    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-creation-host": "workspace:*"
   }
 }

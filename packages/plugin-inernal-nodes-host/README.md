@@ -39,6 +39,8 @@ Versioned definitions provide `convax.file`, `convax.folder`, `convax.chat`, `co
 
 The canvas stores no new database for these nodes. Stopping this plugin cancels and drains its adapter work without stopping DSH Agents or deleting their logs. New provider-dependent actions remain unavailable until the provider returns. Confirmed deletion retains its separate stop-and-archive behavior.
 
+Delivered files occupy free slots to the right of their Chat. Placement reserves space for default expanded previews and checks the current positions of existing nodes, including files from earlier delivery events. Existing nodes retain their positions.
+
 `remote.convaxTerminal` addresses a terminal by canvas and card identity. Each card owns one user shell through the shared [terminal controller](../../libs/dsh/packages/api/terminal-controller/README.md), without creating or following a Chat Session. Creation uses the latest committed incoming file or folder connection: folders supply their own directory and files supply their parent directory. Without a resource input it uses the canvas directory. Directory changes configure subsequent starts; running shells keep their own process state. Concurrent creates share the card's first committed runtime identity.
 
 Switching canvases, closing a canvas tab and detaching screen views preserve the shell. Removing a card or its canvas uses the shared terminal close path to terminate its process range and drain final output; cleanup failures remain retryable. Undo restores card configuration without reviving the closed process. Host or provider disposal ends owned processes; reopening their cards offers a fresh start rather than replaying commands. Terminal screens and raw output remain outside Session history.
@@ -69,6 +71,8 @@ Graph edits and provider restarts do not rewrite admitted messages. DSH retains 
 <a id="known-limitations-and-deferred-work"></a>
 
 Native window capture requires the node renderer and supported Desktop permissions. Stopping node providers does not grant, revoke or change Computer Use authorization or preset defaults.
+
+Delivery placement uses estimated native dimensions. Preview sizes and expansion are window-local; a user-resized card or an extension node can exceed its reserved space and require manual positioning.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -45,6 +45,8 @@ Mount it in an agent's Cordis composition with `tools`, `fs`, and the `turnBound
 
 The file-count limit is validated at mount. The tool requires an agent Session with a workspace and an open turn. Delivery belongs to the calling Session; a parent must call `present` itself to declare files created by a subagent.
 
+Host plugins can own a `DeliverablePublisher` instance from this package to deliver background results after their originating turn ends. Its context supplies `fs`, `sessions`, `sessionPersistence`, and `sessionProjections`; await `start()` before publication and `close()` during teardown. `publish({ deliveryKey, origin: { sessionId, turn, callId }, files })` accepts existing absolute files and returns their flushed Session event position without starting an Agent. The caller captures the original invocation and assigns a stable key per output. Repeating a key with identical files and invocation returns the same receipt; changed payloads raise `DeliveryKeyConflictError`.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -56,6 +58,8 @@ The file-count limit is validated at mount. The tool requires an agent Session w
 The tool resolves paths through the configured filesystem provider and checks regular-file metadata without reading contents. Successful final `tools/result` notifications append `deliverables/presented`, including nested calls. A later enclosing program failure does not revoke an already completed declaration. Blocked results publish none. Each plugin instance records only calls it executed; scoped tools with the same name cannot publish through another instance.
 
 The pure `./types` entry declares `PresentedFile` and the Session event without importing Host runtime code. The Web consumer validates persisted declarations before displaying or opening them. New declarations store absolute paths. Legacy relative declarations retain the viewed Session's original workspace as their base.
+
+Background declarations retain `deliveryKey` inside `deliverables/presented`. A private Session projection recovers one receipt per keyed declaration, excluding inherited fork events. Live publication uses the Session's existing persistence owner; cold publication acquires its exclusive write handle. File admission is shared with `present`. After flush, `deliverables/published` announces the original Session and event position; observer failures do not revoke the durable receipt. The receipt confirms a declaration, not completion of downstream canvas projection. A persistence failure leaves the outcome uncertain and permits retry with the same key.
 
 </details>
 

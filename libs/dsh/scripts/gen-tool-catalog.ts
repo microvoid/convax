@@ -28,6 +28,8 @@ import LocalBashExecutor from '@deepseek-ai/dsh-bash-local'
 import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import { PwshLocalExecutor } from '@deepseek-ai/dsh-pwsh-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
+import { registerCreationTools } from '@deepseek-ai/dsh-convax-plugin-creation-host/src/tools.ts'
+import type { ConvaxCreationHost } from '@deepseek-ai/dsh-convax-plugin-creation-host'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import * as ToolWorkingDirectory from '@deepseek-ai/dsh-tool-working-directory'
@@ -189,6 +191,29 @@ export interface ToolPackage {
  * guard proves it is exhaustive against the on-disk glob.
  */
 const TOOL_PACKAGES: ToolPackage[] = [
+  {
+    pkg: '@deepseek-ai/dsh-convax-plugin-creation-host',
+    dir: 'plugin-creation-host',
+    source: '../../packages/plugin-creation-host/src/tools.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'ctx.convaxCreation', 'a connected Creation workbench for generation, or existing owned jobs for recovery'],
+    writes: ['tool/call', 'tool/result', 'Creation task records', 'deliverables/presented after successful collection'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(SessionStore)
+      const session = ctx.sessions.create(SessionId('tool-catalog-creation'))
+      let agent!: Agent
+      await ctx.plugin(Object.assign(async (inner: Context) => {
+        agent = { id: session.id, session, options: {}, status: 'idle' } as unknown as Agent
+        Object.assign(agent, { ctx: createScope(inner, agent).ctx })
+        await inner.agents.register(agent)
+      }, { inject: ['tools', 'systemPrompt', 'agents'] }))
+      // Only the visibility predicates are observed; schema harvest never executes a generation or reads credentials.
+      registerCreationTools(ctx, { resolveWorkbench: () => ({}), hasJobs: () => true } as unknown as ConvaxCreationHost)
+      catalogChildScopes.set(ctx, agent)
+    },
+    scope: ctx => catalogChildScopes.get(ctx) as Agent,
+    note: 'Creation workbench routes supply Provider/model settings. Completed files use existing Chat deliverables and canvas file nodes. Recovery tools remain available to the originating Chat after disconnection and observe the original task without submitting a replacement generation; cancellation suppresses future delivery and separately reports remote cancellation support.',
+  },
   {
     pkg: '@deepseek-ai/dsh-plugin-manager',
     dir: 'plugin-manager',

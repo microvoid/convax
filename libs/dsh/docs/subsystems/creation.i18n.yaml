@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for creation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/creation.md
+/convax-creation-subsystem:
+  en: 24d12c2fe19d8e7f
+  zh: b85fc89dc1b7e537
+/convax-creation-subsystem/workbenches-and-connections:
+  en: 0c6bdea7cea0ae01
+  zh: c336d619b7a8342c
+/convax-creation-subsystem/generation-lifecycle:
+  en: 0bf14a07a79ca69a
+  zh: 088da1f63796b947
+/convax-creation-subsystem/provider-extension-contract:
+  en: adb3c6e7d58ac90e
+  zh: 067058d63014cd89

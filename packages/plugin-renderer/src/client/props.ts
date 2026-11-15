@@ -128,7 +128,6 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Safe window preferences copied with a Chat, excluding thread selection and drafts. */
 export interface CanvasChatPresentation {
-  collapsed: boolean
   size?: ChatSize
   toolWidths?: { normal?: number; fullscreen?: number }
 }
@@ -169,6 +168,8 @@ export interface CanvasNodeOwner {
   openSource: (path: string) => void
   /** Create a Chat from a folder and connect the reference atomically. */
   createChat: (cwd: string | undefined, folderId: CanvasNode['id']) => void
+  /** Create a native Chat atomically connected to this node's capability output. */
+  createConnectedChat?: (() => Promise<void>) | undefined
   /** Explicitly choose another source for this window node; never retarget existing references. */
   chooseWindow?: ((nodeId: CanvasNodeId) => void) | undefined
   /** Thread selected by a window-level activity notice. */
@@ -179,10 +180,6 @@ export interface CanvasNodeOwner {
   inputs: readonly CanvasNode[]
   /** Fit this node's current presentation into the canvas viewport. */
   focusNode: () => void
-  /** Whether this resource's inline preview is expanded. */
-  resourceExpanded: boolean
-  /** Retain this resource's expansion independently from canvas document mutations. */
-  setResourceExpanded: (expanded: boolean) => void
   /** Saved height of the resource's inline preview, when resized. */
   resourcePreviewHeight?: number
   /** Saved width of the resource card, when resized. */
@@ -206,7 +203,6 @@ export interface CanvasChatOwner {
 export interface CanvasChatThreadOwner {
   sessionId: SessionId
   active: boolean
-  collapsed: boolean
   onSelectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   onFork: (seq: number) => void
   /** Create a fresh thread without changing the current Session or global default. */
@@ -247,6 +243,8 @@ export interface CanvasConnectionOrigin {
   portId: string
   /** Direction of the existing endpoint. */
   direction: 'input' | 'output'
+  /** Output semantics captured with the port; capability bindings never insert an attachment. */
+  purpose?: 'input' | 'capability'
   /** Captured input draft target; presence retains an unbound target across pickers. Never persisted in graph data. */
   targetSession?: { readonly sessionId: SessionId | undefined }
 }

@@ -20,7 +20,6 @@
 .nodePath { margin: 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
 .nodeStatus { margin: 8px 0; color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; }
 .resourceNode { position: relative; padding: 0; }
-.resourceNode[data-expanded] .resourceHeader { border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
 .resourceMetadata { display: flex; justify-content: flex-end; flex: none; min-width: 0; max-width: 48%; }
 .resourceMetadata > span { min-width: 0; }
 .resourceHeader { box-sizing: border-box; min-height: 40px; padding: 8px 12px 8px 6px; }
@@ -29,7 +28,6 @@
 .resourceIdentity { display: flex; flex: 1; flex-direction: column; min-width: 0; }
 .resourceIdentity .nodeTitle { font-size: 12px; line-height: 24px; }
 .resourceMeta { overflow: hidden; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
-.resourceHeading .resourceToggle { flex: none; width: 24px; height: 24px; padding: 0; }
 .directoryPreview,
 .resourcePreview { box-sizing: border-box; position: relative; overflow: visible; border-radius: 0 0 var(--dsw-radius-lg) var(--dsw-radius-lg); }
 .treeViewport { box-sizing: border-box; height: 100%; padding: 8px; border-radius: inherit; overflow: auto; scrollbar-gutter: stable; }
@@ -61,7 +59,6 @@
 }
 
 @media (pointer: coarse) {
-  .resourceHeading .resourceToggle { width: 28px; height: 28px; }
   .previewResize { width: 28px; height: 28px; opacity: 1; pointer-events: auto; }
 }
 

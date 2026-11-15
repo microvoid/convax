@@ -62,6 +62,7 @@
 | [webhook.md](webhook.zh.md) | 通过身份验证的提供方交付、任意程序化规则，以及发起 Workspace 会话创建后不等待结果 |
 | [storage.md](storage.zh.md) | 存储子系统：后端约定（`StorageBackend`）、`StorageForms`、`DomainSpec`/`Domain`、`domain/changed` |
 | [convax.md](convax.zh.md) | 应用级画布记录、带修订号的图命令、资源引用和独立 Host、renderer 组合 |
+| [creation.md](creation.zh.md) | 创作工作台路由、媒体 Provider 契约、持久化生成任务和自动交付 |
 | [convax-graph-tools.md](convax-graph-tools.zh.md) | 图的选择性读取、提供方 schema、有序原子提交及历史恢复 |
 | [workspace.md](workspace.zh.md) | 工作区注册表：`Workspace`/`WorkspaceId`、注册与解析、与会话 `cwd` 的关系 |
 | [web-client.md](web-client.zh.md) | 浏览器架构：启动、Remote 通信、配对的 Client model、UI 适配器、Conversation 组装、slot 与重连语义 |

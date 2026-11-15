@@ -92,7 +92,7 @@ describe('Convax Chat thread controls', () => {
     const b = fixture()
     const resize = { preview: vi.fn(), commit: vi.fn(), label: 'Resize chat', help: 'Drag to resize' }
     const inputs = {
-      sessionId: first, active: true, collapsed: false, resize,
+      sessionId: first, active: true, resize,
       useResource: () => ({ status, value: undefined, failure: undefined }),
       layoutChanged: vi.fn(), t: b.props.t,
     } as ChatThreadProps
@@ -109,26 +109,24 @@ describe('Convax Chat thread controls', () => {
     expect(view.container.querySelector('[data-convax-chat-resize]')).toBeNull()
   })
 
-  it('resizes a collapsed Chat width while retaining its saved expanded height', () => {
+  it('opens a previously collapsed Chat at its saved size', () => {
     const owner: CanvasChat = { ...chat, threads: [{ sessionId: first, parentSessionId: null, inheritedEventCount: 0 }] }
+    localStorage.setItem('convax.chat.view.v1', JSON.stringify({
+      selectedThreads: { [chat.nodeId]: first }, threadAttempts: {},
+      collapsedChats: { [chat.nodeId]: true }, sizes: { [chat.nodeId]: { width: 620, height: 480 } },
+    }))
     const b = fixture(owner)
-    b.store.actions.setSize(chat.nodeId, { width: 620, height: 480 })
-    const view = render(<ChatCard {...b.props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse chat' }))
-    view.rerender(<ChatCard {...b.props} />)
-    const grip = view.container.querySelector<HTMLButtonElement>('[data-convax-chat-resize]')!
-    const header = view.container.querySelector<HTMLElement>('[data-convax-chat-header]')!
-    Object.defineProperties(header, {
-      offsetWidth: { configurable: true, value: 620 }, offsetHeight: { configurable: true, value: 40 },
-      getBoundingClientRect: { configurable: true, value: () => new DOMRect(0, 0, 620, 40) },
+    b.renderFactorySlot.mockImplementation((name, value) => {
+      if (name !== 'convax.chat.thread') return null
+      const props = { ...value, useResource: b.props.useResource, t: b.props.t } as ChatThreadProps
+      return <ChatThread {...props} />
     })
-    fireEvent.keyDown(grip, { key: 'ArrowRight' })
-    expect(b.store.getSnapshot().sizes?.[chat.nodeId]).toEqual({ width: 630, height: 480 })
-    fireEvent.keyDown(grip, { key: 'ArrowDown' })
-    expect(b.store.getSnapshot().sizes?.[chat.nodeId]).toEqual({ width: 630, height: 480 })
-    fireEvent.click(screen.getByRole('button', { name: 'Expand chat' }))
-    view.rerender(<ChatCard {...b.props} />)
-    expect(view.container.querySelector<HTMLElement>('[data-convax-chat]')?.style.getPropertyValue('--dsh-convax-chat-view-height')).toBe('480px')
+    const view = render(<ChatCard {...b.props} />)
+    const card = view.container.querySelector<HTMLElement>('[data-convax-chat]')!
+    expect(card.style.getPropertyValue('--dsh-convax-chat-width')).toBe('620px')
+    expect(card.style.getPropertyValue('--dsh-convax-chat-view-height')).toBe('480px')
+    expect(card.querySelector<HTMLElement>(`[data-convax-thread="${first}"]`)?.hidden).toBe(false)
+    expect(card.querySelector('[data-convax-chat-resize]')).not.toBeNull()
   })
 
   it('keeps the initially selected Host thread when an unsaved tab selection is reordered', () => {
@@ -346,7 +344,7 @@ describe('Convax Chat thread controls', () => {
     expect(restored.store.getSnapshot().threadAttempts[chat.nodeId]).toBeUndefined()
   })
 
-  it('keeps thread navigation in the header and card actions in the toolbar when the Chat collapses', () => {
+  it('keeps thread navigation in the header and card actions in the toolbar', () => {
     const owner: CanvasChat = {
       ...chat, threads: [first, second].map(sessionId => ({ sessionId, parentSessionId: null, inheritedEventCount: 0 })),
     }
@@ -355,9 +353,8 @@ describe('Convax Chat thread controls', () => {
     const row = view.container.querySelector('[data-convax-chat-drag]')!
     expect(view.container.querySelectorAll('header')).toHaveLength(1)
     expect(screen.queryByText('Project chat')).toBeNull()
-    for (const label of ['Collapse chat', 'New thread']) {
-      expect(row.contains(screen.getByRole('button', { name: label }))).toBe(true)
-    }
+    expect(row.contains(screen.getByRole('button', { name: 'New thread' }))).toBe(true)
+    expect(screen.queryByRole('button', { name: /^(Collapse|Expand) chat$/ })).toBeNull()
     const toolbar = screen.getByRole('toolbar', { name: 'Actions for Project chat' })
     for (const label of ['Focus this chat', 'Delete chat']) {
       expect(row.contains(screen.getByRole('button', { name: label }))).toBe(false)
@@ -367,12 +364,6 @@ describe('Convax Chat thread controls', () => {
     expect(screen.queryByRole('button', { name: 'Chat actions' })).toBeNull()
     expect(row.contains(screen.getByRole('tab', { name: 'Thread 1' }))).toBe(true)
     expect(row.contains(screen.getByRole('tab', { name: 'Thread 2' }))).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse chat' }))
-    view.rerender(<ChatCard {...b.props} />)
-    expect(view.container.querySelector('[data-convax-chat-drag]')).toBe(row)
-    expect(screen.getByRole('button', { name: 'Expand chat' }).getAttribute('aria-expanded')).toBe('false')
-    expect(screen.getByRole('tab', { name: 'Thread 1' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'New thread' })).toBeTruthy()
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Focus this chat' }))
     expect(b.props.focusNode).toHaveBeenCalledOnce()
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Delete chat' }))

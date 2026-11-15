@@ -31,7 +31,6 @@ export function TerminalNode(props: CanvasNodeRendererProps) {
     remove: props.remove, command: props.command, openResource: props.openResource, openSource: props.openSource,
     createChat: props.createChat, chooseWindow: props.chooseWindow, focusSessionId: props.focusSessionId,
     consumeFocus: props.consumeFocus, inputs: props.inputs, focusNode: props.focusNode,
-    resourceExpanded: props.resourceExpanded, setResourceExpanded: props.setResourceExpanded,
     setResourcePreviewSize: props.setResourcePreviewSize,
     ...(props.resourcePreviewHeight === undefined ? {} : { resourcePreviewHeight: props.resourcePreviewHeight }),
     ...(props.resourcePreviewWidth === undefined ? {} : { resourcePreviewWidth: props.resourcePreviewWidth }),
@@ -66,7 +65,7 @@ export function TerminalCard(props: FactoryComponentPropsOf<'convax.terminal.con
         model, state, visible: props.active, onNewTerminal: () => { void props.restartTerminal(node.id) },
       })}
     </div>
-    {props.active && <CardResizeHandle container={card} content={body} size={size} collapsed={false} resize={resizeResource}
+    {props.active && <CardResizeHandle container={card} content={body} size={size} resize={resizeResource}
       preview={setPreview} commit={props.setResourcePreviewSize}
       label={t('files.preview.resize')} help={t('files.preview.resizeHelp')} />}
   </article>

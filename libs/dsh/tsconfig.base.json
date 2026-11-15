@@ -29,6 +29,12 @@
     // under its own tsconfig boundary.
     "paths": {
       "@convax/api-contracts/notices": ["../../packages/api-contracts/types/notices.d.ts"],
+      "@deepseek-ai/dsh-convax-plugin-creation-host": ["../../packages/plugin-creation-host/src/index.ts"],
+      "@deepseek-ai/dsh-convax-plugin-creation-host/types": ["../../packages/plugin-creation-host/src/types.ts"],
+      "@deepseek-ai/dsh-convax-plugin-creation-host/src/*": ["../../packages/plugin-creation-host/src/*"],
+      "@deepseek-ai/dsh-convax-plugin-creation-renderer": ["../../packages/plugin-creation-renderer/src/index.ts"],
+      "@deepseek-ai/dsh-convax-plugin-creation-renderer/client": ["../../packages/plugin-creation-renderer/src/client/index.ts"],
+      "@deepseek-ai/dsh-convax-plugin-creation-renderer/src/*": ["../../packages/plugin-creation-renderer/src/*"],
       "@deepseek-ai/dsh-convax-plugin-host": ["../../packages/plugin-host/src/index.ts"],
       "@deepseek-ai/dsh-convax-plugin-host/types": ["../../packages/plugin-host/src/types.ts"],
       "@deepseek-ai/dsh-convax-plugin-host/src/*": ["../../packages/plugin-host/src/*"],

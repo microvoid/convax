@@ -2,12 +2,6 @@
 .player { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; }
 .player { position: relative; }
 .player[data-kind='audio'] { justify-content: center; background: var(--dsw-alias-bg-base); }
-.root[data-presentation='compact'],
-.player[data-compact] { flex: none; width: auto; height: auto; overflow: visible; }
-.root[data-presentation='compact'] .status,
-.root[data-presentation='compact'] .notice { flex-direction: row; padding: 0; min-height: 24px; font-size: 12px; }
-.root[data-presentation='compact'] .spinner { width: 16px; height: 16px; }
-.root .compactAction { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; }
 .player:fullscreen { width: 100vw; height: 100vh; padding: 12px; box-sizing: border-box; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
 .player[data-kind='video'] { display: block; }
 .player[data-kind='video']:fullscreen { padding: 0; background: var(--dsw-alias-bg-mask-photo); }
@@ -22,9 +16,6 @@
 .audioControls .audioPlay { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; margin-bottom: 18px; padding: 0; border-radius: 50%; corner-shape: round; background: var(--dsw-alias-bg-module-platform); }
 .audioTimeline { flex: 1; min-width: 0; }
 .audioTimes { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.player[data-compact] .audioControls { gap: 6px; padding: 0; }
-.player[data-compact] .audioPlay { width: 24px; height: 24px; margin: 0; background: transparent; }
-.time { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .audioNotices { display: contents; }
 .videoNotices { position: absolute; z-index: 3; top: 8px; left: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; }
 .videoNotices .notice { padding: 6px 8px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-mask-photo); color: var(--dsw-static-neutral-bluish-00); }

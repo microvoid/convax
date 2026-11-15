@@ -7,7 +7,7 @@ import type { ChatResizeControls } from '@deepseek-ai/dsh-convax-plugin-renderer
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
-function fixture(options: { useContainer?: boolean; collapsedHeight?: number } = {}) {
+function fixture(options: { useContainer?: boolean } = {}) {
   const observers: FixtureResizeObserver[] = []
   class FixtureResizeObserver implements ResizeObserver {
     readonly targets = new Set<Element>()
@@ -179,20 +179,6 @@ describe('Convax Chat resize gestures', () => {
     expect(b.actions.preview).toHaveBeenLastCalledWith({ width: 680, height: 440 })
     pointer(b.grip, 'pointerup', 130, 140)
     expect(b.actions.commit).toHaveBeenCalledExactlyOnceWith({ width: 680, height: 440 })
-  })
-
-  it('changes only the collapsed width and preserves the expanded height', () => {
-    const b = fixture({ useContainer: true, collapsedHeight: 480 })
-    pointer(b.grip, 'pointerdown', 100, 100)
-    pointer(b.grip, 'pointermove', 130, 160)
-    expect(b.actions.preview).toHaveBeenLastCalledWith({ width: 680, height: 480 })
-    pointer(b.grip, 'pointerup', 130, 160)
-    expect(b.actions.commit).toHaveBeenCalledExactlyOnceWith({ width: 680, height: 480 })
-    fireEvent.keyDown(b.grip, { key: 'ArrowDown' })
-    fireEvent.keyDown(b.grip, { key: 'ArrowUp' })
-    expect(b.actions.commit).toHaveBeenCalledOnce()
-    fireEvent.keyDown(b.grip, { key: 'ArrowRight' })
-    expect(b.actions.commit).toHaveBeenLastCalledWith({ width: 630, height: 480 })
   })
 
   it.each(['Escape', 'blur'])('cancels on %s and ignores the subsequent pointer release', (event) => {

@@ -221,8 +221,6 @@ export const ja: Record<ConvaxKey, string> = {
   'canvas.zoom.fit': 'キャンバスに合わせる',
   'chat.actions': 'チャットの操作',
   'chat.threadActions': '現在のスレッドの操作',
-  'chat.collapse': 'チャットを折りたたむ',
-  'chat.expand': 'チャットを展開',
   'chat.focus': 'このチャットにフォーカス',
   'chat.resize': 'チャットのサイズを変更',
   'chat.resizeHelp': 'ドラッグするか、矢印キーでサイズを変更してください',

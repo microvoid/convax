@@ -73,7 +73,7 @@ export interface CanvasConnection {
   /** Named target port. */
   targetPort: string
   /** Relationship semantics; creating a connection does not execute work. */
-  purpose: 'input' | 'delivery'
+  purpose: 'input' | 'delivery' | 'capability'
 }
 /** System-generated title composition; literal user names are never translated. */
 export type CanvasTitleFormat =
@@ -204,6 +204,8 @@ export type CanvasOpenSessionResult =
   | Extract<CanvasCommandResult, { ok: false }>
 /** Semantic behavior explicitly declared by a provider, independent of its type identity. */
 export type CanvasNodeCapabilities = {
+  /** Capabilities supplied to a Session-owning node through a capability output port. */
+  provides?: string[]
   /**
    * Owns native DSH Sessions through an installed adapter. The parser supplies string title and absolute cwd fields;
    * optional defaultTitle marks a generated name.
@@ -287,7 +289,7 @@ export type CanvasGraphOperation =
   | { op: 'group.set'; id: CanvasGroupId; title?: string | undefined; color?: CanvasGroupColor | null | undefined }
   | { op: 'group.remove'; id: CanvasGroupId }
   | { op: 'group.move'; id: CanvasGroupId; delta: CanvasPoint }
-  | { op: 'edge.add'; id: CanvasConnectionId; source: CanvasNodeId; sourcePort: string; target: CanvasNodeId; targetPort: string; purpose: 'input' | 'delivery' }
+  | { op: 'edge.add'; id: CanvasConnectionId; source: CanvasNodeId; sourcePort: string; target: CanvasNodeId; targetPort: string; purpose: 'input' | 'delivery' | 'capability' }
   | { op: 'edge.remove'; id: CanvasConnectionId }
   | { op: 'history'; targetOperationId: CanvasOperationId; direction: 'undo' | 'redo' }
 

@@ -1,5 +1,4 @@
 - article:
-  - button "Collapse Mirror fixture" [expanded]
   - text: Mirror fixture Read-only
   - status:
     - paragraph: Connecting…

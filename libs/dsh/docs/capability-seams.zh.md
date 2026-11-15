@@ -9,6 +9,9 @@
 
 ```mermaid
 flowchart LR
+  pkg_convax_plugin_creation_host["convax-plugin-creation-host"]
+  svc_convaxCreation["ctx.convaxCreation<br/>Creation workbench media generation"]
+  pkg_convax_plugin_creation_renderer["convax-plugin-creation-renderer"]
   pkg_convax_plugin_host["convax-plugin-host"]
   svc_convax["ctx.convax<br/>Convax canvas Host"]
   pkg_convax_plugin_renderer["convax-plugin-renderer"]
@@ -349,6 +352,7 @@ flowchart LR
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
   pkg_computer_use --> svc_computerUse
   pkg_config_editor --> svc_configEditor
+  pkg_convax_plugin_creation_host --> svc_convaxCreation
   pkg_convax_plugin_host --> svc_convax
   pkg_convax_plugin_inernal_nodes_host --> svc_convaxTerminal
   pkg_cordis_host_runner --> svc_cordisInspect
@@ -506,6 +510,7 @@ flowchart LR
   svc_connection --> pkg_api_gateway
   svc_connection --> pkg_host_frontend_static
   svc_convax --> pkg_convax_plugin_renderer
+  svc_convaxCreation --> pkg_convax_plugin_creation_renderer
   svc_convaxTerminal --> pkg_convax_plugin_inernal_nodes_renderer
   svc_cordisInspect --> pkg_tool_cordis
   svc_credentials --> pkg_api_settings_controller
@@ -643,6 +648,7 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.convaxCreation` | `core` | [`convax-plugin-creation-host`](../../../packages/plugin-creation-host) | - | [`convax-plugin-creation-renderer`](../../../packages/plugin-creation-renderer) | - | 管理工作台 Provider 路由和持久化生成任务；原生 Chat 工具提交请求，现有交付物机制将校验后的产物发布为画布文件节点。 |
 | `ctx.convax` | `core` | [`convax-plugin-host`](../../../packages/plugin-host) | - | [`convax-plugin-renderer`](../../../packages/plugin-renderer) | - | 管理带修订号的画布、Chat 绑定、thread 操作和资源读取，独立于可选渲染器运行。 |
 | `ctx.convaxTerminal` | `core` | [`convax-plugin-inernal-nodes-host`](../../../packages/plugin-inernal-nodes-host) | - | [`convax-plugin-inernal-nodes-renderer`](../../../packages/plugin-inernal-nodes-renderer) | - | 将共享用户终端适配到已提交的画布卡片及其资源目录。 |
 | `ctx.actionCards` | `service` | [`action-cards`](../packages/experimental/action-cards) | - | [`creation-recommendations`](../packages/experimental/creation-recommendations), [`client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | 负责卡片工具、卡片状态、用户操作和状态通知；各卡片种类注册自己的动作和处理器。 |

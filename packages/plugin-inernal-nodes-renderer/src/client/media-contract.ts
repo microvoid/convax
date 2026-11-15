@@ -45,8 +45,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       scope: 'root'
       props: {
         readonly path: string
-        /** Metadata observes playback; compact retains a player with header-sized audio controls. */
-        readonly presentation?: 'player' | 'metadata' | 'compact'
+        /** Metadata observes playback without mounting a player. */
+        readonly presentation?: 'player' | 'metadata'
         readonly metadataFallback?: string
       }
       locale: 'convax'

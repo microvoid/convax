@@ -30,7 +30,7 @@ vi.mock('../src/client/CanvasGraph.tsx', () => ({
     if (props.active !== false) graphProbe.current = props
     const { document, addResources, addProject, createChat, command, openResource, openSource } = props
     return <>
-      <button type="button" onClick={() => { createChat(undefined, undefined, { x: 240, y: 180 }) }}>New chat</button>
+      <button type="button" onClick={() => { void createChat(undefined, undefined, { x: 240, y: 180 }) }}>New chat</button>
       <button type="button" onClick={() => { addProject({ x: 240, y: 180 }) }}>Add folder</button>
       <button type="button" onClick={() => { openResource({ kind: 'folder', path: '/project/folder', name: 'folder', size: null }) }}>Open folder</button>
       <button type="button" onClick={() => { openSource('/project/clip.mp4') }}>Show source</button>
@@ -49,7 +49,7 @@ vi.mock('../src/client/CanvasGraph.tsx', () => ({
         { name: 'virtual.txt', path: null }, { name: 'missing.txt', path: '/project/missing.txt' },
         { name: 'last.txt', path: '/project/last.txt' },
       ], { x: 37, y: -21 }) }}>Drop unreadable resources</button>
-      <button type="button" onClick={() => { createChat('/project/folder', 'folder-node' as CanvasNodeId) }}>Create linked chat</button>
+      <button type="button" onClick={() => { void createChat('/project/folder', 'folder-node' as CanvasNodeId) }}>Create linked chat</button>
       <button type="button" onClick={() => { void command({
         kind: 'add-node', node: {
           id: 'batch-chat' as CanvasNodeId, typeId: 'convax.chat' as CanvasNodeTypeId,
@@ -77,22 +77,21 @@ it('projects saved Chat preferences through its public graph Factory without sel
   const source = 'target-chat' as CanvasNodeId
   b.store.actions.open(workspace.canvases[0]!.id)
   const view = render(<ConvaxWorkspace {...b.props} />)
-  expect(currentGraph().chatPresentations).toEqual({ [source]: { collapsed: false } })
+  expect(currentGraph().chatPresentations).toEqual({ [source]: {} })
   b.chatStore.actions.setSize(source, { width: 420, height: 320 })
-  b.chatStore.actions.setCollapsed(source, true)
   b.chatStore.actions.setToolWidth(source, 540, false)
   view.rerender(<ConvaxWorkspace {...b.props} />)
   expect(currentGraph().chatPresentations).toEqual({ [source]: {
-    collapsed: true, size: { width: 420, height: 320 }, toolWidths: { normal: 540 },
+    size: { width: 420, height: 320 }, toolWidths: { normal: 540 },
   } })
   const copy = 'copied-chat' as CanvasNodeId
   currentGraph().applyChatPresentation(copy, currentGraph().chatPresentations[source]!)
   expect(b.chatStore.getSnapshot()).toMatchObject({
-    collapsedChats: { [copy]: true }, sizes: { [copy]: { width: 420, height: 320 } },
+    sizes: { [copy]: { width: 420, height: 320 } },
     toolWidths: { [copy]: { normal: 540 } }, selectedThreads: {}, threadAttempts: {},
   })
-  currentGraph().applyResourceView('copied-file' as CanvasNodeId, { expanded: true, width: 520 })
-  expect(b.store.getSnapshot().resourceViews?.['copied-file']).toEqual({ expanded: true, width: 520 })
+  currentGraph().applyResourceView('copied-file' as CanvasNodeId, { width: 520 })
+  expect(b.store.getSnapshot().resourceViews?.['copied-file']).toEqual({ width: 520 })
 })
 
 function fixture(workspace: CanvasWorkspace, readWorkspace: () => CanvasWorkspace = () => workspace) {
@@ -787,7 +786,7 @@ describe('Convax workspace presentation', () => {
       : { path: '/canonical/project', name: 'project', kind: 'folder', size: null })
     b.execute.mockImplementation(async request => ({ ok: true, workspace: current = commitReference(current, request) }))
     render(<ConvaxWorkspace {...b.props} />)
-    act(() => { currentGraph().createChat(undefined, undefined, { x: 700, y: 120 }, {
+    await act(async () => { await currentGraph().createChat(undefined, undefined, { x: 700, y: 120 }, {
       nodeId, portId: 'output', direction: 'output',
     }) })
     await waitFor(() => { expect(b.execute).toHaveBeenCalledOnce() })
@@ -813,7 +812,7 @@ describe('Convax workspace presentation', () => {
     b.store.actions.open(current.canvases[0]!.id)
     b.execute.mockImplementation(async request => ({ ok: true, workspace: current = commitReference(current, request) }))
     render(<ConvaxWorkspace {...b.props} />)
-    act(() => { currentGraph().createChat('/project/folder', 'folder-node' as CanvasNodeId, { x: 700, y: 120 }, {
+    await act(async () => { await currentGraph().createChat('/project/folder', 'folder-node' as CanvasNodeId, { x: 700, y: 120 }, {
       nodeId: 'folder-node' as CanvasNodeId, portId: 'output', direction: 'output',
     }) })
     await waitFor(() => { expect(b.execute).toHaveBeenCalledOnce() })
@@ -851,7 +850,7 @@ describe('Convax workspace presentation', () => {
     const resource = Promise.withResolvers<Awaited<ReturnType<WorkspaceProps['describe']>>>()
     b.props.describe = vi.fn(() => resource.promise)
     const view = render(<ConvaxWorkspace {...b.props} />)
-    act(() => { currentGraph().createChat(undefined, undefined, { x: 700, y: 120 }, {
+    act(() => { void currentGraph().createChat(undefined, undefined, { x: 700, y: 120 }, {
       nodeId: 'folder-node' as CanvasNodeId, portId: 'output', direction: 'output',
     }) })
     view.unmount()
@@ -1131,7 +1130,7 @@ describe('Convax workspace presentation', () => {
     const workspace: CanvasWorkspace = { revision: 0, canvases: [canvas], nodeTypes: [], nodeIssues: [], chats: [] }
     const b = fixture(workspace)
     b.store.actions.open(canvas.id)
-    b.store.actions.setResourceExpanded(existing.id, false)
+    b.store.actions.setResourcePreviewSize(existing.id, { width: 480, height: 240 })
     b.execute.mockImplementation(async request => ({ ok: true, workspace: commitReference(workspace, request) }))
     b.picker.path = '/picked/project'
     b.props.describe = vi.fn<WorkspaceProps['describe']>(async path => ({ path, name: 'project', kind: 'folder', size: null }))
@@ -1144,11 +1143,7 @@ describe('Convax workspace presentation', () => {
     expect(b.execute.mock.calls[0]?.[0].command).toMatchObject({
       kind: 'add-node', node: { typeId: 'convax.folder', data: { path: '/picked/project' }, position: { x: 240, y: 180 } },
     })
-    const command = b.execute.mock.calls[0]![0].command
-    if (command.kind !== 'add-node') throw new Error('Expected picked folder addition')
-    await waitFor(() => { expect(b.store.getSnapshot().resourceViews).toEqual({
-      [existing.id]: { expanded: false }, [command.node.id]: { expanded: true },
-    }) })
+    expect(b.store.getSnapshot().resourceViews).toEqual({ [existing.id]: { width: 480, height: 240 } })
     fireEvent.click(screen.getByRole('button', { name: 'Open folder' }))
     expect(b.props.openFolder).toHaveBeenCalledExactlyOnceWith('/project/folder')
     expect(b.store.getSnapshot().directory).toBe('')
@@ -1260,9 +1255,7 @@ describe('Convax workspace presentation', () => {
     expect(first!.position).toEqual({ x: 37, y: -21 })
     expect(second!.position.x).toBeGreaterThan(first!.position.x + RESOURCE_CARD_WIDTH)
     expect(third!.position.x).toBeGreaterThan(second!.position.x + RESOURCE_CARD_WIDTH)
-    expect(b.store.getSnapshot().resourceViews).toEqual({
-      [first!.id]: { expanded: true }, [second!.id]: { expanded: true }, [third!.id]: { expanded: true },
-    })
+    expect(b.store.getSnapshot().resourceViews).toBeUndefined()
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
@@ -1322,9 +1315,7 @@ describe('Convax workspace presentation', () => {
     expect(screen.getByRole('alert').textContent).toContain('Could not read missing.txt')
     expect(describe.mock.calls.map(([path]) => path)).toEqual(['/project/missing.txt', '/project/last.txt'])
     expect(b.execute).toHaveBeenCalledOnce()
-    const command = b.execute.mock.calls[0]![0].command
-    if (command.kind !== 'add-node') throw new Error('Expected readable reference addition')
-    expect(b.store.getSnapshot().resourceViews).toEqual({ [command.node.id]: { expanded: true } })
+    expect(b.store.getSnapshot().resourceViews).toBeUndefined()
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByRole('alert')).toBeNull()
   })
@@ -1345,18 +1336,14 @@ describe('Convax workspace presentation', () => {
     expect(execute).toHaveBeenCalledTimes(2)
     expect(execute.mock.calls.map(([request]) => request.expectedRevision)).toEqual([4, 5])
     expect(describe.mock.calls.map(([path]) => path)).toEqual(['/project/folder', '/project/file.txt'])
-    const committed = execute.mock.calls[0]![0].command
-    const unconfirmed = execute.mock.calls[1]![0].command
-    if (committed.kind !== 'add-node' || unconfirmed.kind !== 'add-node') throw new Error('Expected reference additions')
-    expect(b.store.getSnapshot().resourceViews).toEqual({ [committed.node.id]: { expanded: true } })
-    expect(b.store.getSnapshot().resourceViews?.[unconfirmed.node.id]).toBeUndefined()
+    expect(b.store.getSnapshot().resourceViews).toBeUndefined()
   })
 
   it.each(['rejected', 'missing canvas', 'missing node'] as const)('keeps existing view preferences when addition is %s', async (outcome) => {
     const workspace = inputWorkspace()
     const b = fixture(workspace)
     b.store.actions.open(workspace.canvases[0]!.id)
-    b.store.actions.setResourceExpanded('folder-node' as CanvasNodeId, false)
+    b.store.actions.setResourcePreviewSize('folder-node' as CanvasNodeId, { width: 480, height: 240 })
     const previous = b.store.getSnapshot().resourceViews
     b.props.describe = vi.fn<WorkspaceProps['describe']>(async path => ({ path, name: path, kind: 'file', size: 4 }))
     b.execute.mockResolvedValueOnce(outcome === 'rejected'
@@ -1377,7 +1364,7 @@ describe('Convax local graph history', () => {
     const original = workspace
     const canvas = workspace.canvases[0]!
     const file = canvas.nodes[2]!.id
-    const saved = { expanded: true, width: 480, height: 200 }
+    const saved = { width: 480, height: 200 }
     const target = 'original-addition' as CanvasOperationId
     const b = fixture(workspace, () => workspace)
     b.store.actions.open(canvas.id)
@@ -1438,7 +1425,7 @@ describe('Convax local graph history', () => {
     let workspace: CanvasWorkspace = { ...original, canvases: [{ ...canvas, nodes: canvas.nodes.filter(node => node.id !== file) }] }
     const b = fixture(workspace, () => workspace)
     const target = 'original-delete' as CanvasOperationId
-    const saved = { expanded: true, width: 540, height: 420 }
+    const saved = { width: 540, height: 420 }
     b.store.actions.open(canvas.id)
     b.store.actions.recordHistory(canvas.id, target, { [file]: saved })
     const view = render(<ConvaxWorkspace {...b.props} />)

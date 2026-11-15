@@ -3,3 +3,4 @@
 - button "Terminal"
 - button "Browser"
 - button "New chat"
+- button "Creation workbench"

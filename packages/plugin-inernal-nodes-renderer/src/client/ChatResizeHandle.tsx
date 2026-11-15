@@ -12,7 +12,6 @@ interface Gesture {
   readonly y: number
   readonly scale: number
   readonly size: ChatSize
-  readonly collapsedHeight: number | undefined
   readonly detach: () => void
 }
 
@@ -21,15 +20,13 @@ interface Gesture {
  * @param props - Native Conversation container, localized guidance and size actions.
  * @returns A keyboard-accessible grip outside the transcript's lower-right corner.
  */
-export function ChatResizeHandle({ container, actions, label, help, useContainer = false, collapsedHeight }: {
+export function ChatResizeHandle({ container, actions, label, help, useContainer = false }: {
   readonly container: RefObject<HTMLDivElement | null>
   readonly actions: ChatResizeControls
   readonly label: string
   readonly help: string
   /** Loading and failure placeholders resize their container instead of a transcript. */
   readonly useContainer?: boolean
-  /** A collapsed header changes width while retaining its expanded body height. */
-  readonly collapsedHeight?: number
 }) {
   const [bottom, setBottom] = useState<number | null>(null)
   const [resizing, setResizing] = useState(false)
@@ -68,10 +65,10 @@ export function ChatResizeHandle({ container, actions, label, help, useContainer
     if (root === null || scroll == null || root.offsetWidth === 0) return null
     const scale = root.getBoundingClientRect().width / root.offsetWidth
     if (scale <= 0) return null
-    return { size: { width: root.offsetWidth, height: collapsedHeight ?? scroll.offsetHeight }, scale }
+    return { size: { width: root.offsetWidth, height: scroll.offsetHeight }, scale }
   }
   const resize = (active: Gesture, x: number, y: number): ChatSize =>
-    resizeChat(active.size, x - active.x, active.collapsedHeight === undefined ? y - active.y : 0, active.scale)
+    resizeChat(active.size, x - active.x, y - active.y, active.scale)
   const cancel = (): void => {
     const active = gesture.current
     if (active === null) return
@@ -118,7 +115,7 @@ export function ChatResizeHandle({ container, actions, label, help, useContainer
         owner.addEventListener('pointercancel', abort, true)
         ownerWindow?.addEventListener('blur', cancel)
         gesture.current = {
-          ...current, pointerId: event.pointerId, element: event.currentTarget, x: event.clientX, y: event.clientY, collapsedHeight,
+          ...current, pointerId: event.pointerId, element: event.currentTarget, x: event.clientX, y: event.clientY,
           detach: () => {
             owner.removeEventListener('pointermove', move, true)
             owner.removeEventListener('pointerup', up, true)
@@ -142,7 +139,6 @@ export function ChatResizeHandle({ container, actions, label, help, useContainer
         }
         const direction = directions[event.key]
         if (direction === undefined) return
-        if (collapsedHeight !== undefined && direction[0] === 0) return
         const current = read()
         if (current === null) return
         event.preventDefault()

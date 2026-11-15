@@ -44,11 +44,11 @@ describe('Canvas local history metadata', () => {
   })
 
   it('captures only removed views and restores reintroduced or missing views after a late receipt', () => {
-    const expanded = { expanded: true, width: 520, height: 340 }
-    const collapsed = { expanded: false }
-    expect(removedResourceViews(canvas(['a', 'b']), canvas(['b']), { a: expanded, b: collapsed })).toEqual({ a: expanded })
-    expect(restoredResourceViews(canvas(['b']), canvas(['a', 'b']), { a: expanded, b: expanded }, { b: collapsed })).toEqual({ a: expanded })
-    expect(restoredResourceViews(canvas(['a', 'b']), canvas(['a', 'b']), { a: expanded, b: expanded }, { b: collapsed })).toEqual({ a: expanded })
+    const saved = { width: 520, height: 340 }
+    const current = { width: 540, height: 360 }
+    expect(removedResourceViews(canvas(['a', 'b']), canvas(['b']), { a: saved, b: current })).toEqual({ a: saved })
+    expect(restoredResourceViews(canvas(['b']), canvas(['a', 'b']), { a: saved, b: saved }, { b: current })).toEqual({ a: saved })
+    expect(restoredResourceViews(canvas(['a', 'b']), canvas(['a', 'b']), { a: saved, b: saved }, { b: current })).toEqual({ a: saved })
     expect(restoredResourceViews(canvas([]), canvas(['a']), {}, {})).toEqual({})
   })
 })

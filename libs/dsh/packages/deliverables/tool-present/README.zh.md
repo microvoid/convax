@@ -45,6 +45,8 @@ kind: "package-reference"
 
 挂载时校验文件数量上限。工具要求 Agent Session 具有工作区和尚未结束的轮次。交付归调用方 Session 所有；父 Session 如需声明交付子 Agent 创建的文件，必须自行调用 `present`。
 
+Host 插件可以持有本包的 `DeliverablePublisher` 实例，在来源轮次结束后交付后台结果。其上下文提供 `fs`、`sessions`、`sessionPersistence` 和 `sessionProjections`；发布前等待 `start()`，卸载时等待 `close()`。`publish({ deliveryKey, origin: { sessionId, turn, callId }, files })` 接受已存在的绝对文件路径，返回已持久化的 Session 事件位置，不启动 Agent。调用方保留原始调用身份，并为每个输出分配稳定的键。同一键、相同文件和调用身份返回同一回执；不同内容抛出 `DeliveryKeyConflictError`。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -56,6 +58,8 @@ kind: "package-reference"
 工具通过配置的文件系统提供方解析路径，检查普通文件元数据，不读取内容。成功的最终 `tools/result` 通知追加 `deliverables/presented`，嵌套调用也适用。外层程序随后失败不会撤销已完成的声明。被阻止的结果不发布声明。每个插件实例只记录其实际执行的调用；同名作用域工具不能通过其他实例发布交付。
 
 纯 `./types` 入口声明 `PresentedFile` 与 Session 事件，不导入 Host 运行时代码。Web 消费方在展示或打开文件前校验持久声明。新声明保存绝对路径。历史相对路径声明继续以当前查看的 Session 原始工作区作为基准。
+
+后台声明把 `deliveryKey` 保存在 `deliverables/presented` 内。私有 Session 投影为每条带键声明恢复一份回执，排除 fork 继承的事件。活跃 Session 使用现有持久化写入者；冷 Session 获取独占写句柄。文件准入与 `present` 共用。flush 完成后，`deliverables/published` 通知原 Session 和事件位置；观察者失败不撤销持久回执。回执表示声明已持久化，不代表下游画布投影已完成。持久化失败时结果不确定，可以使用同一键重试。
 
 </details>
 

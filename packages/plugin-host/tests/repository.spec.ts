@@ -92,6 +92,53 @@ function node(id: string): CanvasNode {
 }
 
 describe('CanvasRepository', () => {
+  it('recognizes only an exact durable commit as proof that a request was applied', async () => {
+    const { repository, close, open } = await fixture()
+    const create = request('creation-setup', 0, { kind: 'create', title: 'Studio' })
+    expect(repository.hasCommittedOperation(create)).toBe(false)
+    expect(await repository.execute(create)).toMatchObject({ ok: true })
+    expect(repository.hasCommittedOperation(create)).toBe(true)
+    expect(repository.hasCommittedOperation({ ...create, command: { kind: 'create', title: 'Another studio' } })).toBe(false)
+    expect(repository.hasCommittedOperation({ ...create, expectedRevision: 1 })).toBe(false)
+    expect(repository.hasCommittedOperation({ ...create, canvasId: 'another-canvas' as CanvasId })).toBe(false)
+    await close()
+    const reopened = await open()
+    expect(reopened.repository.hasCommittedOperation(create)).toBe(true)
+  })
+
+  it('binds a capability to native Chat ports and rejects conflicting providers, including history restore', async () => {
+    const { repository, registry } = await fixture()
+    registry.register({ id: 'test.creation' as CanvasNodeTypeId, dataVersion: 1,
+      capabilities: { provides: ['creation'] }, ports: [{ id: 'output', direction: 'output', valueKind: 'capability' }], parse: data => data })
+    registry.register({ id: 'test.chat' as CanvasNodeTypeId, dataVersion: 1,
+      capabilities: { sessions: true }, ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }], parse: data => data })
+    const first = { ...node('first'), typeId: 'test.creation' as CanvasNodeTypeId }
+    const second = { ...node('second'), typeId: 'test.creation' as CanvasNodeTypeId }
+    const chat = { ...node('chat'), typeId: 'test.chat' as CanvasNodeTypeId, data: { title: 'Chat', cwd: '/project' } }
+    await repository.execute(request('create', 0, { kind: 'create', title: 'Creation' }))
+    await repository.execute(request('nodes', 1, { kind: 'add-subgraph', nodes: [first, second, chat, node('file')], connections: [] }))
+    const edge = { id: 'capability-first' as CanvasConnectionId, source: first.id, sourcePort: 'output', target: chat.id,
+      targetPort: 'input', purpose: 'capability' as const }
+    expect(await repository.execute(request('bind', 2, { kind: 'add-connection', connection: edge }))).toMatchObject({ ok: true })
+    expect(await repository.execute(request('conflict', 3, { kind: 'add-connection', connection: {
+      ...edge, id: 'capability-second' as CanvasConnectionId, source: second.id,
+    } }))).toMatchObject({ ok: false, code: 'invalid-command' })
+    expect(await repository.execute(request('not-file', 3, { kind: 'add-connection', connection: {
+      ...edge, id: 'not-file' as CanvasConnectionId, target: node('file').id,
+    } }))).toMatchObject({ ok: false, code: 'invalid-command' })
+    expect(await repository.execute(request('not-reference', 3, { kind: 'add-connection', connection: {
+      ...edge, id: 'not-reference' as CanvasConnectionId, purpose: 'input',
+    } }))).toMatchObject({ ok: false, code: 'invalid-command' })
+    await repository.execute(request('disconnect', 3, { kind: 'remove-connections', connectionIds: [edge.id] }))
+    expect(await repository.execute(request('rebind', 4, { kind: 'add-connection', connection: {
+      ...edge, id: 'replacement' as CanvasConnectionId, source: second.id,
+    } }))).toMatchObject({ ok: true })
+    expect(await repository.execute(request('undo-disconnect', 5, {
+      kind: 'history', targetOperationId: 'disconnect' as CanvasOperationId, direction: 'undo',
+    }))).toMatchObject({ ok: false, code: 'invalid-command' })
+    expect(repository.snapshot().canvases[0]?.connections).toEqual([expect.objectContaining({ id: 'replacement', purpose: 'capability' })])
+  })
+
   it('persists explicit default naming and clears it on a same-text rename, including undo and reopen', async () => {
     const { repository, close, open } = await fixture()
     await repository.execute(request('default', 0, { kind: 'create', title: 'Untitled canvas', defaultTitle: true }))
@@ -1678,6 +1725,30 @@ async function deliveryFixture() {
 }
 
 describe('Delivery recovery lifetime', () => {
+  it('projects a durable background declaration without a live Session', async () => {
+    const f = await deliveryFixture()
+    await f.coordinator.start()
+    const published = Promise.withResolvers<undefined>()
+    const unsubscribe = f.repository.subscribe(() => {
+      const files = f.repository.snapshot().canvases[0]?.nodes.filter(node => node.typeId === 'convax.file')
+      if (files?.length === 2) published.resolve(undefined)
+    })
+    cleanup.push(async () => { unsubscribe() })
+    f.events.push({ type: 'deliverables/presented', seq: SessionSeq(3), time: 4,
+      data: { turn: 1, callId: 'background-generate' as ToolCallId, deliveryKey: 'creation:job:output', files: [{ path: '/project/background.png' }] } })
+    expect(f.ctx.sessions.get(f.sessionId)).toBeUndefined()
+    f.ctx.emit('deliverables/published', f.sessionId, SessionSeq(3))
+    await published.promise
+    const canvas = f.repository.snapshot().canvases[0]
+    expect(canvas?.connections.filter(edge => edge.purpose === 'delivery')).toHaveLength(2)
+    expect(canvas?.nodes.find(node => node.data.path === '/project/background.png')?.typeId).toBe('convax.file')
+    await f.coordinator.close()
+    const reads = f.open.mock.calls.length
+    f.ctx.emit('deliverables/published', f.sessionId, SessionSeq(3))
+    await f.coordinator.retry()
+    expect(f.open.mock.calls).toHaveLength(reads)
+  })
+
   it('uses a Session resumed while a cold read was in flight without losing its delivery', async () => {
     const f = await deliveryFixture()
     const entered = Promise.withResolvers<undefined>()

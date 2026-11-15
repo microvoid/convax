@@ -145,7 +145,7 @@ async function dragResize(page: Page, card: Locator, grip: Locator, dx: number, 
   expect(await viewport(page)).toEqual(before)
 }
 
-it('resizes every card at canvas zoom, retains previews and bindings, and restores dimensions after reload', async () => {
+it('opens previously collapsed cards, resizes them, and restores dimensions after reload', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [join(BUNDLE, 'cordis.patch.yml'), fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))],
     extraInstallAnchors: [join(BUNDLE, 'package.json')],
@@ -163,6 +163,20 @@ it('resizes every card at canvas zoom, retains previews and bindings, and restor
   owned.page = page
   const console = watchConsole(page)
   await captureFixture(page)
+  await page.addInitScript(({ chatId, fileId, folderId }) => {
+    if (window.top !== window) return
+    if (localStorage.getItem('convax.chat.view.v1') === null) {
+      localStorage.setItem('convax.chat.view.v1', JSON.stringify({
+        selectedThreads: {}, threadAttempts: {}, collapsedChats: { [chatId]: true },
+      }))
+    }
+    if (localStorage.getItem('convax.canvas.view.v1') === null) {
+      localStorage.setItem('convax.canvas.view.v1', JSON.stringify({
+        tabs: [], activeCanvasId: null, closedTabs: [], directory: '', viewports: {},
+        resourceViews: { [fileId]: { expanded: false, width: 360, height: 220 }, [folderId]: { expanded: false } },
+      }))
+    }
+  }, fixture)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto(scaffold.authenticatedUrl)
   await page.locator('[data-convax-workspace]').waitFor({ timeout: 30_000 })
@@ -177,8 +191,6 @@ it('resizes every card at canvas zoom, retains previews and bindings, and restor
   const folder = page.locator(`[data-convax-resource="${fixture.folderId}"]`)
   const chat = page.locator(`[data-convax-chat="${fixture.chatId}"]`)
   await chat.locator('[data-composer-input][contenteditable="true"]').filter({ visible: true }).waitFor({ timeout: 15_000 })
-  await file.getByRole('button', { name: 'Expand notes.txt', exact: true }).click()
-  await folder.getByRole('button', { name: 'Expand resize-project', exact: true }).click()
   await file.getByText('Card resize preview stays mounted.', { exact: false }).waitFor()
   await folder.locator('[data-convax-directory-tree]').getByText('notes.txt', { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Application window', exact: true }).click()
@@ -201,11 +213,14 @@ it('resizes every card at canvas zoom, retains previews and bindings, and restor
     { name: 'file', card: file, body: file.locator('[data-convax-file-preview]'), grip: file.locator('[data-convax-resource-resize]'), title: 'notes.txt' },
     { name: 'folder', card: folder, body: folder.locator('[data-convax-directory-preview]'), grip: folder.locator('[data-convax-resource-resize]'), title: 'resize-project' },
     { name: 'window', card: windowCard, body: windowCard.locator('[data-convax-window-preview]'), grip: windowCard.locator('[data-convax-resource-resize]'), title: 'Resize window fixture' },
-    { name: 'chat', card: chat, body: chat.locator('[data-conversation-scroll]').filter({ visible: true }), grip: chat.locator('[data-convax-chat-resize]').filter({ visible: true }), title: undefined },
+    { name: 'chat', card: chat, body: chat.locator('[data-conversation-scroll]').filter({ visible: true }), grip: chat.locator('[data-convax-chat-resize]').filter({ visible: true }), title: 'chat' },
   ]
   const expected: Record<string, { width: number; height: number }> = {}
   for (const entry of cases) {
+    expect(await entry.card.getByRole('button', { name: `Expand ${entry.title}`, exact: true }).count()).toBe(0)
+    expect(await entry.card.getByRole('button', { name: `Collapse ${entry.title}`, exact: true }).count()).toBe(0)
     const before = await dimensions(entry.card, entry.body)
+    if (entry.name === 'file') expect(before).toEqual({ width: 360, height: 220 })
     await dragResize(page, entry.card, entry.grip, 60, 45)
     const next = { width: before.width + 80, height: before.height + 60 }
     await expect.poll(() => dimensions(entry.card, entry.body)).toEqual(next)
@@ -217,17 +232,6 @@ it('resizes every card at canvas zoom, retains previews and bindings, and restor
   expect(await windowCard.locator('video').evaluate((element, original) => element === original, video)).toBe(true)
   await expect.poll(() => windowCard.locator('video').evaluate(element => element instanceof HTMLVideoElement && element.readyState >= 2)).toBe(true)
 
-  for (const entry of cases) {
-    await positionCard(page, entry.card)
-    await entry.card.getByRole('button', { name: entry.title === undefined ? 'Collapse chat' : `Collapse ${entry.title}`, exact: true }).click()
-    expect(await entry.body.count()).toBe(0)
-    const beforeWidth = expected[entry.name]!.width
-    await dragResize(page, entry.card, entry.grip, 30, 45)
-    await expect.poll(() => entry.card.evaluate(element => (element as HTMLElement).offsetWidth)).toBe(beforeWidth + 40)
-    await entry.card.getByRole('button', { name: entry.title === undefined ? 'Expand chat' : `Expand ${entry.title}`, exact: true }).click()
-    expected[entry.name] = { width: beforeWidth + 40, height: expected[entry.name]!.height }
-    await expect.poll(() => dimensions(entry.card, entry.body)).toEqual(expected[entry.name])
-  }
   await mkdir(ARTIFACTS, { recursive: true })
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme })
@@ -285,9 +289,7 @@ it('commits a quick resize after pointer capture is lost and preserves Escape ca
   const html = page.locator(`[data-convax-resource="${htmlId}"]`)
   const chat = page.locator(`[data-convax-chat="${fixture.chatId}"]`)
   await chat.locator('[data-composer-input][contenteditable="true"]').filter({ visible: true }).waitFor({ timeout: 15_000 })
-  await file.getByRole('button', { name: 'Expand notes.txt', exact: true }).click()
   await positionCard(page, html)
-  await html.getByRole('button', { name: 'Expand resize-frame.html', exact: true }).click()
   await html.locator('iframe').waitFor()
   await setZoom(page, 0.75)
   const cases = [

@@ -253,6 +253,16 @@ export class CanvasRepository {
   }
 
   /**
+   * Check that the exact request reached the durable graph commit.
+   * @param request - Original request, including its canvas, revision and operation identity.
+   * @returns True for a matching committed receipt; pending lifecycle intentions do not qualify.
+   */
+  hasCommittedOperation(request: CanvasCommandRequest): boolean {
+    const receipt = this.domain.table('operations').get(request.operationId)
+    return receipt !== undefined && sameCanvasRequest(receipt.request, request)
+  }
+
+  /**
    * Read a canvas version, retaining its last committed fence after deletion.
    * @param canvasId - Existing or removed canvas identity.
    * @returns Current canvas revision or its latest retained history revision; zero if never committed.
@@ -515,6 +525,7 @@ export class CanvasRepository {
       }
     }
     graph.revision += 1
+    for (const document of graph.canvases) this.validateCapabilityBindings(document)
     const validated = graphSchema.safeParse(graph)
     if (!validated.success) throw new CommandFailure('invalid-command', 'Command would create an invalid canvas graph', { cause: validated.error })
     tx.global.set(validated.data)
@@ -901,6 +912,21 @@ export class CanvasRepository {
     }
   }
 
+  /** History restoration and batch commits obey the same single-provider capability ownership. */
+  private validateCapabilityBindings(canvas: CanvasDocument): void {
+    const targets = new Map<CanvasNodeId, Set<string> | null>()
+    for (const edge of canvas.connections.filter(connection => connection.purpose === 'capability')) {
+      const source = canvas.nodes.find(node => node.id === edge.source)
+      const provided = source === undefined ? undefined : this.nodeTypes.get(source.typeId)?.capabilities?.provides
+      const occupied = targets.get(edge.target)
+      if (targets.has(edge.target) && (occupied === null || provided === undefined
+        || provided.some(value => occupied?.has(value)))) {
+        throw new CommandFailure('invalid-command', 'This Chat already has a provider for the connected capability')
+      }
+      targets.set(edge.target, provided === undefined ? null : new Set([...(occupied ?? []), ...provided]))
+    }
+  }
+
   private addConnection(canvas: CanvasDocument, connection: CanvasConnection): void {
     if (canvas.connections.some(c => c.id === connection.id)) throw new CommandFailure('invalid-command', 'Connection identity already exists')
     const source = canvas.nodes.find(n => n.id === connection.source)
@@ -911,7 +937,16 @@ export class CanvasRepository {
     }
     const output = this.nodeTypes.get(source.typeId)?.ports.find(p => p.id === connection.sourcePort && p.direction === 'output')
     const input = this.nodeTypes.get(target.typeId)?.ports.find(p => p.id === connection.targetPort && p.direction === 'input')
-    if (output === undefined || input === undefined || output.valueKind !== input.valueKind) {
+    if (output === undefined || input === undefined) {
+      throw new CommandFailure('invalid-command', 'Connection ports are unavailable or incompatible')
+    }
+    if (connection.purpose === 'capability') {
+      const provided = this.nodeTypes.get(source.typeId)?.capabilities?.provides ?? []
+      if (output.valueKind !== 'capability' || provided.length === 0
+        || this.nodeTypes.get(target.typeId)?.capabilities?.sessions !== true) {
+        throw new CommandFailure('invalid-command', 'Capability connections require a capability provider and a Session-owning target')
+      }
+    } else if (output.valueKind !== input.valueKind || output.valueKind === 'capability') {
       throw new CommandFailure('invalid-command', 'Connection ports are unavailable or incompatible')
     }
     canvas.connections.push(structuredClone(connection))

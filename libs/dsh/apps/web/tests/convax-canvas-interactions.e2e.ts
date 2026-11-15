@@ -57,7 +57,7 @@ async function seedCanvas(scaffold: WebScaffold, title: string, withChat = false
       kind: 'add-node', node: {
         id: randomUUID() as CanvasNodeId, typeId: 'convax.chat' as CanvasNodeTypeId,
         dataVersion: 1, data: { title: 'Keyboard isolation', cwd: scaffold.workspaceCwd },
-        position: { x: 80, y: 240 }, revision: 0,
+        position: { x: 80, y: 400 }, revision: 0,
       },
     })
   }
@@ -257,26 +257,23 @@ async function resourcePresentation(page: Page, id: CanvasNodeId) {
   return node(page, id).locator('[data-convax-resource]').evaluate((element) => {
     if (!(element instanceof HTMLElement)) throw new Error('Resource is not an HTML element')
     const preview = element.querySelector('[data-convax-file-preview]')
-    return { expanded: element.getAttribute('data-expanded'), width: element.offsetWidth,
+    return { width: element.offsetWidth,
       height: preview instanceof HTMLElement ? preview.offsetHeight : 0 }
   })
 }
 
-async function resizeResourceTo(page: Page, id: CanvasNodeId, name: string, width: number, height: number): Promise<void> {
+async function resizeResourceTo(page: Page, id: CanvasNodeId, width: number, height: number): Promise<void> {
   const card = node(page, id)
-  if (await card.locator('[data-convax-resource]').getAttribute('data-expanded') !== 'true') {
-    await card.getByRole('button', { name: `Expand ${name}`, exact: true }).click()
-  }
   const current = await resourcePresentation(page, id)
   const grip = await card.getByRole('button', { name: 'Resize preview', exact: true }).boundingBox()
-  if (grip === null) throw new Error('Expanded resource has no resize grip')
+  if (grip === null) throw new Error('Resource has no resize grip')
   const scale = await zoom(page)
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
   await page.mouse.down()
   await page.mouse.move(grip.x + grip.width / 2 + (width - current.width) * scale,
     grip.y + grip.height / 2 + (height - current.height) * scale, { steps: 12 })
   await page.mouse.up()
-  await expect.poll(() => resourcePresentation(page, id)).toEqual({ expanded: 'true', width, height })
+  await expect.poll(() => resourcePresentation(page, id)).toEqual({ width, height })
 }
 
 describe('web e2e: Convax canvas interactions', () => {
@@ -459,15 +456,13 @@ describe('web e2e: Convax canvas interactions', () => {
     await expect.poll(() => guides.count()).toBe(0)
     await expect.poll(() => page.getByRole('button', { name: 'New chat', exact: true }).isEnabled()).toBe(true)
 
-    await node(page, first.id).getByRole('button', { name: 'Expand notes.txt', exact: true }).click()
     const handle = node(page, first.id).getByRole('button', { name: 'Resize preview', exact: true })
     const resize = await handle.boundingBox()
-    if (resize === null) throw new Error('Expanded resource has no resize handle')
+    if (resize === null) throw new Error('Resource has no resize handle')
     await page.mouse.move(resize.x + resize.width / 2, resize.y + resize.height / 2)
     await page.mouse.down()
     await page.mouse.move(resize.x + resize.width / 2 + 160, resize.y + resize.height / 2, { steps: 8 })
     await page.mouse.up()
-    await node(page, first.id).getByRole('button', { name: 'Collapse notes.txt', exact: true }).click()
     await expect.poll(() => node(page, first.id).evaluate((element) => {
       if (!(element instanceof HTMLElement)) throw new Error('Resource node is not an HTML element')
       return element.offsetWidth
@@ -861,20 +856,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await allowClipboard(page, scaffold)
     await page.evaluate(() => navigator.clipboard.writeText(''))
     await resetZoom(page)
-    await node(page, first.id).getByRole('button', { name: 'Expand notes.txt', exact: true }).click()
-    const resize = await node(page, first.id).getByRole('button', { name: 'Resize preview', exact: true }).boundingBox()
-    if (resize === null) throw new Error('Expanded source resource has no resize grip')
-    await page.mouse.move(resize.x + resize.width / 2, resize.y + resize.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(resize.x + resize.width / 2 + 160, resize.y + resize.height / 2 - 40, { steps: 12 })
-    await page.mouse.up()
-    const presentation = (id: CanvasNodeId) => node(page, id).locator('[data-convax-resource]').evaluate((element) => {
-      if (!(element instanceof HTMLElement)) throw new Error('Resource is not an HTML element')
-      const preview = element.querySelector('[data-convax-file-preview]')
-      return { expanded: element.getAttribute('data-expanded'), width: element.offsetWidth,
-        height: preview instanceof HTMLElement ? preview.offsetHeight : 0 }
-    })
-    await expect.poll(() => presentation(first.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await resizeResourceTo(page, first.id, 480, 200)
     await node(page, first.id).locator('[data-convax-resource-header]').click()
     await page.keyboard.press('ControlOrMeta+A')
     await expect.poll(() => selectedIds(page)).toEqual([first.id, second.id].sort())
@@ -902,7 +884,7 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(pastedSecond.position.x - pastedFirst.position.x).toBe(second.position.x - first.position.x)
     expect(pastedSecond.position.y - pastedFirst.position.y).toBe(second.position.y - first.position.y)
     await expect.poll(() => selectedIds(page)).toEqual(pasted.nodes.map(item => item.id).sort())
-    await expect.poll(() => presentation(pastedFirst.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, pastedFirst.id)).toEqual({ width: 480, height: 200 })
     await clipboardSettled(page)
     await expect.poll(() => page.getByRole('button', { name: 'New chat', exact: true }).isEnabled()).toBe(true)
 
@@ -910,8 +892,8 @@ describe('web e2e: Convax canvas interactions', () => {
     await expect.poll(() => canvas(scaffold, targetId).nodes.length).toBe(4)
     const duplicated = canvas(scaffold, targetId).nodes.filter(item => !pasted.nodes.some(old => old.id === item.id))
     await expect.poll(() => selectedIds(page)).toEqual(duplicated.map(item => item.id).sort())
-    await expect.poll(() => presentation(duplicated.find(item => item.data.path === first.data.path)!.id))
-      .toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, duplicated.find(item => item.data.path === first.data.path)!.id))
+      .toEqual({ width: 480, height: 200 })
     await clipboardSettled(page)
     expect(canvas(scaffold, targetId).connections).toHaveLength(2)
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(copied)
@@ -1029,9 +1011,9 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(console.pageErrors).toEqual([])
   })
 
-  it('clipboard: preserves the measured size and collapse state of two closely spaced narrow Chats when duplicating', async () => {
+  it('clipboard: preserves the measured size of two closely spaced narrow Chats when duplicating', async () => {
     const id = randomUUID() as CanvasId
-    await execute(scaffold, id, { kind: 'create', title: 'Clipboard compact Chats' })
+    await execute(scaffold, id, { kind: 'create', title: 'Clipboard narrow Chats' })
     const originals: CanvasNode[] = []
     for (const [index, title] of ['Compact A', 'Compact B'].entries()) {
       const item: CanvasNode = {
@@ -1055,7 +1037,7 @@ describe('web e2e: Convax canvas interactions', () => {
     for (const original of originals) {
       const chat = page.locator(`[data-convax-chat="${original.id}"]`)
       const grip = await chat.getByRole('button', { name: 'Resize chat', exact: true }).boundingBox()
-      if (grip === null) throw new Error('Expanded source Chat has no resize grip')
+      if (grip === null) throw new Error('Source Chat has no resize grip')
       await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
       await page.mouse.down()
       await page.mouse.move(grip.x + grip.width / 2 - 220, grip.y + grip.height / 2, { steps: 12 })
@@ -1064,13 +1046,11 @@ describe('web e2e: Convax canvas interactions', () => {
         if (!(element instanceof HTMLElement)) throw new Error('Chat is not an HTML element')
         return element.offsetWidth
       })).toBe(400)
-      await chat.getByRole('button', { name: 'Collapse chat', exact: true }).click()
-      await expect.poll(() => chat.getAttribute('data-collapsed')).toBe('true')
     }
     const first = originals[0]!
     const second = originals[1]!
     const header = await node(page, second.id).locator('[data-convax-chat-drag]').boundingBox()
-    if (header === null) throw new Error('Collapsed Chat has no drag header')
+    if (header === null) throw new Error('Chat has no drag header')
     const start = { x: header.x + header.width / 2, y: header.y + 2 }
     await page.mouse.move(start.x, start.y)
     await page.mouse.down()
@@ -1083,7 +1063,7 @@ describe('web e2e: Convax canvas interactions', () => {
       if (!(element instanceof HTMLElement)) throw new Error('Chat is not an HTML element')
       return [element.getAttribute('data-convax-chat')!, { width: element.offsetWidth, height: element.offsetHeight }] as const
     })))
-    for (const size of sourceSizes.values()) { expect(size.width).toBe(400); expect(size.height).toBeLessThan(100) }
+    for (const size of sourceSizes.values()) expect(size.width).toBe(400)
     const before = canvas(scaffold, id)
     await page.mouse.click(1500, 180)
     await page.keyboard.press('ControlOrMeta+A')
@@ -1098,7 +1078,7 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(copiedB.position.y - copiedA.position.y).toBe(0)
     for (const item of copied) {
       const chat = page.locator(`[data-convax-chat="${item.id}"]`)
-      await expect.poll(() => chat.getAttribute('data-collapsed')).toBe('true')
+      await chat.locator('[data-conversation-scroll]:visible').waitFor()
       const original = originals.find(original => original.data.title === item.data.title)!
       expect(await chat.evaluate((element) => {
         if (!(element instanceof HTMLElement)) throw new Error('Copied Chat is not an HTML element')
@@ -1128,7 +1108,7 @@ describe('web e2e: Convax canvas interactions', () => {
     expect(a.x + a.width).toBeLessThan(b.x)
     await page.getByRole('button', { name: 'Fit canvas', exact: true }).click()
     await mkdir(ARTIFACTS, { recursive: true })
-    await page.screenshot({ path: join(ARTIFACTS, 'convax-interactions-clipboard-collapsed.png') })
+    await page.screenshot({ path: join(ARTIFACTS, 'convax-interactions-clipboard-narrow-chats.png') })
     expect(console.pageErrors).toEqual([])
   })
 
@@ -1182,7 +1162,7 @@ describe('web e2e: Convax canvas interactions', () => {
     const page = await openCanvas(browser, scaffold, fixture.id)
     const console = watchConsole(page)
     await resetZoom(page)
-    await resizeResourceTo(page, first.id, 'notes.txt', 480, 200)
+    await resizeResourceTo(page, first.id, 480, 200)
     await node(page, first.id).locator('[data-convax-resource-header]').click()
     await page.keyboard.press('ControlOrMeta+A')
     await page.keyboard.press('ControlOrMeta+D')
@@ -1191,7 +1171,7 @@ describe('web e2e: Convax canvas interactions', () => {
     const duplicated = canvas(scaffold, fixture.id)
     const copies = duplicated.nodes.filter(item => !original.nodes.some(old => old.id === item.id))
     const copiedFile = copies.find(item => item.data.path === first.data.path)!
-    await expect.poll(() => resourcePresentation(page, copiedFile.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, copiedFile.id)).toEqual({ width: 480, height: 200 })
     await page.keyboard.press('ControlOrMeta+Z')
     await expect.poll(() => canvas(scaffold, fixture.id).nodes.map(item => item.id).sort())
       .toEqual(original.nodes.map(item => item.id).sort())
@@ -1203,22 +1183,22 @@ describe('web e2e: Convax canvas interactions', () => {
     await historySettled(page)
     expect(canvas(scaffold, fixture.id).nodes.map(item => item.id).sort()).toEqual(duplicated.nodes.map(item => item.id).sort())
     expect(canvas(scaffold, fixture.id).connections).toEqual(duplicated.connections)
-    await expect.poll(() => resourcePresentation(page, copiedFile.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, copiedFile.id)).toEqual({ width: 480, height: 200 })
     await page.reload()
     await node(page, copiedFile.id).waitFor({ timeout: 30_000 })
-    await expect.poll(() => resourcePresentation(page, copiedFile.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, copiedFile.id)).toEqual({ width: 480, height: 200 })
     expect(canvas(scaffold, fixture.id).connections).toEqual(duplicated.connections)
     expect(console.pageErrors).toEqual([])
   })
 
-  it('history: restores a deleted resource with its saved expanded dimensions and monotonic node revisions', async () => {
+  it('history: restores a deleted resource with its saved preview dimensions and monotonic node revisions', async () => {
     const fixture = await seedCanvas(scaffold, 'History resource view')
     const first = fixture.resources[0]!
     const second = fixture.resources[1]!
     const page = await openCanvas(browser, scaffold, fixture.id)
     const console = watchConsole(page)
     await resetZoom(page)
-    await resizeResourceTo(page, first.id, 'notes.txt', 480, 200)
+    await resizeResourceTo(page, first.id, 480, 200)
     const revision = canvas(scaffold, fixture.id).nodes.find(item => item.id === first.id)!.revision
     await node(page, first.id).locator('[data-convax-resource-header]').click()
     await page.keyboard.press('Delete')
@@ -1227,7 +1207,7 @@ describe('web e2e: Convax canvas interactions', () => {
     await page.keyboard.press('ControlOrMeta+Z')
     await expect.poll(() => canvas(scaffold, fixture.id).nodes.some(item => item.id === first.id)).toBe(true)
     await historySettled(page)
-    await expect.poll(() => resourcePresentation(page, first.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, first.id)).toEqual({ width: 480, height: 200 })
     const restoredRevision = canvas(scaffold, fixture.id).nodes.find(item => item.id === first.id)!.revision
     expect(restoredRevision).toBeGreaterThan(revision)
     await page.keyboard.press('ControlOrMeta+Shift+Z')
@@ -1237,10 +1217,10 @@ describe('web e2e: Convax canvas interactions', () => {
     await expect.poll(() => canvas(scaffold, fixture.id).nodes.some(item => item.id === first.id)).toBe(true)
     await historySettled(page)
     expect(canvas(scaffold, fixture.id).nodes.find(item => item.id === first.id)!.revision).toBeGreaterThan(restoredRevision)
-    await expect.poll(() => resourcePresentation(page, first.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, first.id)).toEqual({ width: 480, height: 200 })
     await page.reload()
     await node(page, first.id).waitFor({ timeout: 30_000 })
-    await expect.poll(() => resourcePresentation(page, first.id)).toEqual({ expanded: 'true', width: 480, height: 200 })
+    await expect.poll(() => resourcePresentation(page, first.id)).toEqual({ width: 480, height: 200 })
     expect(console.pageErrors).toEqual([])
   })
 

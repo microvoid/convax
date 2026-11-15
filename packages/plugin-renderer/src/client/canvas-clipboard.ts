@@ -54,12 +54,13 @@ const connectionSchema: z.ZodType<CanvasConnection> = z.object({
   id: id.transform(value => value as CanvasConnectionId), source: id.transform(value => value as CanvasNodeId), sourcePort: id,
   target: id.transform(value => value as CanvasNodeId), targetPort: id, purpose: z.enum(['input', 'delivery']),
 }).strict()
+// Accept visibility flags from older clipboard payloads and copy only the retained dimensions.
 const viewSchema: z.ZodType<CanvasClipboardView> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('chat'), presentation: z.object({
-    collapsed: z.boolean(),
+    collapsed: z.boolean().optional(),
     size: z.object({ width: z.number().min(CHAT_MIN_WIDTH), height: z.number().min(CHAT_MIN_HEIGHT) }).strict().optional(),
     toolWidths: z.object({ normal: z.number().positive().optional(), fullscreen: z.number().positive().optional() }).strict().optional(),
-  }).strict().transform(value => ({ collapsed: value.collapsed,
+  }).strict().transform(value => ({
     ...(value.size === undefined ? {} : { size: value.size }),
     ...(value.toolWidths === undefined ? {} : { toolWidths: {
       ...(value.toolWidths.normal === undefined ? {} : { normal: value.toolWidths.normal }),
@@ -67,8 +68,8 @@ const viewSchema: z.ZodType<CanvasClipboardView> = z.discriminatedUnion('kind', 
     } }),
   })) }).strict(),
   z.object({ kind: z.literal('resource'), presentation: z.object({
-    expanded: z.boolean(), width: z.number().min(RESOURCE_CARD_WIDTH).optional(), height: z.number().positive().optional(),
-  }).strict().transform(value => ({ expanded: value.expanded,
+    expanded: z.boolean().optional(), width: z.number().min(RESOURCE_CARD_WIDTH).optional(), height: z.number().positive().optional(),
+  }).strict().transform(value => ({
     ...(value.width === undefined ? {} : { width: value.width }),
     ...(value.height === undefined ? {} : { height: value.height }),
   })) }).strict(),

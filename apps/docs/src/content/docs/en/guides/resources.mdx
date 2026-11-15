@@ -1,6 +1,6 @@
 ---
 title: "Files and media"
-description: "Reference local resources, expand previews, and control audio and video."
+description: "Reference local resources, preview files, and control audio and video."
 sidebar:
   order: 3
 ---
@@ -11,9 +11,9 @@ File and folder cards reference existing paths. Adding a card does not copy the 
 
 Open **+** in the creation dock and choose **Add folder** for a folder or **Add files** for one or more files. Desktop also accepts drops from the system file manager. Web can only reference paths that its Host can resolve; browser drops without a Host path report an error instead of inventing a filesystem location.
 
-Expand a card with its arrow. Folder cards load opened directory levels on demand. Closed branches stop their expanded-directory listeners. If reading fails, available content stays visible with a Retry action.
+Cards show their contents directly. Open subfolders in the directory tree to load them on demand. Closing a branch stops watching its contents. If reading fails, available content stays visible with a Retry action.
 
-Select a resource to reveal its toolbar. Use **Show in file manager** to locate the source. The zoom action opens a larger file preview or fits a folder card into view. The grip outside the lower-right corner adjusts card width and preview height; a collapsed card changes width while retaining its expanded height.
+Select a resource to reveal its toolbar. Use **Show in file manager** to locate the source. The zoom action opens a larger file preview or fits a folder card into view. The grip outside the lower-right corner adjusts card width and preview height.
 
 ## Preview formats
 
@@ -28,7 +28,7 @@ Previews load content while open and do not create a conversation or an extra to
 
 ## Control playback
 
-Hovering starts a media preview; leaving pauses it. Select **Play** when paused, or **Keep playing after the pointer leaves** during hover playback, for continuous playback. It can continue when the card collapses or you switch canvases. Use **Pause**, including the background playback control, to stop it.
+Hovering starts a media preview; leaving pauses it. Select **Play** when paused, or **Keep playing after the pointer leaves** during hover playback, for continuous playback. It can continue when you switch canvases. Use **Pause**, including the background playback control, to stop it.
 
 The larger preview shares the same player and playback position. If the browser blocks autoplay, use manual Play. Codec support follows the browser and operating system; unsupported formats offer opening in a system app without transcoding.
 

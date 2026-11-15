@@ -221,8 +221,6 @@ export const pt: Record<ConvaxKey, string> = {
   'canvas.zoom.fit': 'Ajustar tela',
   'chat.actions': 'Ações do chat',
   'chat.threadActions': 'Ações da conversa atual',
-  'chat.collapse': 'Recolher chat',
-  'chat.expand': 'Expandir chat',
   'chat.focus': 'Focar neste chat',
   'chat.resize': 'Redimensionar chat',
   'chat.resizeHelp': 'Arraste para redimensionar ou use as teclas de seta',

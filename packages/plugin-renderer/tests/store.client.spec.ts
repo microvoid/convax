@@ -105,7 +105,6 @@ describe('Convax Chat thread order', () => {
     const [a, b, c] = sessions as [SessionId, SessionId, SessionId]
     const store = createChatViewStore().create()
     store.actions.selectThread(node, b)
-    store.actions.setCollapsed(node, true)
     const previous = store.getSnapshot()
     store.actions.moveThread(node, sessions, c, a, 'before')
     expect(store.getSnapshot()).toEqual({ ...previous, threadOrders: { chat: [c, a, b] } })
@@ -114,7 +113,6 @@ describe('Convax Chat thread order', () => {
     expect(restored.getSnapshot().threadOrders).toEqual({ chat: [c, a, b], other: [b, c, a] })
     expect(restored.getSnapshot().selectedThreads[node]).toBe(b)
     expect(restored.getSnapshot().visitedThreads?.[node]).toEqual([b])
-    expect(restored.getSnapshot().collapsedChats?.[node]).toBe(true)
   })
 
   it('appends new threads, ignores stale saved IDs, and retains the archived position for restoration', () => {
@@ -171,7 +169,7 @@ describe('Convax Chat size preferences', () => {
     })
   })
 
-  it('adds a size to older preferences without replacing thread selection or collapse state', () => {
+  it('adds a size to older preferences without replacing existing preferences', () => {
     const backing = storageFixture()
     const previous = {
       selectedThreads: { chat: 'selected-thread' }, threadAttempts: {}, collapsedChats: { chat: true },
@@ -254,29 +252,26 @@ describe('Convax Chat size preferences', () => {
 describe('Convax resource preview preferences', () => {
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('retains each resource expansion and preview dimensions across canvas switches and remounts', () => {
+  it('retains each resource preview size across canvas switches and remounts', () => {
     storageFixture()
     const first = 'first-file' as CanvasNodeId
     const second = 'second-file' as CanvasNodeId
     const store = createCanvasViewStore().create()
     store.actions.open(id('a'))
-    store.actions.setResourceExpanded(first, true)
     store.actions.setResourcePreviewSize(first, { width: 640, height: 360 })
     store.actions.open(id('b'))
     store.actions.setResourcePreviewSize(second, { width: 420, height: 280 })
-    store.actions.setResourceExpanded(second, true)
-    store.actions.setResourceExpanded(first, false)
     store.actions.open(id('a'))
 
     const expected = {
-      'first-file': { expanded: false, width: 640, height: 360 },
-      'second-file': { expanded: true, width: 420, height: 280 },
+      'first-file': { width: 640, height: 360 },
+      'second-file': { width: 420, height: 280 },
     }
     expect(store.getSnapshot().resourceViews).toEqual(expected)
     const restored = createCanvasViewStore().create()
     expect(restored.getSnapshot()).toMatchObject({ activeCanvasId: 'a', resourceViews: expected })
-    restored.actions.setResourceExpanded(first, true)
-    expect(createCanvasViewStore().create().getSnapshot().resourceViews?.[first]).toEqual({ expanded: true, width: 640, height: 360 })
+    restored.actions.setResourcePreviewSize(first, { width: 660, height: 380 })
+    expect(createCanvasViewStore().create().getSnapshot().resourceViews?.[first]).toEqual({ width: 660, height: 380 })
   })
 
   it('adds resource preferences to older window data without changing tabs, cameras or input mode', () => {
@@ -289,7 +284,7 @@ describe('Convax resource preview preferences', () => {
     const store = createCanvasViewStore().create()
     expect(store.getSnapshot()).toEqual(previous)
     store.actions.setResourcePreviewSize('file' as CanvasNodeId, { width: 480, height: 320 })
-    const expected = { ...previous, resourceViews: { file: { expanded: false, width: 480, height: 320 } } }
+    const expected = { ...previous, resourceViews: { file: { width: 480, height: 320 } } }
     expect(store.getSnapshot()).toEqual(expected)
     expect(createCanvasViewStore().create().getSnapshot()).toEqual(expected)
   })
@@ -320,15 +315,14 @@ describe('Convax resource preview preferences', () => {
     const store = createCanvasViewStore().create()
     store.actions.open(id('a'))
     store.actions.open(id('b'))
-    store.actions.setResourceExpanded(live, true)
     store.actions.setResourcePreviewSize(live, { width: 600, height: 420 })
-    store.actions.setResourceExpanded(deleted, true)
+    store.actions.setResourcePreviewSize(deleted, { width: 360, height: 240 })
     store.actions.reconcile([id('b')])
-    expect(store.getSnapshot().resourceViews?.[deleted]).toEqual({ expanded: true })
+    expect(store.getSnapshot().resourceViews?.[deleted]).toEqual({ width: 360, height: 240 })
     store.actions.reconcile([id('b')], [live])
-    expect(store.getSnapshot()).toMatchObject({ tabs: ['b'], resourceViews: { live: { expanded: true, width: 600, height: 420 } } })
+    expect(store.getSnapshot()).toMatchObject({ tabs: ['b'], resourceViews: { live: { width: 600, height: 420 } } })
     expect(store.getSnapshot().resourceViews?.[deleted]).toBeUndefined()
-    expect(createCanvasViewStore().create().getSnapshot().resourceViews).toEqual({ live: { expanded: true, width: 600, height: 420 } })
+    expect(createCanvasViewStore().create().getSnapshot().resourceViews).toEqual({ live: { width: 600, height: 420 } })
   })
 })
 
@@ -341,7 +335,7 @@ describe('Convax resource keys', () => {
 describe('Convax copied presentation preferences', () => {
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('copies only Chat dimensions, collapse and tool widths while retaining navigation owners', () => {
+  it('copies only Chat dimensions and tool widths while retaining navigation owners', () => {
     storageFixture()
     const store = createChatViewStore().create()
     const source = 'source' as CanvasNodeId
@@ -349,15 +343,13 @@ describe('Convax copied presentation preferences', () => {
     const thread = 'source-thread' as SessionId
     store.actions.selectThread(source, thread)
     store.actions.setSize(source, { width: 420, height: 320 })
-    store.actions.setCollapsed(source, true)
     store.actions.setToolWidth(source, 540, false)
     const navigation = store.getSnapshot()
     store.actions.copyPresentation(target, {
-      collapsed: true, size: { width: 420, height: 320 }, toolWidths: { normal: 540 },
+      size: { width: 420, height: 320 }, toolWidths: { normal: 540 },
     })
     expect(store.getSnapshot()).toEqual({
       ...navigation,
-      collapsedChats: { source: true, target: true },
       sizes: { source: { width: 420, height: 320 }, target: { width: 420, height: 320 } },
       toolWidths: { source: { normal: 540 }, target: { normal: 540 } },
     })
@@ -369,24 +361,24 @@ describe('Convax copied presentation preferences', () => {
   it('preserves absent Chat dimensions and clears only previous presentation values when replaced', () => {
     const store = createChatViewStore().create()
     const chat = 'chat' as CanvasNodeId
-    store.actions.copyPresentation(chat, { collapsed: false })
-    expect(store.getSnapshot()).toEqual({ selectedThreads: {}, threadAttempts: {}, collapsedChats: { chat: false } })
+    store.actions.copyPresentation(chat, {})
+    expect(store.getSnapshot()).toEqual({ selectedThreads: {}, threadAttempts: {} })
     store.actions.setSize(chat, { width: 620, height: 480 })
     store.actions.setToolWidth(chat, 520, false)
-    store.actions.copyPresentation(chat, { collapsed: true })
+    store.actions.copyPresentation(chat, {})
     expect(store.getSnapshot()).toEqual({
-      selectedThreads: {}, threadAttempts: {}, collapsedChats: { chat: true }, sizes: {}, toolWidths: {},
+      selectedThreads: {}, threadAttempts: {}, sizes: {}, toolWidths: {},
     })
   })
 
-  it('copies resource expansion with optional saved dimensions without changing other window preferences', () => {
+  it('copies optional resource dimensions without changing other window preferences', () => {
     const store = createCanvasViewStore().create()
     store.actions.open(id('canvas'))
     const previous = store.getSnapshot()
-    store.actions.copyResourceView('first' as CanvasNodeId, { expanded: true, height: 300 })
-    store.actions.copyResourceView('second' as CanvasNodeId, { expanded: false })
+    store.actions.copyResourceView('first' as CanvasNodeId, { height: 300 })
+    store.actions.copyResourceView('second' as CanvasNodeId, {})
     expect(store.getSnapshot()).toEqual({ ...previous, resourceViews: {
-      first: { expanded: true, height: 300 }, second: { expanded: false },
+      first: { height: 300 }, second: {},
     } })
   })
 })
@@ -417,7 +409,7 @@ describe('Convax window graph history', () => {
   it('retains removed views for redo, drops the abandoned redo branch, and prunes deleted canvases', () => {
     const store = createCanvasViewStore().create()
     store.actions.recordHistory(id('a'), op('create'), {})
-    const view = { expanded: true, width: 520, height: 340 }
+    const view = { width: 520, height: 340 }
     store.actions.replayHistory(id('a'), op('create'), 'undo', { file: view })
     expect(store.getSnapshot().histories?.a?.resourceViews.create).toEqual({ file: view })
     store.actions.replayHistory(id('a'), op('create'), 'redo', {})

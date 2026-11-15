@@ -23,7 +23,7 @@ export interface MenuItem {
   icon?: ReactNode
   /** Destructive row: error-colored text/icon and danger hover fill. */
   danger?: boolean
-  /** Nested card opened to the right on hover/focus. */
+  /** Nested card opened beside the row on hover/focus, flipping to fit the viewport. */
   submenu?: readonly MenuItem[]
 }
 
@@ -195,6 +195,9 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
 }) {
   const rootRef = useRef<HTMLSpanElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const submenuRef = useRef<HTMLDivElement>(null)
+  const submenuAnchorRef = useRef<HTMLButtonElement | null>(null)
+  const enterSubmenuRef = useRef(false)
   /** Index the arrow walk last focused, the resume point when focus left the rows. */
   const walkIndex = useRef<number | null>(null)
   /**
@@ -240,7 +243,35 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
   openRef.current = open
   const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null)
   const [fixedPos, setFixedPos] = useState<CSSProperties | null>(null)
+  const [submenuPos, setSubmenuPos] = useState<CSSProperties | null>(null)
   const { arm: armClose, cancel: cancelClose } = usePointerGrace(onClose)
+  const { arm: armSubmenuClose, cancel: cancelSubmenuClose } = usePointerGrace(() => { setOpenSubmenuId(null) })
+
+  // A long child catalogue must escape both the parent's scrolling region and
+  // transformed canvas ancestors. Measure its portal against the active row,
+  // flip only when the other side fits, then clamp when neither side fits.
+  useLayoutEffect(() => {
+    if (!open || openSubmenuId === null) { setSubmenuPos(null); return }
+    const place = () => {
+      const anchor = submenuAnchorRef.current, panel = submenuRef.current
+      if (anchor === null || panel === null) return
+      const rect = anchor.getBoundingClientRect(), margin = 12, gap = 8
+      const width = panel.offsetWidth, height = panel.offsetHeight
+      let left = rect.right + gap
+      if (left + width > window.innerWidth - margin && rect.left - gap - width >= margin) left = rect.left - gap - width
+      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
+      const top = Math.max(overlayTopMargin(margin, rect, gap), Math.min(rect.top, window.innerHeight - height - margin))
+      setSubmenuPos(current => current?.left === left && current.top === top ? current : { left, top })
+    }
+    place()
+    if (enterSubmenuRef.current) {
+      submenuRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+      enterSubmenuRef.current = false
+    }
+    const track = () => { place(); frame = requestAnimationFrame(track) }
+    let frame = requestAnimationFrame(track)
+    return () => { cancelAnimationFrame(frame) }
+  }, [open, openSubmenuId])
 
   // Portal mode: fixed-position the list from the anchor rect before paint;
   // track the anchor while open (capture-phase scroll catches nested panes).
@@ -339,6 +370,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
       // The portaled list is outside the anchor subtree; check both.
       if (rootRef.current?.contains(e.target) === true) return
       if (listRef.current?.contains(e.target) === true) return
+      if (submenuRef.current?.contains(e.target) === true) return
       onClose()
     }
     const onKeyDown = (e: KeyboardEvent) => {
@@ -346,8 +378,22 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
       // Where the keyboard is, computed once: the menu owns it when it holds a
       // row or sits on its anchor region.
       const focused = document.activeElement
-      const insideList = listRef.current?.contains(focused) === true
+      const insideSubmenu = submenuRef.current?.contains(focused) === true
+      const insideList = listRef.current?.contains(focused) === true || insideSubmenu
       const anchored = rootRef.current?.contains(focused) === true || insideList
+      if (e.key === 'ArrowRight' && focused instanceof HTMLButtonElement && listRef.current?.contains(focused) === true
+        && focused.getAttribute('aria-haspopup') === 'menu') {
+        e.preventDefault()
+        if (focused.getAttribute('aria-expanded') === 'true') submenuRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+        else { enterSubmenuRef.current = true; focused.click() }
+        return
+      }
+      if (e.key === 'ArrowLeft' && insideSubmenu) {
+        e.preventDefault()
+        submenuAnchorRef.current?.focus()
+        setOpenSubmenuId(null)
+        return
+      }
       if (e.key === 'Escape' && !e.shiftKey) {
         e.preventDefault()
         if (e.repeat) return
@@ -399,7 +445,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
       // otherwise re-enter at the near end on every press and the walk would
       // alternate between two rows.
       if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
-      const list = listRef.current
+      const list = insideSubmenu ? submenuRef.current : listRef.current
       if (list === null || !anchored) return
       const buttons = Array.from(list.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'))
       if (buttons.length === 0) return
@@ -423,13 +469,15 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
     document.addEventListener('pointerdown', onPointerDown)
     const onEscape = (event: KeyboardEvent): void => { if (event.key === 'Escape') onKeyDown(event) }
     const onOtherKey = (event: KeyboardEvent): void => { if (event.key !== 'Escape') onKeyDown(event) }
-    document.addEventListener('keydown', onOtherKey)
+    // Consume menu navigation before React portals bubble it into their owner
+    // (for example, a selected canvas node's own arrow-key movement handler).
+    document.addEventListener('keydown', onOtherKey, true)
     document.addEventListener('keydown', onEscape, true)
     window.addEventListener('blur', onWindowBlur)
     return () => {
       composition.dispose()
       document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onOtherKey)
+      document.removeEventListener('keydown', onOtherKey, true)
       document.removeEventListener('keydown', onEscape, true)
       window.removeEventListener('blur', onWindowBlur)
     }
@@ -440,12 +488,14 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
   // effect, not the listener effect above: that one re-runs on every `onClose`
   // identity change and would cancel the grace mid-transit.
   useEffect(() => {
-    if (!open) cancelClose()
-  }, [open, cancelClose])
+    if (!open) { cancelClose(); cancelSubmenuClose() }
+  }, [open, cancelClose, cancelSubmenuClose])
 
-  // The submenu card is absolutely positioned outside the list box; the
-  // scroll clip would crop it, so only submenu-free menus get the height cap.
-  const scrollable = !items.some(entry => !isSeparator(entry) && !isLabel(entry) && entry.submenu !== undefined && entry.submenu.length > 0)
+  // Keep target-level focus presentation handlers alive, then stop handled
+  // keys before the portal's React ancestors can interpret them as commands.
+  const stopHandledKey = (event: SyntheticEvent): void => {
+    if (event.defaultPrevented) event.stopPropagation()
+  }
 
   const renderEntry = (entry: MenuEntry) => {
     if (isSeparator(entry)) {
@@ -457,12 +507,18 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
     const hasSub = entry.submenu !== undefined && entry.submenu.length > 0
     const subOpen = hasSub && openSubmenuId === entry.id
     const selected = entry.id === selectedId || selectedIds?.includes(entry.id) === true
+    const showSubmenu = (button: HTMLButtonElement | null) => {
+      if (entry.disabled === true || button === null) return
+      cancelSubmenuClose()
+      submenuAnchorRef.current = button
+      setOpenSubmenuId(entry.id)
+    }
     return (
       <div
         key={entry.id}
         className={css.itemWrap}
-        onMouseEnter={hasSub ? () => { setOpenSubmenuId(entry.id) } : undefined}
-        onMouseLeave={() => { setOpenSubmenuId(null) }}
+        onMouseEnter={hasSub ? (event) => { showSubmenu(event.currentTarget.querySelector('button')) } : undefined}
+        onMouseLeave={armSubmenuClose}
       >
         <button
           type="button"
@@ -472,10 +528,10 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
           aria-keyshortcuts={entry.shortcut?.aria}
           aria-haspopup={hasSub ? 'menu' : undefined}
           aria-expanded={hasSub ? subOpen : undefined}
-          onFocus={hasSub ? () => { setOpenSubmenuId(entry.id) } : undefined}
-          onClick={() => {
+          onFocus={hasSub ? (event) => { showSubmenu(event.currentTarget) } : undefined}
+          onClick={(event) => {
             if (hasSub) {
-              setOpenSubmenuId(entry.id)
+              showSubmenu(event.currentTarget)
               return
             }
             onSelect?.(entry.id)
@@ -487,24 +543,29 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
           {/* Selection marker is a trailing check (figma .Menu_cell) unless the fill mode carries it. */}
           {selected && selection === 'check' && <IconCheckOutlineRegular className={css.check} />}
         </button>
-        {subOpen && entry.submenu !== undefined && (
-          <MenuSurface compact={compact} className={clsx(css.submenu, compact && css.compactList)} role="menu">
-            {entry.submenu.map(sub => (
+        {subOpen && entry.submenu !== undefined && createPortal(
+          <MenuSurface ref={submenuRef} compact={compact} className={clsx(css.submenu, css.scrollable, compact && css.compactList)}
+            style={submenuPos ?? MEASURE_STYLE} role="menu" onMouseEnter={cancelSubmenuClose} onMouseLeave={armSubmenuClose}
+            onFocus={cancelSubmenuClose} onKeyDown={stopHandledKey}>
+            <div className={css.viewport} role="presentation">{entry.submenu.map(sub => (
               <button
                 key={sub.id}
                 type="button"
                 role="menuitem"
-                className={css.item}
+                className={clsx(css.item, (sub.id === selectedId || selectedIds?.includes(sub.id) === true)
+                  && (selection === 'fill' ? css.selectedFill : css.selected), sub.danger === true && css.danger)}
                 disabled={sub.disabled}
                 aria-keyshortcuts={sub.shortcut?.aria}
+                aria-current={sub.id === selectedId || selectedIds?.includes(sub.id) === true ? 'true' : undefined}
                 onClick={() => { onSelect?.(sub.id); refocusAfterSelection() }}
               >
                 {sub.icon !== undefined && <span className={css.itemIcon}>{sub.icon}</span>}
                 <span className={css.itemLabel}>{sub.label}</span>
                 {sub.shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={sub.shortcut.keys} className={css.shortcutKeys} /></span>}
+                {(sub.id === selectedId || selectedIds?.includes(sub.id) === true) && selection === 'check' && <IconCheckOutlineRegular className={css.check} />}
               </button>
-            ))}
-          </MenuSurface>
+            ))}</div>
+          </MenuSurface>, document.body,
         )}
       </div>
     )
@@ -528,7 +589,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
   const list = open && (
     <MenuSurface compact={compact}
       ref={listRef}
-      className={clsx(css.list, listClassName, dense && css.denseList, compact && css.compactList, scrollable && css.scrollable, portal && css.portal, side === 'top' && !portal && css.sideTop, align === 'end' && !portal && css.alignEnd)}
+      className={clsx(css.list, listClassName, dense && css.denseList, compact && css.compactList, css.scrollable, portal && css.portal, side === 'top' && !portal && css.sideTop, align === 'end' && !portal && css.alignEnd)}
       style={portal ? fixedPos ?? MEASURE_STYLE : undefined}
       role="menu"
       // React portals bubble synthetic events through the REACT tree: without
@@ -544,6 +605,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
       }}
       onMouseOver={collapseSubmenuFrom}
       onFocus={collapseSubmenuFrom}
+      onKeyDown={stopHandledKey}
     >
       <div className={css.viewport} role="presentation">
         {items.map(renderEntry)}

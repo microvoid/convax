@@ -30,7 +30,7 @@ function fixture(available: boolean, live: boolean) {
   const props: WindowMirrorProps = {
     node: { id: nodeId, typeId: 'convax.window' as CanvasNodeTypeId, dataVersion: 1,
       data: { bindingId, name: 'Test document' }, revision: 0, position: { x: 0, y: 0 } },
-    ports: [], active: true, selected: false, busy: false, resourceExpanded: true,
+    ports: [], active: true, selected: false, busy: false,
     useWindowMirrors: selector => selector(live ? {
       [bindingId]: { nodeId, name: 'Test document', status: 'live' },
     } : {}),
@@ -52,7 +52,7 @@ function fixture(available: boolean, live: boolean) {
     mountWindow: vi.fn(() => release), validateWindow: vi.fn(async () => {}),
     reconnectWindow: vi.fn(async (): Promise<WindowReconnectResult> => 'connected'),
     focusNode: vi.fn(), remove: vi.fn(), createChat: vi.fn(), command: vi.fn(async () => true),
-    setResourceExpanded: vi.fn(), setResourcePreviewSize: vi.fn(),
+    setResourcePreviewSize: vi.fn(),
     ...(available ? { chooseWindow: vi.fn() } : {}),
     t: ((key: ConvaxKey, values?: Record<string, string | number>) =>
       en[key].replace(/\{(\w+)\}/g, (_match, name: string) => String(values?.[name] ?? ''))) as WindowMirrorProps['t'],
@@ -69,10 +69,11 @@ it('shows a clear platform placeholder instead of an enabled no-op reselect acti
   expect(b.props.mountWindow).not.toHaveBeenCalled()
 })
 
-it('mounts a read-only view, validates on pointer return, and releases only its view on collapse', () => {
+it('shows the read-only mirror while its canvas is active', () => {
   const b = fixture(true, true)
   const view = render(<WindowMirror {...b.props} />)
   expect(screen.getByText('Read-only')).toBeDefined()
+  expect(screen.queryByRole('button', { name: /^(Expand|Collapse) Test document$/ })).toBeNull()
   expect(b.props.mountWindow).toHaveBeenCalledOnce()
   const body = view.container.querySelector('[data-convax-window-preview]')!
   fireEvent.pointerEnter(body)
@@ -82,12 +83,14 @@ it('mounts a read-only view, validates on pointer return, and releases only its 
   expect(b.props.command).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
   expect(b.props.createChat).toHaveBeenCalledExactlyOnceWith(undefined, b.props.node.id)
-  view.rerender(<WindowMirror {...b.props} resourceExpanded={false} />)
+  view.rerender(<WindowMirror {...b.props} active={false} />)
   expect(b.release).toHaveBeenCalledOnce()
-  expect(view.container.querySelector('[data-convax-window-preview]')).toBeNull()
+  view.rerender(<WindowMirror {...b.props} />)
+  expect(b.props.mountWindow).toHaveBeenCalledTimes(2)
+  expect(view.container.querySelector('[data-convax-window-preview]')).toBe(body)
 })
 
-it('resizes a live mirror without remounting its capture and retains its expanded height while collapsed', () => {
+it('resizes a live mirror in both dimensions without remounting its capture', () => {
   const b = fixture(true, true)
   const view = render(<WindowMirror {...b.props} resourcePreviewWidth={480} resourcePreviewHeight={270} />)
   const viewport = view.container.querySelector('[data-convax-window-preview] > div')
@@ -95,15 +98,13 @@ it('resizes a live mirror without remounting its capture and retains its expande
   fireEvent.keyDown(grip, { key: 'ArrowRight' })
   expect(b.props.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 490, height: 270 })
   view.rerender(<WindowMirror {...b.props} resourcePreviewWidth={490} resourcePreviewHeight={270} />)
+  fireEvent.keyDown(grip, { key: 'ArrowDown' })
+  expect(b.props.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 490, height: 280 })
+  view.rerender(<WindowMirror {...b.props} resourcePreviewWidth={490} resourcePreviewHeight={280} />)
   expect(view.container.querySelector('[data-convax-window-preview] > div')).toBe(viewport)
   expect(b.props.mountWindow).toHaveBeenCalledOnce()
   expect(b.release).not.toHaveBeenCalled()
-  view.rerender(<WindowMirror {...b.props} resourceExpanded={false} resourcePreviewWidth={490} resourcePreviewHeight={270} />)
   expect(screen.getByRole('button', { name: 'Resize preview' })).toBe(grip)
-  fireEvent.keyDown(grip, { key: 'ArrowRight' })
-  expect(b.props.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 500, height: 270 })
-  fireEvent.keyDown(grip, { key: 'ArrowDown' })
-  expect(b.props.setResourcePreviewSize).toHaveBeenCalledTimes(2)
 })
 
 it('assembles the real window Factory without passing framework hooks as duplicate owner props', async () => {
@@ -134,7 +135,7 @@ it('assembles the real window Factory without passing framework hooks as duplica
     remove: b.props.remove, command: b.props.command, openResource: b.props.openResource, openSource: b.props.openSource,
     createChat: b.props.createChat, chooseWindow: b.props.chooseWindow, focusSessionId: undefined,
     consumeFocus: b.props.consumeFocus, inputs: [], focusNode: b.props.focusNode,
-    resourceExpanded: true, setResourceExpanded: b.props.setResourceExpanded, setResourcePreviewSize: b.props.setResourcePreviewSize,
+    setResourcePreviewSize: b.props.setResourcePreviewSize,
   }
   const view = runtime.renderSlot('convax.node', owner, { entryKey: 'convax.window' })
   expect(view.view.getByText('Test document')).toBeDefined()

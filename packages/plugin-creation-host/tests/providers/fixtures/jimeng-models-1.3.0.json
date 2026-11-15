@@ -1,0 +1,535 @@
+{
+  "source": "Official dreamina-canvas 1.3.0 model list --type image/video/audio, read-only 2026-11-14. Public catalog fields only.",
+  "models": [
+    {
+      "type": "image",
+      "model": "seedream_4.6",
+      "displayName": "Seedream 4.6",
+      "aliases": [
+        "4.6"
+      ],
+      "modes": [
+        {
+          "name": "i2i",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": false,
+              "minLength": 0,
+              "maxLength": 2000
+            },
+            {
+              "flag": "--ratio",
+              "required": true,
+              "values": [
+                "1:1",
+                "3:4",
+                "16:9",
+                "4:3",
+                "9:16",
+                "2:3",
+                "3:2",
+                "21:9"
+              ]
+            },
+            {
+              "flag": "--resolution",
+              "required": true,
+              "values": [
+                "2K",
+                "4K"
+              ]
+            },
+            {
+              "flag": "--count",
+              "required": false,
+              "min": 1,
+              "max": 8
+            }
+          ],
+          "references": {
+            "min": 1,
+            "max": 6,
+            "types": [
+              {
+                "mediaType": "image",
+                "min": 1,
+                "max": 6
+              }
+            ]
+          },
+          "vipRequired": false,
+          "vipResolutions": [
+            "4K"
+          ]
+        },
+        {
+          "name": "t2i",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": true,
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            {
+              "flag": "--ratio",
+              "required": true,
+              "values": [
+                "1:1",
+                "3:4",
+                "16:9",
+                "4:3",
+                "9:16",
+                "2:3",
+                "3:2",
+                "21:9"
+              ]
+            },
+            {
+              "flag": "--resolution",
+              "required": true,
+              "values": [
+                "2K",
+                "4K"
+              ]
+            },
+            {
+              "flag": "--count",
+              "required": false,
+              "min": 1,
+              "max": 8
+            }
+          ],
+          "references": {
+            "min": 0,
+            "max": 14,
+            "types": [
+              {
+                "mediaType": "image",
+                "min": 0,
+                "max": 14
+              }
+            ]
+          },
+          "vipRequired": false,
+          "vipResolutions": [
+            "4K"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "video",
+      "model": "seedance_2.5",
+      "displayName": "即梦 Seedance 2.5",
+      "aliases": [
+        "seedance2.5"
+      ],
+      "modes": [
+        {
+          "name": "first_last_frame",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": false,
+              "minLength": 0,
+              "maxLength": 15000
+            },
+            {
+              "flag": "--ratio",
+              "required": true,
+              "values": [
+                "21:9",
+                "16:9",
+                "4:3",
+                "1:1",
+                "3:4",
+                "9:16"
+              ]
+            },
+            {
+              "flag": "--resolution",
+              "required": true,
+              "values": [
+                "480p",
+                "720p",
+                "1080p",
+                "4k"
+              ]
+            },
+            {
+              "flag": "--duration",
+              "required": true,
+              "min": 4,
+              "max": 30,
+              "step": 1
+            },
+            {
+              "flag": "--count",
+              "required": false,
+              "min": 1,
+              "max": 4
+            }
+          ],
+          "references": {
+            "min": 2,
+            "max": 2,
+            "types": [
+              {
+                "mediaType": "image",
+                "min": 2,
+                "max": 2
+              }
+            ]
+          },
+          "vipRequired": false,
+          "vipResolutions": [
+            "480p",
+            "720p",
+            "1080p",
+            "4k"
+          ]
+        },
+        {
+          "name": "first_last_frame",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": false,
+              "minLength": 0,
+              "maxLength": 15000
+            },
+            {
+              "flag": "--ratio",
+              "required": true,
+              "values": [
+                "21:9",
+                "16:9",
+                "4:3",
+                "1:1",
+                "3:4",
+                "9:16"
+              ]
+            },
+            {
+              "flag": "--resolution",
+              "required": true,
+              "values": [
+                "480p",
+                "720p",
+                "1080p",
+                "4k"
+              ]
+            },
+            {
+              "flag": "--duration",
+              "required": true,
+              "min": 4,
+              "max": 30,
+              "step": 1
+            },
+            {
+              "flag": "--count",
+              "required": false,
+              "min": 1,
+              "max": 4
+            }
+          ],
+          "references": {
+            "min": 1,
+            "max": 1,
+            "types": [
+              {
+                "mediaType": "image",
+                "min": 1,
+                "max": 1
+              }
+            ]
+          },
+          "vipRequired": false,
+          "vipResolutions": [
+            "480p",
+            "720p",
+            "1080p",
+            "4k"
+          ]
+        },
+        {
+          "name": "m2v",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": false,
+              "minLength": 0,
+              "maxLength": 15000
+            },
+            {
+              "flag": "--ratio",
+              "required": true,
+              "values": [
+                "21:9",
+                "16:9",
+                "4:3",
+                "1:1",
+                "3:4",
+                "9:16"
+              ]
+            },
+            {
+              "flag": "--resolution",
+              "required": true,
+              "values": [
+                "480p",
+                "720p",
+                "1080p",
+                "4k"
+              ]
+            },
+            {
+              "flag": "--duration",
+              "required": true,
+              "min": 4,
+              "max": 30,
+              "step": 1
+            },
+            {
+              "flag": "--count",
+              "required": false,
+              "min": 1,
+              "max": 4
+            }
+          ],
+          "references": {
+            "min": 1,
+            "max": 50,
+            "types": [
+              {
+                "mediaType": "image",
+                "min": 0,
+                "max": 30
+              },
+              {
+                "mediaType": "video",
+                "min": 0,
+                "max": 10
+              },
+              {
+                "mediaType": "audio",
+                "min": 0,
+                "max": 10
+              }
+            ],
+            "requireAnyOfTypes": [
+              "image",
+              "video",
+              "audio"
+            ]
+          },
+          "vipRequired": false,
+          "vipResolutions": [
+            "480p",
+            "720p",
+            "1080p",
+            "4k"
+          ]
+        },
+        {
+          "name": "t2v",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": true,
+              "minLength": 1,
+              "maxLength": 15000
+            },
+            {
+              "flag": "--ratio",
+              "required": true,
+              "values": [
+                "21:9",
+                "16:9",
+                "4:3",
+                "1:1",
+                "3:4",
+                "9:16"
+              ]
+            },
+            {
+              "flag": "--resolution",
+              "required": true,
+              "values": [
+                "480p",
+                "720p",
+                "1080p",
+                "4k"
+              ]
+            },
+            {
+              "flag": "--duration",
+              "required": true,
+              "min": 4,
+              "max": 30,
+              "step": 1
+            },
+            {
+              "flag": "--count",
+              "required": false,
+              "min": 1,
+              "max": 4
+            }
+          ],
+          "references": {
+            "min": 0,
+            "max": 0,
+            "types": []
+          },
+          "vipRequired": false,
+          "vipResolutions": [
+            "480p",
+            "720p",
+            "1080p",
+            "4k"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "audio",
+      "model": "legacy_tts",
+      "displayName": "Seed TTS",
+      "modes": [
+        {
+          "name": "tts",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": true,
+              "minLength": 1,
+              "maxLength": 300
+            }
+          ],
+          "references": {
+            "min": 0,
+            "max": 0,
+            "types": []
+          },
+          "vipRequired": false
+        }
+      ]
+    },
+    {
+      "type": "audio",
+      "model": "seed_audio_v1",
+      "displayName": "SeedAudio 1.0",
+      "modes": [
+        {
+          "scenario": "omni-dubbing",
+          "name": "tts",
+          "flags": [
+            {
+              "flag": "--scenario",
+              "required": true,
+              "values": [
+                "omni-dubbing"
+              ]
+            },
+            {
+              "flag": "--prompt",
+              "required": true,
+              "minLength": 1,
+              "maxLength": 3000
+            }
+          ],
+          "references": {
+            "min": 0,
+            "max": 3,
+            "types": [
+              {
+                "mediaType": "image",
+                "min": 0,
+                "max": 1
+              },
+              {
+                "mediaType": "audio",
+                "min": 0,
+                "max": 3
+              }
+            ],
+            "mutuallyExclusiveTypes": [
+              "image",
+              "audio"
+            ]
+          },
+          "vipRequired": false
+        },
+        {
+          "scenario": "text-reading",
+          "name": "tts",
+          "flags": [
+            {
+              "flag": "--scenario",
+              "required": true,
+              "values": [
+                "text-reading"
+              ]
+            },
+            {
+              "flag": "--voice-name",
+              "required": true
+            },
+            {
+              "flag": "--prompt",
+              "required": true,
+              "minLength": 1,
+              "maxLength": 3000
+            }
+          ],
+          "references": {
+            "min": 0,
+            "max": 1,
+            "types": [
+              {
+                "mediaType": "audio",
+                "min": 0,
+                "max": 1
+              }
+            ]
+          },
+          "vipRequired": false
+        }
+      ]
+    },
+    {
+      "type": "audio",
+      "model": "seed_music_1.0",
+      "displayName": "SeedMusic 1.0 Preview",
+      "modes": [
+        {
+          "name": "music",
+          "flags": [
+            {
+              "flag": "--prompt",
+              "required": true,
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            {
+              "flag": "--duration",
+              "required": true,
+              "min": 30,
+              "max": 360,
+              "step": 1
+            }
+          ],
+          "references": {
+            "min": 0,
+            "max": 0,
+            "types": []
+          },
+          "vipRequired": false
+        }
+      ]
+    }
+  ]
+}

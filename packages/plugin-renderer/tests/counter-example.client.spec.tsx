@@ -67,7 +67,7 @@ function owner(command: (command: CanvasCommand) => Promise<boolean>, value = 2)
     ports: [], active: true, selected: false, busy: false, chat: undefined, command, remove: vi.fn(),
     openResource: vi.fn(), openSource: vi.fn(), createChat: vi.fn(),
     focusSessionId: undefined, consumeFocus: vi.fn(), inputs: [], focusNode: vi.fn(),
-    resourceExpanded: false, setResourceExpanded: vi.fn(), setResourcePreviewSize: vi.fn(),
+    setResourcePreviewSize: vi.fn(),
   }
 }
 

@@ -16,14 +16,14 @@ import {
   captureStableAria, compareOrRefreshGolden, launchWebScaffold, readPersistedEvents,
   watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot } from './support.ts'
+import { newEnglishPage, saveFailureShot, writeComposerDraft } from './support.ts'
 
 const BUNDLE = fileURLToPath(new URL('../../../../../packages/plugin-renderer/', import.meta.url))
 const PICKER = fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))
 const REPLAY = fileURLToPath(new URL('../../../snapshots/web/live-interactions/session.v4.jsonl', import.meta.url))
 const EXPECTED = fileURLToPath(new URL('./expected/convax-internal-nodes/', import.meta.url))
 const ARTIFACTS = fileURLToPath(new URL('../../../../../.artifacts/convax-internal-nodes/', import.meta.url))
-const NODE_TYPES = ['convax.browser', 'convax.chat', 'convax.file', 'convax.folder', 'convax.terminal', 'convax.window']
+const NODE_TYPES = ['convax.browser', 'convax.chat', 'convax.creation', 'convax.file', 'convax.folder', 'convax.terminal', 'convax.window']
 const DRAFT = 'An unsent draft belongs to the DSH composer.'
 const PROMPT = 'Keep this native turn running while the node plugins reload.'
 
@@ -221,7 +221,7 @@ it('unloads and restores all built-in displays and providers without losing grap
           await page.getByRole('button', { name: 'Workspace actions', exact: true }).click()
           await page.getByRole('menuitem', { name: 'All canvases', exact: true }).click()
           await page.locator(`[data-canvas-manager-row="${canvasId}"] button`).first().click()
-          await page.locator(`[data-convax-resource="${fileId}"]`).getByRole('button', { name: 'Expand source.txt', exact: true }).click()
+          await page.locator(`[data-convax-resource="${fileId}"] [data-convax-file-preview]`).waitFor()
           await page.getByText('An ordinary file preview survives node plugin reload.', { exact: false }).waitFor()
           await page.locator(`[data-convax-resource="${folderId}"]`).waitFor()
           const chat = page.locator(`[data-convax-chat="${chatId}"]`)
@@ -270,7 +270,7 @@ it('unloads and restores all built-in displays and providers without losing grap
 
           await toggle(scaffold, 'convax-inernal-nodes-host', false)
           await expect.poll(() => page.locator('[data-convax-placeholder="provider"]').count(), { timeout: 30_000 }).toBe(4)
-          expect(scaffold.ctx.convax.workspace().nodeTypes).toEqual([])
+          expect(scaffold.ctx.convax.workspace().nodeTypes.map(type => type.id)).toEqual(['convax.creation'])
           expect(document()).toEqual(before)
           expect(scaffold.ctx.agents.get(created.sessionId)).toBe(agent)
           expect(scaffold.ctx.agents.turnBoundaryOf(agent.session).openTurnStartSeq).not.toBeNull()
@@ -292,7 +292,7 @@ it('unloads and restores all built-in displays and providers without losing grap
           expect(scaffold.ctx.agents.turnBoundaryOf(agent.session).openTurnStartSeq).not.toBeNull()
           expect(await input.textContent()).toContain(DRAFT)
           // An empty running composer offers Stop in place of Queue.
-          await input.fill('')
+          await writeComposerDraft(page, input, '')
           await chat.getByRole('button', { name: 'Stop generating', exact: true }).click()
           await settled
           const history = (await readPersistedEvents(scaffold, created.sessionId)).slice(historyStart)

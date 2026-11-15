@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../packages/plugin-creation-renderer/README.md
+/:
+  en: 7d9b9caea855f94e
+  zh: 11a68f3bd1aaa0a5
+/deepseek-ai-dsh-convax-plugin-creation-renderer:
+  en: ca9de82bf709a430
+  zh: 72f65e942f58e53e
+/deepseek-ai-dsh-convax-plugin-creation-renderer/summary:
+  en: 8c251a81ac335345
+  zh: edd702ad537e786f
+/deepseek-ai-dsh-convax-plugin-creation-renderer/table-of-contents:
+  en: 23386452a66b2fbd
+  zh: 7ba0a5e5dd772730
+/deepseek-ai-dsh-convax-plugin-creation-renderer/use-this-package:
+  en: e0b195a27f634ce6
+  zh: 9ccb9f7d6d8057ce
+/deepseek-ai-dsh-convax-plugin-creation-renderer/understand-the-implementation:
+  en: da467c9626b0d309
+  zh: 633932c666569fdd
+/deepseek-ai-dsh-convax-plugin-creation-renderer/further-exploration:
+  en: cfcb1169267b07d0
+  zh: 1348321a6fcaec9e
+/deepseek-ai-dsh-convax-plugin-creation-renderer/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-convax-plugin-creation-renderer/model-experience/workbench-configuration:
+  en: 3c888550e151e36b
+  zh: 870401b3c82c464d
+/deepseek-ai-dsh-convax-plugin-creation-renderer/model-experience/workbench-configuration/what-the-model-sees:
+  en: b214519c18251eb3
+  zh: 4133dce51c4bdff3
+/deepseek-ai-dsh-convax-plugin-creation-renderer/model-experience/workbench-configuration/token-effect:
+  en: 4d299896fab32d78
+  zh: 2a94170b2e034b0a
+/deepseek-ai-dsh-convax-plugin-creation-renderer/model-experience/workbench-configuration/kv-cache-effect:
+  en: 7fcdfd0314106621
+  zh: 940a2b3d79fbd86a
+/deepseek-ai-dsh-convax-plugin-creation-renderer/known-limitations-and-deferred-work:
+  en: f820769341ed50fa
+  zh: 9d463cd7af5d7108
+/deepseek-ai-dsh-convax-plugin-creation-renderer/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: e41c2f4a4edbf459

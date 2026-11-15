@@ -58,6 +58,9 @@ export class CanvasNodeRegistry {
   register(definition: CanvasNodeDefinition): () => Promise<void> {
     if (this.definitions.has(definition.id)) throw new Error(`Node type '${definition.id}' is already registered`)
     if (!Number.isInteger(definition.dataVersion) || definition.dataVersion < 0) throw new Error('Node data version must be a nonnegative integer')
+    const provided = definition.capabilities?.provides
+    if (provided !== undefined && (provided.length === 0 || provided.some(value => value.trim().length === 0)
+      || new Set(provided).size !== provided.length)) throw new Error('Provided capabilities must be unique non-empty names')
     const versions = new Set<number>()
     for (const step of definition.migrations ?? []) {
       if (!Number.isInteger(step.fromVersion) || step.fromVersion < 0
@@ -72,6 +75,7 @@ export class CanvasNodeRegistry {
       ...definition.migrations === undefined ? {} : { migrations: definition.migrations.map(step => ({ ...step })) } }
     for (const port of registered.ports) Object.freeze(port)
     Object.freeze(registered.ports)
+    if (registered.capabilities?.provides !== undefined) Object.freeze(registered.capabilities.provides)
     if (registered.capabilities !== undefined) Object.freeze(registered.capabilities)
     for (const step of registered.migrations ?? []) Object.freeze(step)
     if (registered.migrations !== undefined) Object.freeze(registered.migrations)

@@ -27,8 +27,6 @@ export interface CanvasNodeRendererDefinition {
   dragHandle?: string
   /** Reuse compatible retained panel or preview preferences without a type-id branch. */
   presentation?: 'chat' | 'resource' | 'default'
-  /** Initial inline content visibility before a saved preference exists. */
-  defaultExpanded?: boolean
   /** Limit copied feature payloads while retaining ordinary provider data by default. */
   clipboardData?: (node: CanvasNode) => CanvasData
 }
@@ -121,7 +119,7 @@ export function NodePlaceholder(props: NodePlaceholderProps) {
     <p className={css.nodeStatus} role="status">{t(`node.${reason}`)}</p>
     {detail !== undefined && <DiagnosticDetails diagnostic={detail} t={t} />}
     <div className={css.nodePath}>{t('node.version', { version: node.dataVersion })}</div>
-    <CardResizeHandle container={card} content={card} size={size} collapsed={false} resize={resizeResource}
+    <CardResizeHandle container={card} content={card} size={size} resize={resizeResource}
       preview={setPreview} commit={props.setResourcePreviewSize}
       label={t('files.preview.resize')} help={t('files.preview.resizeHelp')} />
   </article>

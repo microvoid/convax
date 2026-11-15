@@ -1,5 +1,5 @@
 /** Card-local media controls attach a window-owned player without owning its playback lifetime. */
-import { CirclePause, CirclePlay, FolderOpen, Maximize2, RefreshCw, Volume2 } from 'lucide-react'
+import { CirclePause, CirclePlay, Maximize2, Volume2 } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { Button, Tooltip, useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MediaPlaybackState, MediaPreviewProps, MediaSource } from './media-contract.ts'
@@ -21,19 +21,13 @@ function MediaPlayerResource(props: MediaPreviewProps) {
   const [attempt, setAttempt] = useState(0)
   const resource = props.useResource<'convax-media'>(`${resourceAddress('convax-media', props.path)}?attempt=${attempt}`)
   const failed = resource.status === 'failed' || resource.status === 'none'
-  const compact = props.presentation === 'compact'
   return <section className={`${css.root} nodrag nopan`} data-convax-media-preview="" data-presentation={props.presentation}>
     {resource.value === undefined && resource.status === 'loading' && <div className={css.status}
       role="status" aria-label={props.t('media.loading')}><span className={css.spinner} aria-hidden="true" /></div>}
-    {failed && (compact ? <Tooltip label={`${props.t('media.failed')} · ${props.t('workspace.retry')}`} side="top" portal>
-      <Button size="sm" className={css.compactAction} aria-label={props.t('workspace.retry')}
-        onClick={() => { setAttempt(value => value + 1) }}><RefreshCw size={16} aria-hidden />
-        <span className={css.waveformMessage} role="alert">{props.t('media.failed')}</span>
-      </Button>
-    </Tooltip> : <div className={resource.value === undefined ? css.status : css.notice} role="alert">
+    {failed && <div className={resource.value === undefined ? css.status : css.notice} role="alert">
       <span>{props.t('media.failed')}</span>
       <Button size="sm" onClick={() => { setAttempt(value => value + 1) }}>{props.t('workspace.retry')}</Button>
-    </div>)}
+    </div>}
     {resource.value !== undefined && <LoadedMedia key={resource.value.path} {...props} source={resource.value} />}
   </section>
 }
@@ -70,21 +64,20 @@ function LoadedMedia(props: MediaPreviewProps & { readonly source: MediaSource }
     void fullscreenMedia(source.path).catch((_fullscreenFailure: unknown) => { setActionFailure('fullscreen') })
   }
   const video = source.kind === 'video'
-  const compact = !video && props.presentation === 'compact'
-  const transport = <Tooltip label={compact && playback.autoplayBlocked ? `${t('media.autoplayBlocked')} · ${t(playLabel)}` : t(playLabel)} side="top" portal>
+  const transport = <Tooltip label={t(playLabel)} side="top" portal>
     <Button ref={playButton} size="sm" className={video ? css.videoIconButton : css.audioPlay} aria-label={t(playLabel)}
       disabled={unsupported} onClick={() => { toggleMedia(source.path) }}>
       {canPause ? <CirclePause size={16} aria-hidden /> : <CirclePlay size={16} aria-hidden />}
     </Button>
   </Tooltip>
-  return <div className={css.player} data-kind={source.kind} data-compact={compact || undefined}
+  return <div className={css.player} data-kind={source.kind}
     onPointerEnter={(event) => { if (event.pointerType !== 'touch') hoverMedia(source.path, true) }}
     onPointerLeave={(event) => { if (event.pointerType !== 'touch') hoverMedia(source.path, false) }}>
     <div id={viewportId} className={css.viewport} data-kind={source.kind} />
     {playback.status === 'starting' && video && <span className={css.pending} role="status" aria-label={t('media.loading')}>
       <span className={css.spinner} aria-hidden="true" />
     </span>}
-    {!compact && <div className={video ? css.videoNotices : css.audioNotices}>
+    <div className={video ? css.videoNotices : css.audioNotices}>
       {playback.autoplayBlocked && <p className={css.notice} role="status">{t('media.autoplayBlocked')}</p>}
       {playback.status === 'failed' && <div className={css.notice} role="alert">
         <span>{t(unsupported ? 'media.unsupported' : 'media.failed')}</span>
@@ -93,7 +86,7 @@ function LoadedMedia(props: MediaPreviewProps & { readonly source: MediaSource }
       {actionFailure !== null && <p className={css.notice} role="alert">
         {t(actionFailure === 'open' ? 'media.openFailed' : 'media.fullscreenFailed')}
       </p>}
-    </div>}
+    </div>
     {video && !playing && playback.status !== 'failed' && <Tooltip label={t('media.playVideo')} side="top" portal>
       <Button size="sm" className={css.centerPlay} aria-label={t('media.playVideo')}
         data-convax-video-play="" onClick={(event) => {
@@ -115,21 +108,13 @@ function LoadedMedia(props: MediaPreviewProps & { readonly source: MediaSource }
           onClick={fullscreen}><Maximize2 size={16} aria-hidden /></Button>
       </Tooltip>
     </div> : <div className={css.audioControls} role="group" aria-label={t('media.controls')} data-convax-audio-controls="">
-      {compact && playback.status === 'failed' ? <Tooltip
-        label={`${t(actionFailure === 'open' ? 'media.openFailed' : unsupported ? 'media.unsupported' : 'media.failed')} · ${t('media.openSystem')}`} side="top" portal>
-        <Button size="sm" className={css.compactAction} disabled={opening} aria-label={t('media.openSystem')}
-          onClick={() => { void systemOpen() }}><FolderOpen size={16} aria-hidden />
-          <span className={css.waveformMessage} role="alert">{t(actionFailure === 'open' ? 'media.openFailed' : unsupported ? 'media.unsupported' : 'media.failed')}</span>
-        </Button>
-      </Tooltip> : transport}
-      {compact ? <span className={css.time}>{positionText}</span> : <>
-        <div className={css.audioTimeline}>
-          {playback.status !== 'failed' && <AudioWaveform source={source} position={position} duration={duration} t={t}
-            seek={(seconds) => { seekMedia(source.path, seconds) }} />}
-          <div className={css.audioTimes} aria-hidden="true"><span>{mediaTime(position)}</span><span>{mediaTime(duration)}</span></div>
-        </div>
-        <MediaVolume video={false} volume={playback.volume} onChange={(volume) => { setMediaVolume(source.path, volume) }} t={t} />
-      </>}
+      {transport}
+      <div className={css.audioTimeline}>
+        {playback.status !== 'failed' && <AudioWaveform source={source} position={position} duration={duration} t={t}
+          seek={(seconds) => { seekMedia(source.path, seconds) }} />}
+        <div className={css.audioTimes} aria-hidden="true"><span>{mediaTime(position)}</span><span>{mediaTime(duration)}</span></div>
+      </div>
+      <MediaVolume video={false} volume={playback.volume} onChange={(volume) => { setMediaVolume(source.path, volume) }} t={t} />
     </div>}
   </div>
 }

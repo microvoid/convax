@@ -29,7 +29,6 @@ function fixture(folder: boolean, resourcePathOverride?: string) {
   const openSource = vi.fn()
   const focusNode = vi.fn()
   const createChat = vi.fn()
-  const setResourceExpanded = vi.fn()
   const setResourcePreviewSize = vi.fn()
   const renderFactorySlot = vi.fn<CanvasNodeRendererProps['renderFactorySlot']>(() => <span>Native file preview</span>)
   const directories = new Map<string, ResourceSnapshot<CanvasDirectory>>([
@@ -49,34 +48,32 @@ function fixture(folder: boolean, resourcePathOverride?: string) {
       dataVersion: 1, data: { path }, position: { x: 0, y: 0 }, revision: 1,
     },
     selected: false, busy: false, remove, openResource, openSource, focusNode, createChat, useResource, renderFactorySlot,
-    resourceExpanded: false, setResourceExpanded, setResourcePreviewSize,
+    setResourcePreviewSize,
     ports: [{ id: 'input', direction: 'input', valueKind: 'resource' }, { id: 'output', direction: 'output', valueKind: 'resource' }],
     t: ((key: ConvaxKey, values?: Record<string, string | number>) =>
       en[key].replace(/\{(\w+)\}/g, (_match, name: string) => String(values?.[name] ?? ''))) as CanvasNodeRendererProps['t'],
   } as CanvasNodeRendererProps
   return {
     props, path, remove, openResource, openSource, focusNode, createChat, useResource, directories,
-    setResourceExpanded, setResourcePreviewSize, renderFactorySlot,
+    setResourcePreviewSize, renderFactorySlot,
   }
 }
 
 function ControlledResourceNode(props: CanvasNodeRendererProps) {
-  const [expanded, setExpanded] = useState(props.resourceExpanded)
   const [height, setHeight] = useState(props.resourcePreviewHeight)
   const [width, setWidth] = useState(props.resourcePreviewWidth)
-  return <ResourceNode {...props} resourceExpanded={expanded} {...(height === undefined ? {} : { resourcePreviewHeight: height })}
+  return <ResourceNode {...props} {...(height === undefined ? {} : { resourcePreviewHeight: height })}
     {...(width === undefined ? {} : { resourcePreviewWidth: width })}
-    setResourceExpanded={(next) => { props.setResourceExpanded(next); setExpanded(next) }}
     setResourcePreviewSize={(next) => { props.setResourcePreviewSize(next); setWidth(next.width); setHeight(next.height) }} />
 }
 
 describe('Convax resource card actions', () => {
-  it('starts folders collapsed without reading their contents and preserves the Chat action and ports', () => {
+  it('shows folder contents immediately and preserves the Chat action and ports', () => {
     const b = fixture(true)
     const view = render(<ControlledResourceNode {...b.props} />)
-    expect(screen.getByRole('button', { name: 'Expand project-b' }).getAttribute('aria-expanded')).toBe('false')
-    expect(b.useResource.mock.calls.every(([address]) => new URL(address).hostname === 'convax-resource')).toBe(true)
-    expect(view.container.querySelector('[data-convax-directory-tree]')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Expand|Collapse) project-b$/ })).toBeNull()
+    expect(b.useResource).toHaveBeenCalledWith(`${resourceAddress('convax-directory', b.path)}?attempt=0`)
+    expect(view.container.querySelector('[data-convax-directory-tree]')).not.toBeNull()
     expect(view.container.textContent).not.toContain(b.path)
     expect(screen.queryByRole('button', { name: 'Open in file manager' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
@@ -134,8 +131,6 @@ describe('Convax resource card actions', () => {
     const card = view.container.querySelector('[data-convax-resource]')!
     const endpoints = [...card.querySelectorAll('[data-port-id]')]
     expect(endpoints).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: 'Expand project-b' }))
-    expect(screen.getByRole('button', { name: 'Collapse project-b' }).getAttribute('aria-expanded')).toBe('true')
     const preview = view.container.querySelector('[data-convax-directory-preview]')!
     const tree = view.container.querySelector('[data-convax-directory-tree]')!
     expect(preview).not.toBeNull()
@@ -160,15 +155,7 @@ describe('Convax resource card actions', () => {
     view.rerender(<ControlledResourceNode {...b.props} />)
     expect(screen.queryByRole('button', { name: 'index.ts' })).toBeNull()
     expect(b.useResource.mock.calls.some(([address]) => resourcePath(address) === sourcePath)).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse project-b' }))
-    b.useResource.mockClear()
-    view.rerender(<ControlledResourceNode {...b.props} />)
-    expect(view.container.querySelector('[data-convax-directory-tree]')).toBeNull()
-    expect(view.container.querySelector('[data-convax-directory-preview]')).toBeNull()
-    expect(header.querySelectorAll('[data-port-id]')).toHaveLength(0)
-    for (const endpoint of endpoints) expect(endpoint.parentElement).toBe(card)
-    expect(card.querySelectorAll('[data-port-id]')).toHaveLength(2)
-    expect(b.useResource.mock.calls.every(([address]) => new URL(address).hostname === 'convax-resource')).toBe(true)
+    expect(view.container.querySelector('[data-convax-directory-tree]')).toBe(tree)
     expect(b.createChat).not.toHaveBeenCalled()
     expect(b.remove).not.toHaveBeenCalled()
   })
@@ -180,7 +167,6 @@ describe('Convax resource card actions', () => {
     }
     b.directories.set(b.path, { status: 'live', value, failure: undefined })
     const view = render(<ControlledResourceNode {...b.props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Expand project-b' }))
     expect(screen.getByRole('button', { name: 'README.md' })).toBeDefined()
     b.directories.set(b.path, {
       status: 'failed', value,
@@ -202,7 +188,6 @@ describe('Convax resource card actions', () => {
     const b = fixture(true)
     b.directories.set(b.path, { status: 'loading', value: undefined, failure: undefined })
     const view = render(<ControlledResourceNode {...b.props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Expand project-b' }))
     expect(screen.getByRole('status', { name: 'Loading project-b' })).toBeDefined()
     expect(screen.queryByText('This folder is empty')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
@@ -230,7 +215,7 @@ describe('Convax resource card actions', () => {
     expect(b.remove).not.toHaveBeenCalled()
   })
 
-  it.each(['README.md', 'image.png', 'tone.wav', 'budget.xlsx', 'unsupported.bin'])('expands %s with the shared file header and retains its card ports', (name) => {
+  it.each(['README.md', 'image.png', 'tone.wav', 'budget.xlsx', 'unsupported.bin'])('shows %s with the shared file header and card ports', (name) => {
     const b = fixture(false, `/project/${name}`)
     const view = render(<ControlledResourceNode {...b.props} />)
     const header = view.container.querySelector('[data-convax-resource-header]')!
@@ -246,50 +231,33 @@ describe('Convax resource card actions', () => {
     expect(view.container.textContent).not.toContain(b.path)
     expect(header.contains(screen.getByRole('button', { name: 'Expand preview' }))).toBe(false)
     expect(header.querySelectorAll('[data-port-id]')).toHaveLength(0)
-    expect(view.container.querySelector('[data-preview-path]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: `Expand ${name}` }))
-    expect(b.setResourceExpanded).toHaveBeenCalledExactlyOnceWith(true)
-    expect(screen.getByRole('button', { name: `Collapse ${name}` }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.queryByRole('button', { name: `Expand ${name}` })).toBeNull()
+    expect(screen.queryByRole('button', { name: `Collapse ${name}` })).toBeNull()
     expect(view.container.querySelector('[data-preview-path]')?.getAttribute('data-preview-path')).toBe(b.path)
-    expect(header.querySelectorAll('[data-port-id]')).toHaveLength(0)
     expect(view.container.querySelectorAll('[data-convax-file-preview] [data-port-id]')).toHaveLength(0)
     for (const endpoint of endpoints) expect(endpoint.parentElement).toBe(card)
     expect(card.querySelectorAll('[data-port-id]')).toHaveLength(2)
     expect(b.openResource).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: `Collapse ${name}` }))
-    expect(view.container.querySelector('[data-preview-path]')).toBeNull()
-    expect(header.querySelectorAll('[data-port-id]')).toHaveLength(0)
-    for (const endpoint of endpoints) expect(endpoint.parentElement).toBe(card)
-    expect(card.querySelectorAll('[data-port-id]')).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Expand preview' })).toBeDefined()
   })
 
   it.each([
     { folder: true, path: '/project/project-b' },
     ...['README.md', 'image.png', 'clip.mp4', 'tone.wav', 'unsupported.bin'].map(name => ({ folder: false, path: `/project/${name}` })),
-  ])('resizes $path while expanded and retains its preview height when resized collapsed', ({ folder, path }) => {
+  ])('resizes the preview of $path in both dimensions', ({ folder, path }) => {
     const b = fixture(folder, path)
-    const view = render(<ControlledResourceNode {...b.props} resourceExpanded resourcePreviewWidth={360} resourcePreviewHeight={280} />)
-    const name = path.split('/').at(-1)!
+    const view = render(<ControlledResourceNode {...b.props} resourcePreviewWidth={360} resourcePreviewHeight={280} />)
     const body = (): HTMLElement => view.container.querySelector<HTMLElement>(folder ? '[data-convax-directory-preview]' : '[data-convax-file-preview]')!
     const grip = screen.getByRole('button', { name: 'Resize preview' })
     expect(body().style.height).toBe('280px')
     fireEvent.keyDown(grip, { key: 'ArrowRight' })
     fireEvent.keyDown(grip, { key: 'ArrowDown' })
     expect(b.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 370, height: 290 })
-    fireEvent.click(screen.getByRole('button', { name: `Collapse ${name}` }))
-    expect(view.container.querySelector('[data-convax-resource-resize]')).toBe(grip)
-    fireEvent.keyDown(grip, { key: 'ArrowRight' })
-    expect(b.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 380, height: 290 })
-    fireEvent.keyDown(grip, { key: 'ArrowDown' })
-    expect(b.setResourcePreviewSize).toHaveBeenCalledTimes(3)
-    fireEvent.click(screen.getByRole('button', { name: `Expand ${name}` }))
     expect(body().style.height).toBe('290px')
   })
 
   it('resizes both preview dimensions in fixed steps with or without Shift and retains the mounted preview', () => {
     const b = fixture(false)
-    const view = render(<ControlledResourceNode {...b.props} resourceExpanded />)
+    const view = render(<ControlledResourceNode {...b.props} />)
     const preview = view.container.querySelector('[data-preview-path]')
     const card = view.container.querySelector<HTMLElement>('[data-convax-resource]')!
     const grip = screen.getByRole('button', { name: 'Resize preview' })
@@ -318,7 +286,7 @@ describe('Convax resource card actions', () => {
 
   it('restores a height-only preview at the default card width before its first horizontal resize', () => {
     const b = fixture(false)
-    const view = render(<ControlledResourceNode {...b.props} resourceExpanded resourcePreviewHeight={360} />)
+    const view = render(<ControlledResourceNode {...b.props} resourcePreviewHeight={360} />)
     const card = view.container.querySelector<HTMLElement>('[data-convax-resource]')!
     const body = view.container.querySelector<HTMLElement>('[data-convax-file-preview]')!
     expect(card.style.width).toBe('320px')
@@ -327,15 +295,11 @@ describe('Convax resource card actions', () => {
     expect(b.setResourcePreviewSize).toHaveBeenCalledExactlyOnceWith({ width: 330, height: 360 })
   })
 
-  it('keeps audio transport in its collapsed header and resizes from the compact waveform height', () => {
+  it('shows audio metadata in the header and resizes from the default waveform height', () => {
     const b = fixture(false, '/project/tone.wav')
     const view = render(<ControlledResourceNode {...b.props} />)
     const card = view.container.querySelector<HTMLElement>('[data-convax-resource]')!
     expect(card.hasAttribute('data-convax-audio')).toBe(true)
-    expect(b.renderFactorySlot).toHaveBeenLastCalledWith('convax.media.preview', {
-      path: b.path, presentation: 'compact', metadataFallback: 'WAV · 256B',
-    }, expect.anything())
-    fireEvent.click(screen.getByRole('button', { name: 'Expand tone.wav' }))
     const body = view.container.querySelector<HTMLElement>('[data-convax-file-preview]')!
     expect(body.style.height).toBe('104px')
     expect(body.style.minHeight).toBe('104px')
@@ -349,17 +313,13 @@ describe('Convax resource card actions', () => {
     expect(b.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 330, height: 104 })
     fireEvent.keyDown(grip, { key: 'ArrowDown' })
     expect(b.setResourcePreviewSize).toHaveBeenLastCalledWith({ width: 330, height: 114 })
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse tone.wav' }))
-    expect(b.renderFactorySlot.mock.calls.at(-1)?.[1]).toMatchObject({ presentation: 'compact' })
-    expect(view.container.querySelector('[data-convax-file-preview]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Expand tone.wav' }))
     expect(view.container.querySelector<HTMLElement>('[data-convax-file-preview]')?.style.height).toBe('114px')
     expect(card.style.width).toBe('330px')
   })
 
   it('preserves an audio preview height explicitly saved by resizing', () => {
     const b = fixture(false, '/project/tone.wav')
-    const view = render(<ControlledResourceNode {...b.props} resourceExpanded resourcePreviewHeight={240} />)
+    const view = render(<ControlledResourceNode {...b.props} resourcePreviewHeight={240} />)
     expect(view.container.querySelector<HTMLElement>('[data-convax-file-preview]')?.style.height).toBe('240px')
     expect(b.setResourcePreviewSize).not.toHaveBeenCalled()
     fireEvent.keyDown(screen.getByRole('button', { name: 'Resize preview' }), { key: 'ArrowRight' })
@@ -374,7 +334,7 @@ describe('Convax resource card actions', () => {
   ])('uses a widescreen video default while preserving saved preview dimensions: $expectedWidth × $expectedHeight',
     ({ width, height, expectedWidth, expectedHeight }) => {
       const b = fixture(false, '/project/clip.mp4')
-      const view = render(<ControlledResourceNode {...b.props} resourceExpanded
+      const view = render(<ControlledResourceNode {...b.props}
         {...(width === undefined ? {} : { resourcePreviewWidth: width })}
         {...(height === undefined ? {} : { resourcePreviewHeight: height })} />)
       const card = view.container.querySelector<HTMLElement>('[data-convax-resource]')!
@@ -388,20 +348,11 @@ describe('Convax resource card actions', () => {
       expect(preview.querySelectorAll('[data-port-id]')).toHaveLength(0)
       for (const endpoint of endpoints) expect(endpoint.parentElement).toBe(card)
       expect(b.setResourcePreviewSize).not.toHaveBeenCalled()
-      fireEvent.click(screen.getByRole('button', { name: 'Collapse clip.mp4' }))
-      expect(header.querySelectorAll('[data-port-id]')).toHaveLength(0)
-      for (const endpoint of endpoints) expect(endpoint.parentElement).toBe(card)
-      expect(card.querySelectorAll('[data-port-id]')).toHaveLength(2)
-      expect(view.container.querySelector('[data-convax-file-preview]')).toBeNull()
-      fireEvent.click(screen.getByRole('button', { name: 'Expand clip.mp4' }))
-      expect(view.container.querySelector<HTMLElement>('[data-convax-file-preview]')?.style.height).toBe(`${expectedHeight}px`)
-      for (const endpoint of endpoints) expect(endpoint.parentElement).toBe(card)
-      expect(card.querySelectorAll('[data-port-id]')).toHaveLength(2)
     })
 
   it('previews two-dimensional resizing at canvas scale and commits only completed gestures', () => {
     const b = fixture(false)
-    const view = render(<ControlledResourceNode {...b.props} resourceExpanded />)
+    const view = render(<ControlledResourceNode {...b.props} />)
     const card = view.container.querySelector<HTMLElement>('[data-convax-resource]')!
     const body = view.container.querySelector<HTMLElement>('[data-convax-file-preview]')!
     const preview = view.container.querySelector('[data-preview-path]')

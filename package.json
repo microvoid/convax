@@ -1,6 +1,6 @@
 {
   "name": "@convax/workspace",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "license": "MIT",
   "packageManager": "pnpm@11.28.5",
@@ -39,7 +39,7 @@
     "dsh:build:check": "node --env-file-if-exists=.env scripts/dsh.mjs build:check",
     "dsh:typecheck": "node --env-file-if-exists=.env scripts/dsh.mjs typecheck",
     "dsh:lint": "node --env-file-if-exists=.env scripts/dsh.mjs lint && node --import tsx/esm libs/dsh/scripts/run-oxlint.ts --config .oxlintrc.json packages scripts tests",
-    "convax:test": "node --env-file-if-exists=.env scripts/dsh.mjs exec vitest run packages/plugin-host/tests packages/plugin-renderer/tests packages/plugin-inernal-nodes-host/tests packages/plugin-inernal-nodes-renderer/tests tests/convax-ci-workflow.spec.ts tests/convax-release-workflow.spec.ts tests/convax-i18n-workflow.spec.ts tests/workspace-resolution.client.spec.ts && vitest run --config scripts/vitest.i18n.config.ts",
+    "convax:test": "node --env-file-if-exists=.env scripts/dsh.mjs exec vitest run packages/plugin-creation-host/tests packages/plugin-creation-renderer/tests packages/plugin-host/tests packages/plugin-renderer/tests packages/plugin-inernal-nodes-host/tests packages/plugin-inernal-nodes-renderer/tests tests/convax-ci-workflow.spec.ts tests/convax-release-workflow.spec.ts tests/convax-i18n-workflow.spec.ts tests/workspace-resolution.client.spec.ts && vitest run --config scripts/vitest.i18n.config.ts",
     "test:workspace": "node --test tests/workspace.test.mjs",
     "postinstall": "node libs/dsh/scripts/install-lefthook.mjs",
     "dev:docs": "turbo run @convax/docs#dev",
@@ -144,7 +144,9 @@
     "react-dom": "18.3.1",
     "playwright": "^1.49.0",
     "@deepseek-ai/dsh-convax-plugin-inernal-nodes-host": "workspace:*",
-    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*"
+    "@deepseek-ai/dsh-convax-plugin-inernal-nodes-renderer": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-creation-host": "workspace:*",
+    "@deepseek-ai/dsh-convax-plugin-creation-renderer": "workspace:*"
   },
   "type": "module"
 }

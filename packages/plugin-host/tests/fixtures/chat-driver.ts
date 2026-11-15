@@ -33,7 +33,7 @@ try {
   const nodesHostRow = [...ctx.loader.entries()].find(entry => entry.options.id === 'convax-inernal-nodes-host')
   assert(hostRow?.fiber !== undefined && rendererRow?.fiber !== undefined && nodesHostRow?.fiber !== undefined)
   assert.deepEqual(host.workspace().nodeTypes.map(type => type.id).sort(),
-    ['convax.browser', 'convax.chat', 'convax.file', 'convax.folder', 'convax.terminal', 'convax.window'])
+    ['convax.browser', 'convax.chat', 'convax.creation', 'convax.file', 'convax.folder', 'convax.terminal', 'convax.window'])
   await hostRow.fiber.await()
   const hostFiber = hostRow.fiber
   let sourceId: SessionId
@@ -69,7 +69,8 @@ try {
     await ctx.loader.await()
     assert.equal(ctx.agents.get(sourceId), liveAgent, 'node plugin removal must preserve a native Agent already retained by DSH')
     assert.deepEqual(host.workspace().canvases, beforeProviderRemoval, 'provider removal cannot alter durable graph records')
-    assert.deepEqual(host.workspace().nodeTypes, [], 'the canvas core must not retain privileged default providers')
+    assert.deepEqual(host.workspace().nodeTypes.map(type => type.id), ['convax.creation'],
+      'removing default nodes must leave independently mounted Creation contributions available')
     assert.equal(host.repository.bindingOf(sourceId)?.nodeId, nodeId, 'durable ownership remains readable without providers')
     assert.throws(() => host.createThread({ ...createRequest, operationId: 'disabled-provider-create' as CanvasOperationId }), /does not provide Chat Session coordination/)
     const missingProvider = await host.execute({ canvasId, operationId: 'disabled-provider-node' as CanvasOperationId,

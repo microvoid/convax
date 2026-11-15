@@ -219,8 +219,6 @@ export const en = {
   'canvas.zoom.fit': 'Fit canvas',
   'chat.actions': 'Chat actions',
   'chat.threadActions': 'Current thread actions',
-  'chat.collapse': 'Collapse chat',
-  'chat.expand': 'Expand chat',
   'chat.focus': 'Focus this chat',
   'chat.resize': 'Resize chat',
   'chat.resizeHelp': 'Drag to resize, or use the arrow keys',

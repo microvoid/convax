@@ -254,7 +254,7 @@ describe('web e2e: Convax canvas groups', () => {
     expect(document(scaffold, fixture.id).groups?.[0]?.id).toBe(groupId)
   })
 
-  it('changes membership explicitly, fits expanded previews, and cancels a group drag without committing', async () => {
+  it('changes membership explicitly, fits card preview dimensions, and cancels a group drag without committing', async () => {
     const fixture = await seed(scaffold, 'Group membership')
     const firstId = fixture.nodeIds[0]!
     const secondId = fixture.nodeIds[1]!
@@ -262,7 +262,7 @@ describe('web e2e: Convax canvas groups', () => {
     const groupId = await createGroup(page, scaffold, fixture.id, fixture.nodeIds)
     const frame = page.locator(`[data-convax-group="${groupId}"]:visible`)
     const height = await frame.evaluate(element => (element as HTMLElement).offsetHeight)
-    await card(page, firstId).getByRole('button', { name: 'Expand notes.txt', exact: true }).click()
+    await card(page, firstId).getByRole('button', { name: 'Resize preview', exact: true }).press('ArrowDown')
     await expect.poll(() => frame.evaluate(element => (element as HTMLElement).offsetHeight)).toBeGreaterThan(height)
 
     await card(page, firstId).locator('[data-convax-resource-header]').click()

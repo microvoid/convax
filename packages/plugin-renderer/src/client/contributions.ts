@@ -35,6 +35,8 @@ export interface CanvasCreationDefinition {
   readonly connected?: boolean
   /** Direction supplied by the new node; omitted entries support either connection origin. */
   readonly connectionDirection?: 'input' | 'output'
+  /** This creation owns Sessions that may consume capability-provider output connections. */
+  readonly acceptsCapabilities?: boolean
   readonly create: (context: CanvasCreationContext) => void
 }
 
@@ -48,7 +50,7 @@ export type CanvasWorkspaceActions = Partial<Pick<WorkspaceInjected,
     readonly inputDirectory?: (node: CanvasNode) => Promise<string | undefined>
   }
 
-export type CanvasNodePresentation = Pick<CanvasNodeRendererDefinition, 'defaultSize' | 'defaultExpanded' | 'dragHandle' | 'presentation' | 'clipboardData'>
+export type CanvasNodePresentation = Pick<CanvasNodeRendererDefinition, 'defaultSize' | 'dragHandle' | 'presentation' | 'clipboardData'>
 
 /** Immutable identity-stable registry view consumed by React through useSyncExternalStore. */
 export interface CanvasRendererSnapshot {

@@ -1,5 +1,5 @@
 /** Empty-space connection drops retain their browser pointer and original port direction. */
-import type { CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
+import type { CanvasNode, CanvasNodeId, CanvasNodeTypeInfo, CanvasPoint } from '@deepseek-ai/dsh-convax-plugin-host/types'
 
 /**
  * Read the final mouse or touch position without using the stale drag-start target.
@@ -24,4 +24,14 @@ export function isBlankConnectionTarget(root: HTMLElement, target: Element | nul
   return target !== null && root.contains(target)
     && target.closest('.react-flow__node, .react-flow__edge, .react-flow__panel, button, input, textarea, select, [contenteditable], [role="menu"], [data-convax-input-owner]') === null
     && target.closest('.react-flow') !== null
+}
+
+/** Infer edge semantics from its registered source port without coupling the canvas to a feature type. */
+export function connectionPurpose(
+  nodes: readonly CanvasNode[], types: readonly CanvasNodeTypeInfo[], sourceId: CanvasNodeId, portId: string,
+): 'input' | 'capability' {
+  const source = nodes.find(node => node.id === sourceId)
+  const definition = types.find(type => type.id === source?.typeId)
+  return definition?.ports.some(port => port.id === portId && port.direction === 'output' && port.valueKind === 'capability')
+    ? 'capability' : 'input'
 }

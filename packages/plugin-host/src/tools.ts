@@ -47,7 +47,7 @@ const CANVAS = {
           id: { type: 'string', required: true }, source: { type: 'string', required: true },
           sourcePort: { type: 'string', required: true }, target: { type: 'string', required: true },
           targetPort: { type: 'string', required: true },
-          purpose: { type: 'string', enum: ['input', 'delivery'], required: true },
+          purpose: { type: 'string', enum: ['input', 'delivery', 'capability'], required: true },
         },
       },
     },
@@ -205,7 +205,7 @@ export function registerCanvasTools(ctx: Context, host: CanvasToolHost): void {
   ctx.tools.register(defineTool({
     name: 'convax_connect',
     presentCall: () => ({ card: 'generic', title: 'Connect canvas nodes' }),
-    description: 'Create a directed input connection from a source output port to a target input port on one canvas. '
+    description: 'Create a directed input or capability connection from a source output port to a target input port on one canvas. '
       + 'Read compatible named ports with convax_query_canvases. Connecting nodes does not send input or start a conversation.',
     parameters: {
       ...MUTATION,
@@ -214,6 +214,7 @@ export function registerCanvasTools(ctx: Context, host: CanvasToolHost): void {
       sourcePort: { type: 'string', required: true, description: 'Source output port identity.' },
       target: { type: 'string', required: true, description: 'Target node identity.' },
       targetPort: { type: 'string', required: true, description: 'Target input port identity.' },
+      purpose: { type: 'string', enum: ['input', 'capability'], description: 'Capability binds a provider to a Chat; input connects ordinary resources. Defaults to input.' },
     },
     output: MUTATION_OUTPUT,
     async execute(args, exec) {
@@ -221,7 +222,7 @@ export function registerCanvasTools(ctx: Context, host: CanvasToolHost): void {
       return commit(mutationRequest(canvas.id, args, { kind: 'add-connection', connection: {
         id: identity(args.connectionId, 'connectionId') as CanvasConnectionId,
         source: identity(args.source, 'source') as CanvasNodeId, sourcePort: args.sourcePort,
-        target: identity(args.target, 'target') as CanvasNodeId, targetPort: args.targetPort, purpose: 'input',
+        target: identity(args.target, 'target') as CanvasNodeId, targetPort: args.targetPort, purpose: args.purpose ?? 'input',
       } }), exec.signal)
     },
   }))

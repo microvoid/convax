@@ -62,6 +62,7 @@ One page per subsystem of the DeepSeek Harness: what it is, the data structures 
 | [webhook.md](webhook.md) | authenticated provider deliveries, arbitrary programmatic rules, and fire-and-forget Workspace Session creation |
 | [storage.md](storage.md) | the storage subsystem: the backend contract (`StorageBackend`), `StorageForms`, `DomainSpec`/`Domain`, `domain/changed` |
 | [convax.md](convax.md) | application-level canvas records, revisioned graph commands, resource references, and independent Host/renderer composition |
+| [creation.md](creation.md) | Creation workbench routes, media Provider contracts, durable generation tasks and automatic delivery |
 | [convax-graph-tools.md](convax-graph-tools.md) | selected graph reads, provider schemas, ordered atomic commits, and history recovery |
 | [workspace.md](workspace.md) | the workspace registry: `Workspace`/`WorkspaceId`, registration and resolution, the session `cwd` relationship |
 | [web-client.md](web-client.md) | the browser architecture: boot, Remote communication, paired Client models, UI adapters, Conversation assembly, Slots, and reconnect semantics |

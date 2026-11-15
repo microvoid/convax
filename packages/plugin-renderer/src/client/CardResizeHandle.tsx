@@ -8,7 +8,6 @@ interface CardResizeHandleProps {
   readonly container: RefObject<HTMLElement | null>
   readonly content: RefObject<HTMLElement | null>
   readonly size: ResourceSize
-  readonly collapsed: boolean
   readonly resize: (start: ResourceSize, dx: number, dy: number, scale: number) => ResourceSize
   readonly preview: (size: ResourceSize | null) => void
   readonly commit: (size: ResourceSize) => void
@@ -23,14 +22,13 @@ interface ResizeGesture {
   readonly y: number
   readonly scale: number
   readonly size: ResourceSize
-  readonly collapsed: boolean
   readonly detach: () => void
 }
 
 /**
  * Resize a card from its outer corner without replacing its contents.
  * @param props - Card measurements, saved dimensions, and gesture-owned size actions.
- * @returns A keyboard-accessible grip that preserves expanded height while collapsed.
+ * @returns A keyboard-accessible grip for adjusting the card width and height.
  */
 export function CardResizeHandle(props: CardResizeHandleProps) {
   const gesture = useRef<ResizeGesture | null>(null)
@@ -55,10 +53,8 @@ export function CardResizeHandle(props: CardResizeHandleProps) {
     if (active.element.hasPointerCapture(active.pointerId)) active.element.releasePointerCapture(active.pointerId)
     controls.current.preview(null)
   }
-  const nextSize = (active: ResizeGesture, x: number, y: number): ResourceSize => {
-    const next = controls.current.resize(active.size, x - active.x, active.collapsed ? 0 : y - active.y, active.scale)
-    return active.collapsed ? { ...next, height: active.size.height } : next
-  }
+  const nextSize = (active: ResizeGesture, x: number, y: number): ResourceSize =>
+    controls.current.resize(active.size, x - active.x, y - active.y, active.scale)
   const end = (event: PointerEvent, commit: boolean): void => {
     const active = gesture.current
     if (active === null || active.pointerId !== event.pointerId) return
@@ -76,7 +72,7 @@ export function CardResizeHandle(props: CardResizeHandleProps) {
         const bounds = root.getBoundingClientRect()
         if (bounds.width <= 0) return
         const contentHeight = props.content.current?.offsetHeight
-        const height = props.collapsed || contentHeight === undefined || contentHeight <= 0 ? props.size.height : contentHeight
+        const height = contentHeight === undefined || contentHeight <= 0 ? props.size.height : contentHeight
         event.preventDefault()
         event.stopPropagation()
         event.currentTarget.focus({ preventScroll: true })
@@ -99,7 +95,7 @@ export function CardResizeHandle(props: CardResizeHandleProps) {
         ownerWindow?.addEventListener('blur', cancel)
         gesture.current = {
           pointerId: event.pointerId, element: event.currentTarget, x: event.clientX, y: event.clientY,
-          scale: bounds.width / root.offsetWidth, size: { width: root.offsetWidth, height }, collapsed: props.collapsed,
+          scale: bounds.width / root.offsetWidth, size: { width: root.offsetWidth, height },
           detach: () => {
             owner.removeEventListener('pointermove', move, true)
             owner.removeEventListener('pointerup', up, true)
@@ -125,8 +121,7 @@ export function CardResizeHandle(props: CardResizeHandleProps) {
         if (change === undefined) return
         event.preventDefault()
         event.stopPropagation()
-        const resized = props.resize(props.size, change[0], props.collapsed ? 0 : change[1], 1)
-        const next = props.collapsed ? { ...resized, height: props.size.height } : resized
+        const next = props.resize(props.size, change[0], change[1], 1)
         if (next.width !== props.size.width || next.height !== props.size.height) props.commit(next)
       }} />
   </Tooltip>

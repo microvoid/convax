@@ -4,6 +4,7 @@
   - menuitem "Terminal"
   - menuitem "Browser"
   - menuitem "New chat"
+  - menuitem "Creation workbench"
   - separator
   - menuitem "Paste"
   - separator

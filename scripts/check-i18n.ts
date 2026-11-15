@@ -11,7 +11,9 @@ const examples = [
   'packages/plugin-renderer/examples/counter',
   'packages/plugin-host/templates/canvas-note',
 ] as const
-const metadataDirectories = ['packages/plugin-renderer', 'packages/plugin-inernal-nodes-host', 'packages/plugin-inernal-nodes-renderer', ...examples]
+const creationClient = 'packages/plugin-creation-renderer/src/client'
+const metadataDirectories = ['packages/plugin-renderer', 'packages/plugin-inernal-nodes-host', 'packages/plugin-inernal-nodes-renderer',
+  'packages/plugin-creation-host', 'packages/plugin-creation-renderer', ...examples]
 
 /** One actionable failure produced by the Convax locale gate. */
 export interface ConvaxI18nProblem {
@@ -92,6 +94,27 @@ function compareDictionaries(file: string, dictionaries: Record<string, Dictiona
   }
 }
 
+function checkRegistry(source: ts.SourceFile | undefined, file: string, problems: ConvaxI18nProblem[]): void {
+  const registry = source && initializer(source, 'dictionaries')
+  if (!registry || !ts.isObjectLiteralExpression(registry)) {
+    problems.push({ code: 'invalid-resource', file: file, message: 'Missing runtime dictionary registry.' })
+  } else {
+    const registered = new Set<string>()
+    for (const property of registry.properties) {
+      if (ts.isShorthandPropertyAssignment(property)) registered.add(property.name.text)
+      else if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.initializer)
+        && propertyName(property.name) === property.initializer.text) {
+        registered.add(property.initializer.text)
+      } else {
+        problems.push({ code: 'invalid-resource', file: file, message: 'Each registered locale must reference its own dictionary.' })
+      }
+    }
+    for (const locale of SHIPPED_LOCALE_IDS) {
+      if (!registered.has(locale)) problems.push({ code: 'missing-locale', file: file, message: `${locale} is not registered at runtime.` })
+    }
+  }
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -130,26 +153,18 @@ export function checkConvaxI18n(root: string): ConvaxI18nProblem[] {
   }
   compareDictionaries(`${client}/locales`, rendererDictionaries, problems)
 
-  const registryFile = `${client}/locales.ts`
-  const registrySource = parse(registryFile)
-  const registry = registrySource && initializer(registrySource, 'dictionaries')
-  if (!registry || !ts.isObjectLiteralExpression(registry)) {
-    problems.push({ code: 'invalid-resource', file: registryFile, message: 'Missing runtime dictionary registry.' })
-  } else {
-    const registered = new Set<string>()
-    for (const property of registry.properties) {
-      if (ts.isShorthandPropertyAssignment(property)) registered.add(property.name.text)
-      else if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.initializer)
-        && propertyName(property.name) === property.initializer.text) {
-        registered.add(property.initializer.text)
-      } else {
-        problems.push({ code: 'invalid-resource', file: registryFile, message: 'Each registered locale must reference its own dictionary.' })
-      }
-    }
-    for (const locale of SHIPPED_LOCALE_IDS) {
-      if (!registered.has(locale)) problems.push({ code: 'missing-locale', file: registryFile, message: `${locale} is not registered at runtime.` })
-    }
+  checkRegistry(parse(`${client}/locales.ts`), `${client}/locales.ts`, problems)
+  const creationFile = `${creationClient}/locales.ts`
+  const creationSource = parse(creationFile)
+  const creationDictionaries: Record<string, Dictionary> = {}
+  for (const locale of SHIPPED_LOCALE_IDS) {
+    const expression = creationSource && initializer(creationSource, locale)
+    if (expression === undefined) continue
+    const dictionary = stringDictionary(expression, creationFile, problems)
+    if (dictionary !== undefined) creationDictionaries[locale] = dictionary
   }
+  compareDictionaries(creationFile, creationDictionaries, problems)
+  checkRegistry(creationSource, creationFile, problems)
 
   for (const directory of metadataDirectories) {
     const dictionaries: Record<string, Dictionary> = {}

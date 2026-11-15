@@ -12,7 +12,7 @@ const document: CanvasDocument = { id: 'canvas' as CanvasId, title: 'Board', rev
   id: ID, typeId: 'convax.file' as CanvasNodeTypeId, dataVersion: 1, data: { path: '/project/notes.txt' }, revision: 1, position: { x: 0, y: 0 },
 }] }
 const dimensions = { [ID]: { width: 100, height: 80 } }
-const views: Record<string, CanvasClipboardView> = { [ID]: { kind: 'resource', presentation: { expanded: false } } }
+const views: Record<string, CanvasClipboardView> = { [ID]: { kind: 'resource', presentation: {} } }
 const text = JSON.stringify(copyCanvasSelection(document, [ID], dimensions, views))
 const readText = vi.fn<() => Promise<string>>()
 const writeText = vi.fn<(text: string) => Promise<void>>()
@@ -153,8 +153,8 @@ describe('Canvas clipboard operation lifecycle', () => {
     ] }
     const sizes = { [chatId]: { width: 400, height: 40 }, [resourceId]: { width: 320, height: 80 } }
     const sourceViews: Record<string, CanvasClipboardView> = {
-      [chatId]: { kind: 'chat', presentation: { collapsed: true, size: { width: 400, height: 160 }, toolWidths: { normal: 540 } } },
-      [resourceId]: { kind: 'resource', presentation: { expanded: true, width: 320, height: 160 } },
+      [chatId]: { kind: 'chat', presentation: { size: { width: 400, height: 160 }, toolWidths: { normal: 540 } } },
+      [resourceId]: { kind: 'resource', presentation: { width: 320, height: 160 } },
     }
     const before = structuredClone(sourceViews)
     const b = fixture(source, sizes, sourceViews)

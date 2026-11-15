@@ -35,6 +35,7 @@ export class CanvasDeliveryCoordinator {
   private starting: Promise<void> | undefined
   private closing: Promise<void> | undefined
   private unsubscribeEvents: (() => void) | undefined
+  private unsubscribePublished: (() => void) | undefined
   private projection: ProjectionHandle<DeliveryState> | undefined
   private unsubscribe: (() => void) | undefined
 
@@ -58,6 +59,9 @@ export class CanvasDeliveryCoordinator {
     this.lifetime.signal.throwIfAborted()
     this.unsubscribeEvents = this.ctx.on('session/event', (session, event) => {
       if (event.type === 'deliverables/presented' && this.repository.bindingOf(session.id) !== undefined) this.schedule(session.id)
+    })
+    this.unsubscribePublished = this.ctx.on('deliverables/published', (sessionId) => {
+      if (this.repository.bindingOf(sessionId) !== undefined) this.schedule(sessionId)
     })
     this.unsubscribe = this.repository.subscribe(() => { this.discover() })
     this.discover()
@@ -162,6 +166,7 @@ export class CanvasDeliveryCoordinator {
   private async finishClose(): Promise<void> {
     this.lifetime.abort()
     this.unsubscribeEvents?.()
+    this.unsubscribePublished?.()
     this.unsubscribe?.()
     await this.starting?.then(() => {}, () => {})
     await Promise.allSettled([...this.running.values()])

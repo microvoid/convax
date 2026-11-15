@@ -9,7 +9,6 @@ import type { CanvasChatPresentation, CanvasGraphSurfaceProps } from './props.ts
  */
 export function CanvasGraphSurface(props: CanvasGraphSurfaceProps) {
   const sizes = props.useStore(state => state.sizes)
-  const collapsedChats = props.useStore(state => state.collapsedChats)
   const toolWidths = props.useStore(state => state.toolWidths)
   const chatPresentations: Record<string, CanvasChatPresentation> = {}
   for (const node of props.document.nodes) {
@@ -17,7 +16,6 @@ export function CanvasGraphSurface(props: CanvasGraphSurfaceProps) {
     const size = sizes?.[node.id]
     const widths = toolWidths?.[node.id]
     chatPresentations[node.id] = {
-      collapsed: collapsedChats?.[node.id] === true,
       ...(size === undefined ? {} : { size }),
       ...(widths === undefined ? {} : { toolWidths: widths }),
     }

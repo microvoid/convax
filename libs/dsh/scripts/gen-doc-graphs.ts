@@ -111,6 +111,14 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'convaxCreation',
+    pkg: 'convax-plugin-creation-host',
+    title: 'Creation workbench media generation',
+    mode: 'core',
+    consumers: ['convax-plugin-creation-renderer'],
+    note: 'Owns workbench Provider routes and durable generation tasks; native Chat tools submit requests and existing deliverables publish verified outputs to canvas file nodes.',
+  },
+  {
     key: 'convax',
     pkg: 'convax-plugin-host',
     title: 'Convax canvas Host',

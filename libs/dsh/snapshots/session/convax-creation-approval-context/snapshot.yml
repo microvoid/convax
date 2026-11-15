@@ -1,0 +1,9 @@
+version: 1
+scenario: convax-creation-approval-context
+profile: headless
+composition: default
+recording: authored
+header:
+  class: convax-creation-approval-context
+  pin: true
+  systemPromptSource: convax-graph-tools

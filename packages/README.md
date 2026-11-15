@@ -30,6 +30,8 @@ These packages share the [Convax subsystem](../libs/dsh/docs/subsystems/convax.m
 | [plugin-renderer](plugin-renderer/README.md) | Full-window canvases, embedded native conversations, and installable product composition. |
 | [plugin-inernal-nodes-host](plugin-inernal-nodes-host/README.md) | Default node definitions and DSH Session and delivery adapters, independently switchable from the canvas Host. |
 | [plugin-inernal-nodes-renderer](plugin-inernal-nodes-renderer/README.md) | File and folder previews, Chat cards, window mirrors and node creation through public renderer contributions. |
+| [plugin-creation-host](plugin-creation-host/README.md) | Workbench Provider connections, durable media generation and automatic delivery through existing Chat and file nodes. |
+| [plugin-creation-renderer](plugin-creation-renderer/README.md) | Creation workbench cards and Provider configuration through existing canvas contributions. |
 
 <a id="related-documentation"></a>
 ## Related documentation

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createRef, useState } from 'react'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Button, ConnectionIndicator, Input, Menu, MenuItemButton, Modal, Pill } from '@deepseek-ai/dsh-client-ui-primitives'
 import { POINTER_GRACE_MS } from '../src/pointer-grace.ts'
@@ -540,7 +540,7 @@ describe('Menu', () => {
     expect(screen.queryByRole('menuitem', { name: 'Sub' })).toBeNull()
   })
 
-  it('opens a submenu on hover and selects a nested item', () => {
+  it('opens a submenu on hover and selects a nested item', async () => {
     const onSelect = vi.fn()
     render(
       <Menu
@@ -575,7 +575,7 @@ describe('Menu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Create ok' }))
     expect(onSelect).toHaveBeenCalledWith('ok')
     fireEvent.mouseLeave(wrap)
-    expect(screen.queryByRole('menuitem', { name: 'Create ok' })).toBeNull()
+    await waitFor(() => { expect(screen.queryByRole('menuitem', { name: 'Create ok' })).toBeNull() })
   })
 
   it('portal mode prefers getAnchorRect over measuring its own wrapper', () => {
@@ -689,7 +689,7 @@ describe('Menu', () => {
     expect(onSelect).toHaveBeenCalledWith('new')
   })
 
-  it('caps the list height for internal scrolling unless a submenu row is present', () => {
+  it('caps the list height with or without portaled submenu rows', () => {
     const { rerender } = render(
       <Menu open anchor={<span>trigger</span>} items={items} onSelect={() => {}} onClose={() => {}} />)
     expect(screen.getByRole('menu').className).toMatch(/scrollable/)
@@ -701,7 +701,7 @@ describe('Menu', () => {
         onSelect={() => {}}
         onClose={() => {}}
       />)
-    expect(screen.getByRole('menu').className).not.toMatch(/scrollable/)
+    expect(screen.getByRole('menu').className).toMatch(/scrollable/)
   })
 })
 

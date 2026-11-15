@@ -1,0 +1,16 @@
+- id: credentials
+  disabled: false
+
+- insert:
+    - id: convax-creation-context-host
+      name: '@deepseek-ai/dsh-convax-plugin-host'
+      config:
+        databasePath: !!js dshHomePath('storages', 'convax-canvas.sqlite')
+        legacyDatabasePath: !!js dshHomePath('storages', 'convax.sqlite')
+        canvasDirectoryRoot: !!js dshHomePath('canvas-workspaces')
+    - id: convax-creation-context-nodes
+      name: '@deepseek-ai/dsh-convax-plugin-inernal-nodes-host'
+    - id: convax-creation-context-creation
+      name: '@deepseek-ai/dsh-convax-plugin-creation-host'
+    - id: convax-creation-context-fixture
+      name: '../../../../../packages/plugin-creation-host/tests/fixtures/approval-context.ts'

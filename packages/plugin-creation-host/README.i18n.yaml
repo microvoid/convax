@@ -1,0 +1,64 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ../../packages/plugin-creation-host/README.md
+/:
+  en: 6823aefee72fa59f
+  zh: d4308f5d625a9419
+/deepseek-ai-dsh-convax-plugin-creation-host:
+  en: a1ce19d7524206c8
+  zh: 9d330a73a99bccba
+/deepseek-ai-dsh-convax-plugin-creation-host/summary:
+  en: f74ebf06bd58ebb7
+  zh: 23bb02d55329b7a2
+/deepseek-ai-dsh-convax-plugin-creation-host/table-of-contents:
+  en: da18cb4bbd4b657e
+  zh: 7192822b675569bf
+/deepseek-ai-dsh-convax-plugin-creation-host/use-this-package:
+  en: 058c4939cccaa4e1
+  zh: a49240b00500be52
+/deepseek-ai-dsh-convax-plugin-creation-host/configure-providers:
+  en: 80fc29758dc4f642
+  zh: b8e89d965ca1bd8f
+/deepseek-ai-dsh-convax-plugin-creation-host/understand-the-implementation:
+  en: 4dcd31c63f1b08df
+  zh: af8597277c21ecd8
+/deepseek-ai-dsh-convax-plugin-creation-host/further-exploration:
+  en: 0f3df864fef617a9
+  zh: 50328844ad014621
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/connected-chat-context:
+  en: bb852d02830f3276
+  zh: 0d51c71d48eda4d2
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/connected-chat-context/what-the-model-sees:
+  en: b5e2d9374adb3741
+  zh: e474e88f86786288
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/connected-chat-context/what-the-model-sees/generation-instruction:
+  en: 61d1716cc9f95c13
+  zh: 40764e180e9259c5
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/connected-chat-context/token-effect:
+  en: 2aad29e0da643cd5
+  zh: 8298782d0639ec55
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/connected-chat-context/kv-cache-effect:
+  en: 9075e4e0c355e648
+  zh: 21dd8637741e87d0
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/creation-tools:
+  en: b16498f83ac07a36
+  zh: 206e9c84ee2eaa37
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/creation-tools/what-the-model-sees:
+  en: a8bd8deb8f00bbe4
+  zh: fa811ffec2465f88
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/creation-tools/token-effect:
+  en: d677a6fc5a89866c
+  zh: 612762899ff2df6a
+/deepseek-ai-dsh-convax-plugin-creation-host/model-experience/creation-tools/kv-cache-effect:
+  en: 18d02103c8ac9399
+  zh: aae79e193b0d126e
+/deepseek-ai-dsh-convax-plugin-creation-host/known-limitations-and-deferred-work:
+  en: 57fee27047d559df
+  zh: 6dc5ce29a0cb85aa
+/deepseek-ai-dsh-convax-plugin-creation-host/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8ec3e73528ddb1a6

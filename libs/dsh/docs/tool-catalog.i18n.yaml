@@ -9,8 +9,26 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 4d42222acd39d083
-  zh: 8153a5065bf2ebd6
+  en: a414134bcbc050f9
+  zh: ce4866a3facf4324
+/tool-schema-catalog/deepseek-ai-dsh-convax-plugin-creation-host:
+  en: ee2b13bb994256db
+  zh: ee2b13bb994256db
+/tool-schema-catalog/deepseek-ai-dsh-convax-plugin-creation-host/creation-cancel:
+  en: 9ad49c2306a6a6eb
+  zh: 4075745a0c18e23a
+/tool-schema-catalog/deepseek-ai-dsh-convax-plugin-creation-host/creation-describe:
+  en: 2e8f8066388316d7
+  zh: 9f05431836ac38bf
+/tool-schema-catalog/deepseek-ai-dsh-convax-plugin-creation-host/creation-generate:
+  en: 2b87ba4fe2f3dfb9
+  zh: 695c9c9b270c84a1
+/tool-schema-catalog/deepseek-ai-dsh-convax-plugin-creation-host/creation-retry:
+  en: 39086ad866bd1f41
+  zh: 66c20cfcc389b341
+/tool-schema-catalog/deepseek-ai-dsh-convax-plugin-creation-host/creation-status:
+  en: 710ca1447a828824
+  zh: cbbb417a6b169cc7
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
