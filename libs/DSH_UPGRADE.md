@@ -73,7 +73,7 @@ Apple Silicon runner 使用 Developer ID Application 签名，将 DMG 提交 App
 | `APPLE_API_KEY_ID` | 团队 API 密钥的 Key ID |
 | `APPLE_API_ISSUER` | App Store Connect 团队 API 的 Issuer ID |
 
-升级 DSH 时保留安装包依赖闭包中的 Convax Renderer bundle、根 workspace 与锁文件发现，以及 [Desktop 首启](dsh/apps/desktop/src/main.ts)和 [Profile 初始化](dsh/apps/desktop/src/project-manager.ts)的产品配置。Convax 的 [Desktop Host](dsh/apps/desktop-host/src/index.ts)从包内运行时清单解析默认 bundle 和客户端插件。
+升级 DSH 时保留安装包依赖闭包中的 Convax Renderer bundle、根 workspace 与锁文件发现，以及 [Desktop 首启](dsh/apps/desktop/src/main.ts)和 [Profile 初始化](dsh/apps/desktop/src/project-manager.ts)的产品配置。[Desktop 本地打包](dsh/apps/desktop/scripts/pack-local-packages.ts)按 `dshWorkspacePackages` 声明打包外层插件，依赖闭包从中选出 Convax 随安装包交付的插件。Convax 的 [Desktop Host](dsh/apps/desktop-host/src/index.ts)从包内运行时清单解析默认 bundle 和客户端插件。
 
 ## 需要保留或逐项替代的 DSH 适配
 

@@ -154,7 +154,7 @@ it.skipIf(!DESKTOP_E2E)('retains the Night Ferry canvas across both Electron ren
       await expect.poll(() => draftInput.textContent()).toBe(draft)
     }
     await fit(active)
-    if (mode === 'convax') await script.getByRole('button', { name: 'Collapse night-ferry-outline.md', exact: true }).click()
+    await script.getByText(fixture.scriptText, { exact: true }).waitFor()
     await expect.poll(() => graph(active).locator('.react-flow__node').count()).toBe(69)
     await expect.poll(() => graph(active).locator('[data-convax-edge]').count()).toBe(90)
     expect(await graph(active).locator('[data-convax-group-header]').count()).toBe(6)
@@ -220,8 +220,6 @@ it.skipIf(!DESKTOP_E2E)('retains the Night Ferry canvas across both Electron ren
     const value = mode === 'react-flow' ? 13 : 14
     await counter.getByRole('button', { name: 'Increase', exact: true }).click()
     await expect.poll(() => readCanvas().nodes.find(item => item.id === fixture.counter.id)?.data).toEqual({ value })
-    await script.getByRole('button', { name: 'Expand night-ferry-outline.md', exact: true }).click()
-    await script.getByText(fixture.scriptText, { exact: true }).waitFor()
     if (mode === 'react-flow') {
       await writeComposerDraft(active, draftInput, draft)
       await expect.poll(() => draftInput.textContent()).toBe(draft)

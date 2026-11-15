@@ -10,7 +10,7 @@ import { resolveClientBuildEnvironment, writeClientBuildRecord } from '../../../
 import { runGate } from '../../../scripts/run-gates.ts'
 import { COVERAGE_TEST_TIMEOUT_ENV, coverageTestTimeoutOptions } from '../../../scripts/coverage-partitions.ts'
 import { removeFixtureSafely } from '../../../scripts/test-fixture-cleanup.ts'
-import { packedIdentity, PUBLISH_ORDER_FILE } from '../../../scripts/release/tarball.ts'
+import { packedIdentity, packedManifest, PUBLISH_ORDER_FILE } from '../../../scripts/release/tarball.ts'
 
 const require = createRequire(import.meta.url)
 const pnpmEntry = join(dirname(require.resolve('pnpm')), 'bin/pnpm.cjs')
@@ -25,11 +25,14 @@ function write(root: string, path: string, text: string): void {
   writeFileSync(join(root, path), text)
 }
 
-function fixture(profile: 'local' | 'official' = 'local'): string {
+function fixtureRoot(): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh-local-desktop-pack-'))
   roots.push(root)
-  write(root, 'package.json', JSON.stringify({ name: 'desktop-pack-fixture', version: '1.2.3', private: true }))
-  write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+  return root
+}
+
+function writeFixture(root: string, profile: 'local' | 'official', dshWorkspacePackages?: readonly string[]): void {
+  write(root, 'package.json', JSON.stringify({ name: 'desktop-pack-fixture', version: '1.2.3', private: true, dshWorkspacePackages }))
   write(root, 'packages/client/probe/package.json', JSON.stringify({
     name: '@deepseek-ai/dsh-probe', version: '1.2.3', files: ['lib', 'src'],
   }))
@@ -37,10 +40,16 @@ function fixture(profile: 'local' | 'official' = 'local'): string {
   write(root, 'packages/client/probe/lib/client.js', 'export const client = true\n')
   write(root, 'apps/web/dist/index.html', '<title>DSH Local Build</title>\n')
   writeClientBuildRecord(root, resolveClientBuildEnvironment(metadata, profile))
+}
+
+function fixture(profile: 'local' | 'official' = 'local'): string {
+  const root = fixtureRoot()
+  write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+  writeFixture(root, profile)
   return root
 }
 
-async function pack(root: string, release = false, extra: string[] = []) {
+async function pack(root: string, release = false, extra: string[] = [], product?: 'convax') {
   const script = release
     ? resolve(import.meta.dirname, '../../../scripts/release/pack.ts')
     : resolve(import.meta.dirname, '../scripts/pack-local-packages.ts')
@@ -52,7 +61,7 @@ async function pack(root: string, release = false, extra: string[] = []) {
       command: process.execPath,
       args: [pnpmEntry, '--dir', root, 'exec', process.execPath, '--import', tsxHook, script,
         ...(release ? ['--family', 'dsh'] : []), '--out', 'packed', '--concurrency', '2', ...extra],
-      env: { npm_execpath: pnpmEntry, DSH_CLIENT_COMMIT_HASH: metadata.DSH_CLIENT_COMMIT_HASH },
+      env: { npm_execpath: pnpmEntry, DSH_CLIENT_COMMIT_HASH: metadata.DSH_CLIENT_COMMIT_HASH, DSH_DESKTOP_PRODUCT: product },
     }, controller.signal)
     activeRuns.set(controller, pending)
     const result = await pending
@@ -80,6 +89,32 @@ it('packs local client artifacts without a release publication record', async ()
   expect(packedIdentity(join(root, 'packed/deepseek-ai-dsh-probe-1.2.3.tgz')))
     .toEqual({ name: '@deepseek-ai/dsh-probe', version: '1.2.3' })
   expect(existsSync(join(root, 'packed', PUBLISH_ORDER_FILE))).toBe(false)
+}, testTimeout)
+
+it('packs the declared Convax workspace packages and resolves their local dependencies', async () => {
+  const workspace = fixtureRoot()
+  const root = join(workspace, 'libs', 'dsh')
+  const host = '@deepseek-ai/dsh-convax-plugin-creation-host'
+  const renderer = '@deepseek-ai/dsh-convax-plugin-renderer'
+  const plugins = ['host', 'renderer', 'inernal-nodes-host', 'inernal-nodes-renderer', 'creation-host', 'creation-renderer']
+  write(workspace, 'package.json', JSON.stringify({ name: 'convax-pack-fixture', private: true }))
+  write(workspace, 'pnpm-workspace.yaml', 'packages:\n  - libs/dsh/packages/*/*\n  - packages/*\n')
+  for (const plugin of plugins) {
+    write(workspace, `packages/plugin-${plugin}/package.json`, JSON.stringify({
+      name: `@deepseek-ai/dsh-convax-plugin-${plugin}`, version: '1.2.3',
+      ...(plugin === 'renderer' ? { dependencies: { [host]: 'workspace:*' } } : {}),
+    }))
+  }
+  write(workspace, 'packages/unlisted/package.json', JSON.stringify({ name: '@fixture/unlisted', version: '1.2.3' }))
+  writeFixture(root, 'local', ['../../packages/plugin-*'])
+
+  const result = await pack(root, false, [], 'convax')
+  expect(result.code, result.output).toBe(0)
+  const packed = join(root, 'packed')
+  const pluginTarballs = plugins.map(plugin => `deepseek-ai-dsh-convax-plugin-${plugin}-1.2.3.tgz`)
+  expect(readdirSync(packed).sort()).toEqual([...pluginTarballs, 'deepseek-ai-dsh-probe-1.2.3.tgz'].sort())
+  const manifest = packedManifest(join(packed, 'deepseek-ai-dsh-convax-plugin-renderer-1.2.3.tgz'))
+  expect(manifest).toMatchObject({ name: renderer, dependencies: { [host]: '1.2.3' } })
 }, testTimeout)
 
 it.each(['official', 'stale', 'missing'] as const)('rejects %s client artifacts before replacing local packages', async (kind) => {

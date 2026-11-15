@@ -197,10 +197,9 @@ describe('Convax renderer comparison in Chromium', () => {
         await switchMode(page, mode)
         await expect.poll(() => viewport(page)).toEqual(view)
         expect(document()).toEqual(prior)
-        await scriptCard.getByRole('button', { name: 'Collapse night-ferry-outline.md', exact: true }).waitFor()
+        await scriptCard.getByText(fixture.scriptText, { exact: true }).waitFor()
         await counterCard.getByText('13', { exact: true }).waitFor()
         await expect.poll(() => draftInput.textContent()).toBe(draft)
-        await scriptCard.getByRole('button', { name: 'Collapse night-ferry-outline.md', exact: true }).click()
       }
 
       await groupHeader.getByText(research.title, { exact: true }).waitFor()
@@ -273,7 +272,6 @@ describe('Convax renderer comparison in Chromium', () => {
       const desiredValue = mode === 'react-flow' ? 13 : 14
       await counterCard.getByRole('button', { name: 'Increase', exact: true }).click()
       await expect.poll(() => document().nodes.find(item => item.id === counter.id)?.data).toEqual({ value: desiredValue })
-      await scriptCard.getByRole('button', { name: 'Expand night-ferry-outline.md', exact: true }).click()
       await scriptCard.getByText(fixture.scriptText, { exact: true }).waitFor()
       if (mode === 'react-flow') {
         await writeComposerDraft(page, draftInput, draft)
